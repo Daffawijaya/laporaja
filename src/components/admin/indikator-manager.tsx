@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,17 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
   const [deleteTarget, setDeleteTarget] = useState<IndikatorRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+
+  // Filter dari search global titlebar (?q=).
+  const searchParams = useSearchParams();
+  const query = ((searchParams.get("q") ?? "").trim().toLowerCase());
+  const visibleItems = query
+    ? items.filter(
+        (item) =>
+          item.nama.toLowerCase().includes(query) ||
+          item.owner.toLowerCase().includes(query)
+      )
+    : items;
 
   function handleSession(error: unknown): boolean {
     if (error instanceof SessionExpiredError || isSessionError(error)) {
@@ -230,11 +241,15 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
         </Button>
       </form>
 
-      {items.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <EmptyState
           className="mt-4"
-          title="Belum ada indikator"
-          description="Ketik nama di atas untuk menambah yang pertama."
+          title={query ? "Tidak ada hasil" : "Belum ada indikator"}
+          description={
+            query
+              ? `Tidak ada yang cocok dengan "${query}".`
+              : "Ketik nama di atas untuk menambah yang pertama."
+          }
         />
       ) : (
         <>
@@ -251,7 +266,7 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {visibleItems.map((item) => (
                   <tr key={item.id} className="border-b border-border last:border-0">
                     <td className="px-4 py-3 font-medium">{item.nama}</td>
                     <td className="px-4 py-3 text-muted-foreground">{item.owner}</td>
@@ -288,7 +303,7 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
           </div>
 
           <ul className="panel mt-4 divide-y divide-border overflow-hidden rounded-lg md:hidden">
-            {items.map((item) => (
+            {visibleItems.map((item) => (
               <li key={item.id} className="px-4 py-4">
                 <p className="text-sm font-medium">{item.nama}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{item.owner}</p>

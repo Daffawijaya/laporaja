@@ -72,10 +72,14 @@ Alasan: tiga status adalah informasi utama di aplikasi, jadi harus langsung terb
 - Mobile memakai chrome gelap ala YouTube: topbar (`MobileTopbar`, logo kiri,
   bel badge dan avatar kanan) dan bottom nav empat slot (`MobileBottomnav`,
   Beranda di ujung kiri, tanpa profil karena sudah di avatar navbar).
-- Desktop memakai navbar kaca floating (`DesktopNavbar`): bar mengambang
-  sudut membulat (`glass-nav`: permukaan translusen + blur + bayangan lembut),
-  logo kiri, menu tengah, bel badge dan avatar kanan. Alasan: navigasi selalu
-  terlihat tanpa memakan ruang vertikal. Tab atas dihapus.
+- Desktop memakai sidebar kaca kiri (`DesktopSidebar`): panel mengambang
+  sudut 22px (`glass-side`: permukaan translusen + blur 24 + kilau tepi atas),
+  brand atas, nav ikon dan label dengan kapsul aktif yang meluncur, lencana
+  di item notifikasi/laporan, chip pengguna dan sakelar tema di bawah.
+  Alasan: navigasi selalu terlihat tanpa memakan ruang vertikal.
+- Desktop full-bleed: konten mengisi gutter lewat `ContentGrid` (kolom utama
+  + aside 300px sticky berisi filter, ringkasan, atau meta). Tanpa `max-w`
+  di tengah. Teks panjang dikunci `max-w-prose`. Mobile tetap satu kolom.
   Alasan: navigasi satu tangan di layar kecil. Hanya di mobile (`md:hidden`),
   desktop tetap header kaca dan tab atas. Bar mengikuti mode (putih di light,
   `#0f0f0f` di dark via token `--mchrome-*`), bukan blur,

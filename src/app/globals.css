@@ -129,16 +129,44 @@ body {
       0 18px 40px -24px rgb(0 0 0 / 0.6);
   }
 
-  /* Navbar desktop floating liquid glass ala iPhone: bar kaca mengambang
-     dengan sudut membulat. Token mengikuti mode terang dan gelap. */
-  .glass-nav {
-    background-color: color-mix(in srgb, var(--surface) 72%, transparent);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid var(--border);
-    box-shadow:
-      0 1px 2px rgb(0 0 0 / 0.05),
-      0 12px 32px -16px rgb(0 0 0 / 0.22);
+  /* Jendela desktop ala macOS: mentok ke tepi viewport tanpa bg terluar.
+     Titlebar dan sidebar datar (tanpa card, hanya divider putih), konten
+     card-dalam-card. Permukaan solid agar tidak ada bias wallpaper. */
+  .desk-viewport {
+    min-height: 100dvh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .desk-window {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: #e9eef8;
+  }
+
+  .dark .desk-window {
+    background-color: #141926;
+  }
+
+  /* Sidebar sedikit lebih biru dari sekelilingnya. */
+  .desk-side {
+    background-color: rgb(203 215 242 / 0.38);
+  }
+
+  .dark .desk-side {
+    background-color: rgb(255 255 255 / 0.04);
+  }
+
+  /* Divider putih, lebih terang dari sidebar dan navbar. */
+  .desk-divide {
+    border-color: rgb(255 255 255 / 0.8);
+  }
+
+  .dark .desk-divide {
+    border-color: rgb(255 255 255 / 0.12);
   }
 
   /* Liquid glass global untuk SELURUH Button.
@@ -180,6 +208,56 @@ body {
     :root:not(.light) .fx-switch {
       --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25)
         color-overlay(black,.3) contrast(1.25);
+    }
+  }
+
+  /* Modal desktop liquid glass, full copas dari /lab-glass baris 2
+     (liquid-glass() + blur() Dark/Light).
+     Hanya aktif di sm+ (desktop). Mobile tetap sheet solid.
+     FxFilterJS memindai --fx-filter dan menyuntik .fx-container. */
+  .fx-liquid-modal {
+    position: relative;
+    background-color: var(--surface);
+    /* Animasi blob pakai transform/opacity/filter (GPU) via Motion. */
+    transform-origin: center;
+    will-change: transform, opacity, filter;
+  }
+
+  @keyframes fx-modal-materialize {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (min-width: 640px) {
+    .fx-liquid-modal {
+      --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25)
+        color-overlay(white,.3) contrast(1.25);
+      /* Fallback saat FxFilter belum load: kaca semi-transparan. */
+      background-color: color-mix(in srgb, var(--surface) 62%, transparent);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+    }
+
+    .dark .fx-liquid-modal {
+      --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25)
+        color-overlay(black,.3) contrast(1.25);
+    }
+
+    /* FxFilter menyuntik .fx-container belakangan (butuh generate
+       displacement map dulu). Fade-in agar tidak pop gelap-transparan. */
+    .fx-liquid-modal .fx-container {
+      animation: fx-modal-materialize 0.5s ease-out both;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not(.light) .fx-liquid-modal {
+        --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25)
+          color-overlay(black,.3) contrast(1.25);
+      }
     }
   }
 

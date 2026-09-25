@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Pencil, Plus, Target, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog, useModalKey } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IndikatorBidangDialog } from "@/components/admin/indikator-bidang-dialog";
@@ -28,6 +28,21 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
   const [deleting, setDeleting] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [indikatorBidang, setIndikatorBidang] = useState<BidangWithCount | null>(null);
+
+  // Selalu ke-mount agar exit animation jalan; key diganti tiap dibuka.
+  const [indikatorKey, reopenIndikator] = useModalKey();
+
+  function openIndikator(item: BidangWithCount) {
+    reopenIndikator(`indikator-${item.id}`);
+    setIndikatorBidang(item);
+  }
+
+  // Filter dari search global titlebar (?q=).
+  const searchParams = useSearchParams();
+  const query = (searchParams.get("q") ?? "").trim().toLowerCase();
+  const visibleItems = query
+    ? items.filter((item) => item.nama.toLowerCase().includes(query))
+    : items;
 
   function openAdd() {
     setNama("");
@@ -140,7 +155,7 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
     <div>
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          {items.length === 0 ? "Belum ada bidang." : `${items.length} bidang.`}
+          {visibleItems.length === 0 ? "Belum ada bidang." : `${visibleItems.length} bidang.`}
         </p>
         <Button onClick={openAdd}>
           <Plus aria-hidden="true" />
@@ -154,21 +169,27 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
         </p>
       )}
 
-      {items.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <EmptyState
           className="mt-4"
-          title="Belum ada bidang"
-          description="Tambahkan bidang pertama untuk mengelompokkan pengguna."
+          title={query ? "Tidak ada hasil" : "Belum ada bidang"}
+          description={
+            query
+              ? `Tidak ada yang cocok dengan "${query}".`
+              : "Tambahkan bidang pertama untuk mengelompokkan pengguna."
+          }
           action={
-            <Button onClick={openAdd}>
-              <Plus aria-hidden="true" />
-              Tambah Bidang
-            </Button>
+            query ? undefined : (
+              <Button onClick={openAdd}>
+                <Plus aria-hidden="true" />
+                Tambah Bidang
+              </Button>
+            )
           }
         />
       ) : (
         <ul className="panel mt-4 divide-y divide-border overflow-hidden rounded-lg">
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <li
               key={item.id}
               className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-2"
@@ -182,7 +203,7 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
               <div className="flex shrink-0 items-center gap-1">
                 <Button
                   variant="ghost"
-                  onClick={() => setIndikatorBidang(item)}
+                  onClick={() => openIndikator(item)}
                   aria-label={`Indikator ${item.nama}`}
                 >
                   <Target aria-hidden="true" />
@@ -269,14 +290,13 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
         onConfirm={handleDelete}
       />
 
-      {indikatorBidang && (
-        <IndikatorBidangDialog
-          bidangId={indikatorBidang.id}
-          bidangNama={indikatorBidang.nama}
-          open
-          onClose={() => setIndikatorBidang(null)}
-        />
-      )}
+      <IndikatorBidangDialog
+        key={indikatorKey}
+        bidangId={indikatorBidang?.id ?? ""}
+        bidangNama={indikatorBidang?.nama ?? ""}
+        open={indikatorBidang !== null}
+        onClose={() => setIndikatorBidang(null)}
+      />
     </div>
   );
 }

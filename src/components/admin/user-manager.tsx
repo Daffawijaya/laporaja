@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useModalKey } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import {
   UserFormDialog,
@@ -31,6 +32,14 @@ export interface AdminUserRow {
   subBidang: string[];
 }
 
+// Initial kosong untuk render cadangan saat modal tertutup (tak terlihat).
+const EMPTY_USER_FORM_INITIAL: UserFormInitial = {
+  nama: "",
+  username: "",
+  bidangId: null,
+  subBidang: [],
+};
+
 export function UserManager({
   users,
   bidangOptions,
@@ -53,10 +62,32 @@ export function UserManager({
   const [deleting, setDeleting] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
 
-  const dialogKey = useMemo(
-    () => (dialog?.mode === "edit" ? `edit-${dialog.user.profile.id}` : "add"),
-    [dialog]
-  );
+  // Modal selalu ke-mount agar exit animation jalan. Key diganti tiap
+  // dibuka (form segar), dibiarkan saat ditutup (animasi tutup terbaca).
+  const [dialogKey, reopenModal] = useModalKey();
+
+  function openAdd() {
+    setServerError(null);
+    reopenModal("add");
+    setDialog({ mode: "add" });
+  }
+
+  function openEdit(user: AdminUserRow) {
+    setServerError(null);
+    reopenModal(`edit-${user.profile.id}`);
+    setDialog({ mode: "edit", user });
+  }
+
+  // Filter dari search global titlebar (?q=).
+  const searchParams = useSearchParams();
+  const query = (searchParams.get("q") ?? "").trim().toLowerCase();
+  const visibleUsers = query
+    ? users.filter(
+        (user) =>
+          user.profile.nama.toLowerCase().includes(query) ||
+          user.profile.username.toLowerCase().includes(query)
+      )
+    : users;
 
   function initialFor(target: { mode: "add" } | { mode: "edit"; user: AdminUserRow }): UserFormInitial {
     if (target.mode === "add") {
@@ -118,13 +149,10 @@ export function UserManager({
     <div>
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          {users.length === 0 ? "Belum ada user." : `${users.length} user.`}
+          {visibleUsers.length === 0 ? "Belum ada user." : `${visibleUsers.length} user.`}
         </p>
         <Button
-          onClick={() => {
-            setServerError(null);
-            setDialog({ mode: "add" });
-          }}
+          onClick={openAdd}
         >
           <Plus aria-hidden="true" />
           Tambah
@@ -137,21 +165,22 @@ export function UserManager({
         </p>
       )}
 
-      {users.length === 0 ? (
+      {visibleUsers.length === 0 ? (
         <EmptyState
           className="mt-4"
-          title="Belum ada user"
-          description="Tambahkan user pertama agar mereka dapat mulai melapor."
+          title={query ? "Tidak ada hasil" : "Belum ada user"}
+          description={
+            query
+              ? `Tidak ada yang cocok dengan "${query}".`
+              : "Tambahkan user pertama agar mereka dapat mulai melapor."
+          }
           action={
-            <Button
-              onClick={() => {
-                setServerError(null);
-                setDialog({ mode: "add" });
-              }}
-            >
-              <Plus aria-hidden="true" />
-              Tambah User
-            </Button>
+            query ? undefined : (
+              <Button onClick={openAdd}>
+                <Plus aria-hidden="true" />
+                Tambah User
+              </Button>
+            )
           }
         />
       ) : (
@@ -168,7 +197,7 @@ export function UserManager({
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {visibleUsers.map((user) => (
                   <tr key={user.profile.id} className="border-b border-border last:border-0">
                     <td className="px-4 py-3 font-medium">{user.profile.nama}</td>
                     <td className="px-4 py-3 text-muted-foreground">{user.profile.username}</td>
@@ -180,10 +209,7 @@ export function UserManager({
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
-                          onClick={() => {
-                            setServerError(null);
-                            setDialog({ mode: "edit", user });
-                          }}
+                          onClick={() => openEdit(user)}
                           aria-label={`Ubah ${user.profile.username}`}
                         >
                           <Pencil aria-hidden="true" />
@@ -209,7 +235,7 @@ export function UserManager({
           </div>
 
           <ul className="panel mt-4 divide-y divide-border overflow-hidden rounded-lg md:hidden">
-            {users.map((user) => (
+            {visibleUsers.map((user) => (
               <li key={user.profile.id} className="px-4 py-4">
                 <p className="text-sm font-medium">{user.profile.nama}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{user.profile.username}</p>
@@ -229,10 +255,7 @@ export function UserManager({
                   <Button
                     variant="secondary"
                     className="flex-1"
-                    onClick={() => {
-                      setServerError(null);
-                      setDialog({ mode: "edit", user });
-                    }}
+                    onClick={() => openEdit(user)}
                   >
                     <Pencil aria-hidden="true" />
                     Ubah
@@ -255,25 +278,27 @@ export function UserManager({
         </>
       )}
 
-      {dialog && (
-        <UserFormDialog
-          key={dialogKey}
-          open
-          title={dialog.mode === "add" ? "Tambah user" : `Ubah ${dialog.user.profile.username}`}
-          initial={initialFor(dialog)}
-          bidangOptions={bidangOptions}
-          passwordOptional={dialog.mode === "edit"}
-          indikatorAwal={
-            dialog.mode === "add"
-              ? []
-              : (indikatorsByUser.get(dialog.user.profile.id) ?? [])
-          }
-          saving={saving}
-          serverError={serverError}
-          onClose={() => setDialog(null)}
-          onSubmit={handleSubmit}
-        />
-      )}
+      <UserFormDialog
+        key={dialogKey}
+        open={dialog !== null}
+        title={
+          dialog && dialog.mode === "edit"
+            ? `Ubah ${dialog.user.profile.username}`
+            : "Tambah user"
+        }
+        initial={dialog ? initialFor(dialog) : EMPTY_USER_FORM_INITIAL}
+        bidangOptions={bidangOptions}
+        passwordOptional={dialog?.mode === "edit"}
+        indikatorAwal={
+          dialog && dialog.mode === "edit"
+            ? (indikatorsByUser.get(dialog.user.profile.id) ?? [])
+            : []
+        }
+        saving={saving}
+        serverError={serverError}
+        onClose={() => setDialog(null)}
+        onSubmit={handleSubmit}
+      />
 
       <ConfirmDialog
         open={deleteTarget !== null}

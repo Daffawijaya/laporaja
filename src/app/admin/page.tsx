@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { ContentGrid } from "@/components/layout/content-grid";
 import { assertOk } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import { NAMA_BULAN, formatTanggalPanjang } from "@/components/laporan/types";
@@ -84,8 +85,15 @@ export default async function AdminPage() {
     { label: "Perlu Review", value: perluReview.length, href: "#perlu-review" },
   ];
 
+  const kelola = [
+    { label: "Pengguna", desc: `${users.length} akun`, href: "/admin/users" },
+    { label: "Bidang", desc: `${(bidangList ?? []).length} bidang`, href: "/admin/bidang" },
+    { label: "Indikator", desc: "Target kinerja", href: "/admin/indikator" },
+    { label: "Laporan", desc: `${kegiatanBulanIni.length} bulan ini`, href: "/admin/laporan" },
+  ];
+
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="w-full">
       <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
       <p className="mt-1 text-sm text-muted-foreground">{labelBulan}</p>
 
@@ -102,68 +110,91 @@ export default async function AdminPage() {
         ))}
       </div>
 
-      <section aria-label="Perlu review" id="perlu-review" className="mt-8 scroll-mt-20">
-        <h2 className="text-sm font-semibold">Perlu Review</h2>
-        {perluReview.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            Semua laporan bulan ini sudah direview.
-          </p>
-        ) : (
-          <ul className="panel mt-3 divide-y divide-border overflow-hidden rounded-lg">
-            {perluReview.map((kegiatan) => (
-              <li
-                key={kegiatan.id}
-                className="flex items-center justify-between gap-3 px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {namaByUser.get(kegiatan.user_id)}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {formatTanggalPanjang(kegiatan.tanggal)} · {kegiatan.nama_kegiatan}
-                  </p>
-                </div>
-                <Button asChild className="shrink-0">
-                  <Link href={`/admin/laporan/${kegiatan.id}`}>Review</Link>
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <div className="mt-8">
+        <ContentGrid
+          aside={
+            <section aria-label="Kelola">
+              <h2 className="text-sm font-semibold">Kelola</h2>
+              <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg text-sm">
+                {kelola.map((item) => (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      className="transition-soft flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/60"
+                    >
+                      <span className="font-medium">{item.label}</span>
+                      <span className="text-xs text-muted-foreground">{item.desc}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          }
+        >
+          <section aria-label="Perlu review" id="perlu-review" className="scroll-mt-20">
+            <h2 className="text-sm font-semibold">Perlu Review</h2>
+            {perluReview.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Semua laporan bulan ini sudah direview.
+              </p>
+            ) : (
+              <ul className="panel mt-3 divide-y divide-border overflow-hidden rounded-lg">
+                {perluReview.map((kegiatan) => (
+                  <li
+                    key={kegiatan.id}
+                    className="flex items-center justify-between gap-3 px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {namaByUser.get(kegiatan.user_id)}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {formatTanggalPanjang(kegiatan.tanggal)} · {kegiatan.nama_kegiatan}
+                      </p>
+                    </div>
+                    <Button asChild className="shrink-0">
+                      <Link href={`/admin/laporan/${kegiatan.id}`}>Review</Link>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-      <section aria-label="Ringkasan user" className="mt-8">
-        <h2 className="text-sm font-semibold">Ringkasan User</h2>
-        {ringkasan.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            Belum ada user. Tambahkan lewat halaman Pengguna.
-          </p>
-        ) : (
-          <ul className="panel mt-3 divide-y divide-border overflow-hidden rounded-lg">
-            {ringkasan.map((item) => (
-              <li key={item.user.id}>
-                <Link
-                  href={`/admin/laporan?user=${item.user.id}&bulan=${bulan}&tahun=${tahun}`}
-                  className="transition-soft block px-4 py-3 hover:bg-muted/60"
-                >
-                  <p className="text-sm font-medium">{item.user.nama}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {item.user.bidang_id
-                      ? (bidangNama.get(item.user.bidang_id) ?? "Tanpa bidang")
-                      : "Tanpa bidang"}
-                    {" · "}
-                    {labelBulan}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {item.total} kegiatan · {item.disetujui} disetujui · {item.revisi} revisi ·{" "}
-                    {item.menunggu} menunggu review
-                  </p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+          <section aria-label="Ringkasan user" className="mt-8">
+            <h2 className="text-sm font-semibold">Ringkasan User</h2>
+            {ringkasan.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Belum ada user. Tambahkan lewat halaman Pengguna.
+              </p>
+            ) : (
+              <ul className="panel mt-3 divide-y divide-border overflow-hidden rounded-lg">
+                {ringkasan.map((item) => (
+                  <li key={item.user.id}>
+                    <Link
+                      href={`/admin/laporan?user=${item.user.id}&bulan=${bulan}&tahun=${tahun}`}
+                      className="transition-soft block px-4 py-3 hover:bg-muted/60"
+                    >
+                      <p className="text-sm font-medium">{item.user.nama}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {item.user.bidang_id
+                          ? (bidangNama.get(item.user.bidang_id) ?? "Tanpa bidang")
+                          : "Tanpa bidang"}
+                        {" · "}
+                        {labelBulan}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {item.total} kegiatan · {item.disetujui} disetujui · {item.revisi} revisi ·{" "}
+                        {item.menunggu} menunggu review
+                      </p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </ContentGrid>
+      </div>
     </div>
   );
 }

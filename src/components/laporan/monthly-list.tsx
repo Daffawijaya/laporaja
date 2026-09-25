@@ -2,11 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ContentGrid } from "@/components/layout/content-grid";
+import { useModalKey } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { MonthPicker } from "@/components/laporan/month-picker";
 import { KeteranganImage } from "@/components/laporan/keterangan-image";
@@ -61,6 +64,20 @@ export function MonthlyList({
   >(null);
   const [deleteTarget, setDeleteTarget] = useState<KegiatanItem | null>(null);
 
+  // Filter dari search global titlebar (?q=).
+  const searchParams = useSearchParams();
+  const query = (searchParams.get("q") ?? "").trim().toLowerCase();
+  const visibleItems = query
+    ? items.filter((item) => item.nama.toLowerCase().includes(query))
+    : items;
+  const visibleIndikators = query
+    ? indikators.filter((indikator) => indikator.nama.toLowerCase().includes(query))
+    : indikators;
+
+  // Modal selalu ke-mount agar exit animation jalan. Key diganti tiap
+  // dibuka (form segar), dibiarkan saat ditutup (animasi tutup terbaca).
+  const [dialogKey, reopenModal] = useModalKey();
+
   const todayISO = (() => {
     const now = new Date();
     return tanggalISO(now.getFullYear(), now.getMonth() + 1, now.getDate());
@@ -71,23 +88,23 @@ export function MonthlyList({
 
   const grouped = useMemo(() => {
     const map = new Map<string, KegiatanItem[]>();
-    for (const item of items) {
+    for (const item of visibleItems) {
       const list = map.get(item.tanggal) ?? [];
       list.push(item);
       map.set(item.tanggal, list);
     }
     return map;
-  }, [items]);
+  }, [visibleItems]);
 
   const days = useMemo(() => [...grouped.keys()].sort(), [grouped]);
 
   let disetujui = 0;
   let revisi = 0;
-  for (const item of items) {
+  for (const item of visibleItems) {
     if (item.review?.status === "approved") disetujui += 1;
     else if (item.review?.status === "revision") revisi += 1;
   }
-  const menunggu = items.length - disetujui - revisi;
+  const menunggu = visibleItems.length - disetujui - revisi;
   const ringkasan = [
     { key: "approved", label: "Disetujui", value: disetujui, dot: "bg-emerald-500" },
     { key: "revision", label: "Revisi", value: revisi, dot: "bg-amber-500" },
@@ -98,11 +115,13 @@ export function MonthlyList({
 
   function openAdd() {
     setError(null);
+    reopenModal(`add-${defaultDate}`);
     setDialog({ mode: "add", tanggal: defaultDate });
   }
 
   function openEdit(item: KegiatanItem) {
     setError(null);
+    reopenModal(`edit-${item.id}`);
     setDialog({ mode: "edit", item });
   }
 
@@ -125,7 +144,7 @@ export function MonthlyList({
     }
   }
 
-  const dialogInitial: KegiatanFormInitial | null = dialog
+  const dialogInitial: KegiatanFormInitial = dialog
     ? dialog.mode === "add"
       ? { nama: "", tanggal: dialog.tanggal, blocks: [], indikatorIds: [] }
       : {
@@ -134,104 +153,130 @@ export function MonthlyList({
           blocks: initialBlocks(dialog.item),
           indikatorIds: dialog.item.indikatorIds,
         }
-    : null;
-
-  const dialogKey = dialog
-    ? dialog.mode === "add"
-      ? `add-${dialog.tanggal}`
-      : `edit-${dialog.item.id}`
-    : "closed";
+    : { nama: "", tanggal: defaultDate, blocks: [], indikatorIds: [] };
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      <p className="text-sm text-muted-foreground">Selamat datang, {nama}</p>
-      <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold tracking-tight">
-          {NAMA_BULAN[bulan - 1]} {tahun}
-        </h1>
-        <Button onClick={openAdd} className="w-full sm:w-auto">
-          <Plus aria-hidden="true" />
-          Tambah Kegiatan
-        </Button>
-      </div>
+    <div className="w-full">
+      <ContentGrid
+        aside={
+          <>
+            <section aria-label="Bulan">
+              <h2 className="text-sm font-semibold">Bulan</h2>
+              <div className="panel mt-2 rounded-lg p-4">
+                <MonthPicker bulan={bulan} tahun={tahun} />
+              </div>
+            </section>
 
-      <div className="mt-4">
-        <MonthPicker bulan={bulan} tahun={tahun} />
-      </div>
-
-      {items.length > 0 && (
-        <ul className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          <li>{items.length} kegiatan</li>
-          {ringkasan.map((row) => (
-            <li key={row.key} className="flex items-center gap-1.5">
-              <span aria-hidden="true" className={`size-1.5 rounded-full ${row.dot}`} />
-              {row.value} {row.label}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {indikators.length > 0 && (
-        <section aria-label="Indikator kinerja" id="indikator" className="mt-4 scroll-mt-20">
-          <h2 className="text-sm font-semibold">Indikator kinerja</h2>
-          <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg">
-            {indikators.map((indikator) => {
-              const persen =
-                indikator.target == null
-                  ? 0
-                  : Math.min(100, Math.round((indikator.bulanIni / indikator.target) * 100));
-              return (
-                <li key={indikator.id} className="px-4 py-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="min-w-0 truncate text-sm font-medium">
-                      {indikator.nama}
-                    </p>
-                    <p className="shrink-0 text-sm text-muted-foreground">
-                      {indikator.target == null
-                        ? `${indikator.bulanIni}`
-                        : `${indikator.bulanIni} dari ${indikator.target}`}
-                    </p>
-                  </div>
-                  {indikator.target != null && (
-                    <div
-                      role="progressbar"
-                      aria-valuenow={indikator.bulanIni}
-                      aria-valuemin={0}
-                      aria-valuemax={indikator.target}
-                      aria-label={`Capaian ${indikator.nama}`}
-                      className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
+            {visibleItems.length > 0 && (
+              <section aria-label="Ringkasan bulan ini">
+                <h2 className="text-sm font-semibold">Bulan ini</h2>
+                <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg text-sm">
+                  <li className="flex items-center justify-between gap-3 px-4 py-2.5">
+                    <span className="text-muted-foreground">Kegiatan</span>
+                    <span className="font-medium">{visibleItems.length}</span>
+                  </li>
+                  {ringkasan.map((row) => (
+                    <li
+                      key={row.key}
+                      className="flex items-center justify-between gap-3 px-4 py-2.5"
                     >
-                      <div className="h-full rounded-full bg-accent" style={{ width: `${persen}%` }} />
-                    </div>
-                  )}
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    {indikator.target == null
-                      ? "Target belum diatur"
-                      : `Target ${indikator.target} per bulan`}
-                    {" · "}
-                    total {indikator.total}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <span
+                          aria-hidden="true"
+                          className={`size-1.5 rounded-full ${row.dot}`}
+                        />
+                        {row.label}
+                      </span>
+                      <span className="font-medium">{row.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
-      {items.length === 0 ? (
-        <EmptyState
-          className="mt-5"
-          title="Belum ada kegiatan"
-          description="Tambahkan kegiatan pertama untuk bulan ini."
-          action={
-            <Button onClick={openAdd}>
-              <Plus aria-hidden="true" />
-              Tambah Kegiatan
-            </Button>
-          }
-        />
-      ) : (
-        <div className="mt-5 flex flex-col gap-6">
+            {visibleIndikators.length > 0 && (
+              <section aria-label="Indikator kinerja" id="indikator" className="scroll-mt-20">
+                <h2 className="text-sm font-semibold">Indikator kinerja</h2>
+                <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg">
+                  {visibleIndikators.map((indikator) => {
+                    const persen =
+                      indikator.target == null
+                        ? 0
+                        : Math.min(100, Math.round((indikator.bulanIni / indikator.target) * 100));
+                    return (
+                      <li key={indikator.id} className="px-4 py-3">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <p className="min-w-0 truncate text-sm font-medium">
+                            {indikator.nama}
+                          </p>
+                          <p className="shrink-0 text-sm text-muted-foreground">
+                            {indikator.target == null
+                              ? `${indikator.bulanIni}`
+                              : `${indikator.bulanIni} dari ${indikator.target}`}
+                          </p>
+                        </div>
+                        {indikator.target != null && (
+                          <div
+                            role="progressbar"
+                            aria-valuenow={indikator.bulanIni}
+                            aria-valuemin={0}
+                            aria-valuemax={indikator.target}
+                            aria-label={`Capaian ${indikator.nama}`}
+                            className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
+                          >
+                            <div
+                              className="h-full rounded-full bg-accent"
+                              style={{ width: `${persen}%` }}
+                            />
+                          </div>
+                        )}
+                        <p className="mt-1.5 text-xs text-muted-foreground">
+                          {indikator.target == null
+                            ? "Target belum diatur"
+                            : `Target ${indikator.target} per bulan`}
+                          {" · "}
+                          total {indikator.total}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">Selamat datang, {nama}</p>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-xl font-semibold tracking-tight">
+            {NAMA_BULAN[bulan - 1]} {tahun}
+          </h1>
+          <Button onClick={openAdd} className="w-full sm:w-auto">
+            <Plus aria-hidden="true" />
+            Tambah Kegiatan
+          </Button>
+        </div>
+
+        {visibleItems.length === 0 ? (
+          <EmptyState
+            className="mt-5"
+            title={query ? "Tidak ada hasil" : "Belum ada kegiatan"}
+            description={
+              query
+                ? `Tidak ada yang cocok dengan "${query}".`
+                : "Tambahkan kegiatan pertama untuk bulan ini."
+            }
+            action={
+              query ? undefined : (
+                <Button onClick={openAdd}>
+                  <Plus aria-hidden="true" />
+                  Tambah Kegiatan
+                </Button>
+              )
+            }
+          />
+        ) : (
+          <div className="mt-5 flex flex-col gap-6">
           {days.map((tanggal) => {
             const daftar = grouped.get(tanggal) ?? [];
             return (
@@ -327,6 +372,7 @@ export function MonthlyList({
           })}
         </div>
       )}
+      </ContentGrid>
 
       {error && !dialog && (
         <p role="alert" className="mt-4 text-sm text-danger">
@@ -334,20 +380,18 @@ export function MonthlyList({
         </p>
       )}
 
-      {dialog && dialogInitial && (
-        <KegiatanFormDialog
-          key={dialogKey}
-          open
-          title={dialog.mode === "add" ? "Tambah kegiatan" : "Ubah kegiatan"}
-          initial={dialogInitial}
-          indikators={indikators}
-          saving={saving}
-          progress={progress}
-          serverError={error}
-          onClose={() => setDialog(null)}
-          onSubmit={handleSubmit}
-        />
-      )}
+      <KegiatanFormDialog
+        key={dialogKey}
+        open={dialog !== null}
+        title={dialog?.mode === "edit" ? "Ubah kegiatan" : "Tambah kegiatan"}
+        initial={dialogInitial}
+        indikators={indikators}
+        saving={saving}
+        progress={progress}
+        serverError={error}
+        onClose={() => setDialog(null)}
+        onSubmit={handleSubmit}
+      />
 
       <ConfirmDialog
         open={deleteTarget !== null}

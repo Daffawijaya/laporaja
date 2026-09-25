@@ -80,7 +80,7 @@ const ADMIN_SLOTS: Slot[] = [
 // Navigasi bawah mobile ala YouTube: slot datar dan konsisten.
 // Beranda di ujung kiri (dashboard admin untuk superadmin).
 // Profil tidak ada di sini karena sudah di avatar navbar.
-// Hanya tampil di mobile, desktop memakai tab atas.
+// Hanya tampil di mobile, desktop memakai sidebar kiri.
 export function MobileBottomnav({ role }: { role: Role }) {
   const pathname = usePathname();
   const [hash, setHash] = useState("");

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { HiBell, HiPlay } from "react-icons/hi2";
 
 // Topbar mobile ala YouTube: logo kiri, bel badge dan avatar kanan.
-// Hanya tampil di mobile, desktop memakai header kaca lama.
+// Hanya tampil di mobile, desktop memakai sidebar kaca kiri.
 export function MobileTopbar({
   badgeCount,
   bellHref,

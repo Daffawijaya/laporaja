@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { assertOk } from "@/lib/errors";
+import { ContentGrid } from "@/components/layout/content-grid";
 import { IndikatorManager, type IndikatorRow } from "@/components/admin/indikator-manager";
 
 export default async function IndikatorPage() {
@@ -72,13 +73,44 @@ export default async function IndikatorPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="w-full">
       <h1 className="text-xl font-semibold tracking-tight">Indikator</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Seluruh target kinerja. Tambah di sini berlaku untuk semua user.
       </p>
       <div className="mt-6">
-        <IndikatorManager initial={items} />
+        <ContentGrid
+          aside={
+            <section aria-label="Ringkasan">
+              <h2 className="text-sm font-semibold">Ringkasan</h2>
+              <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg text-sm">
+                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
+                  <span className="text-muted-foreground">Total indikator</span>
+                  <span className="font-medium">{items.length}</span>
+                </li>
+                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
+                  <span className="text-muted-foreground">Tercapai bulan ini</span>
+                  <span className="font-medium">
+                    {
+                      items.filter(
+                        (item) =>
+                          item.target != null && item.bulanIni >= item.target
+                      ).length
+                    }
+                  </span>
+                </li>
+                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
+                  <span className="text-muted-foreground">Tanpa target</span>
+                  <span className="font-medium">
+                    {items.filter((item) => item.target == null).length}
+                  </span>
+                </li>
+              </ul>
+            </section>
+          }
+        >
+          <IndikatorManager initial={items} />
+        </ContentGrid>
       </div>
     </div>
   );

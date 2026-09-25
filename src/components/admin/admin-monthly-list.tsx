@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { ReviewBadge } from "@/components/laporan/review-badge";
 import { formatHariTanggal, type KegiatanItem } from "@/components/laporan/types";
@@ -12,22 +13,29 @@ export function AdminMonthlyList({
 }: {
   items: KegiatanItem[];
 }) {
+  // Filter dari search global titlebar (?q=).
+  const searchParams = useSearchParams();
+  const query = (searchParams.get("q") ?? "").trim().toLowerCase();
+  const visibleItems = query
+    ? items.filter((item) => item.nama.toLowerCase().includes(query))
+    : items;
+
   const grouped = useMemo(() => {
     const map = new Map<string, KegiatanItem[]>();
-    for (const item of items) {
+    for (const item of visibleItems) {
       const list = map.get(item.tanggal) ?? [];
       list.push(item);
       map.set(item.tanggal, list);
     }
     return map;
-  }, [items]);
+  }, [visibleItems]);
 
   const days = useMemo(() => [...grouped.keys()].sort(), [grouped]);
 
-  if (items.length === 0) {
+  if (visibleItems.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Belum ada kegiatan pada bulan ini.
+        {query ? `Tidak ada yang cocok dengan "${query}".` : "Belum ada kegiatan pada bulan ini."}
       </p>
     );
   }

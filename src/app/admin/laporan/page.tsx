@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { clampBulan, clampTahun, getMonthlyLaporan } from "@/lib/laporan/queries";
 import { AdminLaporanFilter } from "@/components/admin/admin-laporan-filter";
 import { AdminMonthlyList } from "@/components/admin/admin-monthly-list";
+import { ContentGrid } from "@/components/layout/content-grid";
 
 export default async function AdminLaporanPage({
   searchParams,
@@ -33,53 +34,60 @@ export default async function AdminLaporanPage({
   const items = selected ? await getMonthlyLaporan(supabase, selected.id, tahun, bulan) : [];
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="w-full">
       <h1 className="text-xl font-semibold tracking-tight">Laporan User</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Pilih user dan bulan untuk memeriksa laporan.
       </p>
 
-      <div className="mt-4">
-        <AdminLaporanFilter
-          users={userList.map((user) => ({ id: user.id, nama: user.nama, username: user.username }))}
-          selectedUserId={selected?.id ?? ""}
-          bulan={bulan}
-          tahun={tahun}
-        />
-      </div>
-
       <div className="mt-6">
-        {userList.length === 0 ? (
-          <EmptyState
-            title="Belum ada user"
-            description="Tambahkan user lewat halaman Pengguna."
-          />
-        ) : !selected ? (
-          <EmptyState
-            title="Pilih user"
-            description="Pilih user di atas untuk melihat laporan bulanannya."
-          />
-        ) : (
-          <>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{selected.nama}</p>
-                <p className="text-xs text-muted-foreground">{selected.username}</p>
+        <ContentGrid
+          aside={
+            <section aria-label="Filter laporan">
+              <h2 className="text-sm font-semibold">Filter</h2>
+              <div className="panel mt-2 rounded-lg p-4">
+                <AdminLaporanFilter
+                  users={userList.map((user) => ({ id: user.id, nama: user.nama, username: user.username }))}
+                  selectedUserId={selected?.id ?? ""}
+                  bulan={bulan}
+                  tahun={tahun}
+                />
               </div>
-              <Button asChild variant="secondary" className="w-full sm:w-auto">
-                <Link
-                  href={`/admin/laporan/export?user=${selected.id}&bulan=${bulan}&tahun=${tahun}`}
-                >
-                  <Download aria-hidden="true" />
-                  Export PDF
-                </Link>
-              </Button>
-            </div>
-            <div className="mt-5">
-              <AdminMonthlyList items={items} />
-            </div>
-          </>
-        )}
+            </section>
+          }
+        >
+          {userList.length === 0 ? (
+            <EmptyState
+              title="Belum ada user"
+              description="Tambahkan user lewat halaman Pengguna."
+            />
+          ) : !selected ? (
+            <EmptyState
+              title="Pilih user"
+              description="Pilih user di samping untuk melihat laporan bulanannya."
+            />
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{selected.nama}</p>
+                  <p className="text-xs text-muted-foreground">{selected.username}</p>
+                </div>
+                <Button asChild variant="secondary" className="w-full sm:w-auto">
+                  <Link
+                    href={`/admin/laporan/export?user=${selected.id}&bulan=${bulan}&tahun=${tahun}`}
+                  >
+                    <Download aria-hidden="true" />
+                    Export PDF
+                  </Link>
+                </Button>
+              </div>
+              <div className="mt-5">
+                <AdminMonthlyList items={items} />
+              </div>
+            </>
+          )}
+        </ContentGrid>
       </div>
     </div>
   );
