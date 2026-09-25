@@ -26,7 +26,7 @@ export default async function LoginPage({
         {expired && (
           <p
             role="status"
-            className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800"
+            className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
           >
             Sesi Anda berakhir. Silakan masuk lagi.
           </p>

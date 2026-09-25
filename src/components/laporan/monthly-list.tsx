@@ -23,11 +23,7 @@ import {
   tanggalISO,
   type KegiatanItem,
 } from "@/components/laporan/types";
-import {
-  formatPerBulan,
-  formatPeriode,
-  type IndikatorProgress,
-} from "@/lib/indikator/queries";
+import type { IndikatorProgress } from "@/lib/indikator/queries";
 
 function initialBlocks(item: KegiatanItem) {
   return item.keterangan.map((row) => ({
@@ -176,14 +172,14 @@ export function MonthlyList({
       )}
 
       {indikators.length > 0 && (
-        <section aria-label="Indikator kinerja" className="mt-4">
+        <section aria-label="Indikator kinerja" id="indikator" className="mt-4 scroll-mt-20">
           <h2 className="text-sm font-semibold">Indikator kinerja</h2>
           <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg">
             {indikators.map((indikator) => {
-              const persen = Math.min(
-                100,
-                Math.round((indikator.total / indikator.target) * 100)
-              );
+              const persen =
+                indikator.target == null
+                  ? 0
+                  : Math.min(100, Math.round((indikator.bulanIni / indikator.target) * 100));
               return (
                 <li key={indikator.id} className="px-4 py-3">
                   <div className="flex items-baseline justify-between gap-3">
@@ -191,25 +187,29 @@ export function MonthlyList({
                       {indikator.nama}
                     </p>
                     <p className="shrink-0 text-sm text-muted-foreground">
-                      {indikator.total} dari {indikator.target}
+                      {indikator.target == null
+                        ? `${indikator.bulanIni}`
+                        : `${indikator.bulanIni} dari ${indikator.target}`}
                     </p>
                   </div>
-                  <div
-                    role="progressbar"
-                    aria-valuenow={indikator.total}
-                    aria-valuemin={0}
-                    aria-valuemax={indikator.target}
-                    aria-label={`Capaian ${indikator.nama}`}
-                    className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
-                  >
-                    <div className="h-full rounded-full bg-accent" style={{ width: `${persen}%` }} />
-                  </div>
+                  {indikator.target != null && (
+                    <div
+                      role="progressbar"
+                      aria-valuenow={indikator.bulanIni}
+                      aria-valuemin={0}
+                      aria-valuemax={indikator.target}
+                      aria-label={`Capaian ${indikator.nama}`}
+                      className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
+                    >
+                      <div className="h-full rounded-full bg-accent" style={{ width: `${persen}%` }} />
+                    </div>
+                  )}
                   <p className="mt-1.5 text-xs text-muted-foreground">
-                    {formatPeriode(indikator.tahun, indikator.bulanMulai, indikator.bulanSelesai)}
+                    {indikator.target == null
+                      ? "Target belum diatur"
+                      : `Target ${indikator.target} per bulan`}
                     {" · "}
-                    {formatPerBulan(indikator.target, indikator.bulanCount)} per bulan
-                    {" · "}
-                    bulan ini {indikator.bulanIni}
+                    total {indikator.total}
                   </p>
                 </li>
               );
@@ -283,7 +283,7 @@ export function MonthlyList({
                         )}
 
                         {item.review?.status === "revision" && item.review.catatan && (
-                          <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+                          <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                             {item.review.catatan}
                           </p>
                         )}

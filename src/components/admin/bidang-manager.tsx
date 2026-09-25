@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Target, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { IndikatorBidangDialog } from "@/components/admin/indikator-bidang-dialog";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
@@ -26,6 +27,7 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
   const [deleteTarget, setDeleteTarget] = useState<BidangWithCount | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [indikatorBidang, setIndikatorBidang] = useState<BidangWithCount | null>(null);
 
   function openAdd() {
     setNama("");
@@ -180,6 +182,14 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
               <div className="flex shrink-0 items-center gap-1">
                 <Button
                   variant="ghost"
+                  onClick={() => setIndikatorBidang(item)}
+                  aria-label={`Indikator ${item.nama}`}
+                >
+                  <Target aria-hidden="true" />
+                  <span className="hidden sm:inline">Indikator</span>
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => openEdit(item)}
                   aria-label={`Ubah ${item.nama}`}
                 >
@@ -258,6 +268,15 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
       />
+
+      {indikatorBidang && (
+        <IndikatorBidangDialog
+          bidangId={indikatorBidang.id}
+          bidangNama={indikatorBidang.nama}
+          open
+          onClose={() => setIndikatorBidang(null)}
+        />
+      )}
     </div>
   );
 }

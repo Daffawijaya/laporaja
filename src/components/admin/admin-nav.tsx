@@ -18,7 +18,7 @@ export function AdminNav() {
   return (
     <nav
       aria-label="Navigasi admin"
-      className="mb-8 flex gap-1 rounded-lg border border-border bg-muted/70 p-1"
+      className="mb-8 hidden gap-1 rounded-lg border border-border bg-muted/70 p-1 md:flex"
     >
       {LINKS.map((link) => {
         const active = pathname === link.href || pathname.startsWith(`${link.href}/`);

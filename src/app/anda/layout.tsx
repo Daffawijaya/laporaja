@@ -1,16 +1,15 @@
 import { requireUser } from "@/lib/auth/session";
 import { AuthShell } from "@/components/layout/auth-shell";
 import { createClient } from "@/lib/supabase/server";
-import { countRevision } from "@/lib/laporan/queries";
+import { countPendingReview, countRevision } from "@/lib/laporan/queries";
 
-export default async function LaporanLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function AndaLayout({ children }: { children: React.ReactNode }) {
   const { user, profile } = await requireUser();
   const supabase = await createClient();
-  const badge = await countRevision(supabase, user.id);
+  const badge =
+    profile.role === "superadmin"
+      ? await countPendingReview(supabase)
+      : await countRevision(supabase, user.id);
 
   return (
     <AuthShell username={profile.username} role={profile.role} badgeCount={badge}>

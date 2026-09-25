@@ -67,8 +67,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               "animate-in fade-in-0 slide-in-from-bottom-2 pointer-events-auto w-full max-w-sm rounded-lg border px-4 py-3 text-sm duration-200",
               "shadow-[0_10px_30px_-12px_rgb(0_0_0_/_0.25)]",
               toast.variant === "success"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-red-200 bg-red-50 text-danger"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200"
+                : "border-red-200 bg-red-50 text-danger dark:border-red-900 dark:bg-red-950/60 dark:text-red-200"
             )}
           >
             {toast.message}

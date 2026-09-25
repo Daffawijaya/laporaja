@@ -36,6 +36,23 @@
   --danger-hover: #c20012;
   --danger-foreground: #ffffff;
   --radius: 10px;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #000000;
+  --surface: #1c1c1e;
+  --foreground: #f5f5f7;
+  --muted: #2c2c2e;
+  --muted-foreground: #98989d;
+  --border: #38383a;
+  --accent: #0a84ff;
+  --accent-hover: #409cff;
+  --accent-foreground: #ffffff;
+  --danger: #ff453a;
+  --danger-hover: #ff6961;
+  --danger-foreground: #ffffff;
+  color-scheme: dark;
 }
 
 html,
@@ -71,6 +88,10 @@ body {
   ::selection {
     background: rgb(0 113 227 / 0.16);
   }
+
+  .dark ::selection {
+    background: rgb(10 132 255 / 0.32);
+  }
 }
 
 @layer utilities {
@@ -94,6 +115,20 @@ body {
       0 18px 40px -24px rgb(0 0 0 / 0.28);
   }
 
+  .dark .glass-bar {
+    background-color: rgb(28 28 30 / 0.72);
+    border-bottom: 1px solid rgb(255 255 255 / 0.1);
+  }
+
+  .dark .glass-panel {
+    background-color: rgb(28 28 30 / 0.7);
+    border: 1px solid rgb(255 255 255 / 0.12);
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.4),
+      0 0 0 1px rgb(0 0 0 / 0.4),
+      0 18px 40px -24px rgb(0 0 0 / 0.6);
+  }
+
   /* Liquid glass global untuk SELURUH Button.
      Disalin dari /lab-glass (demo FxFilterJS, MIT).
      Light (default): overlay putih. Dark (.dark atau OS dark): overlay hitam.
@@ -111,6 +146,26 @@ body {
 
   @media (prefers-color-scheme: dark) {
     :root:not(.light) .fx-liquid-btn {
+      --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25)
+        color-overlay(black,.3) contrast(1.25);
+    }
+  }
+
+  /* Switch liquid glass (misal pengaturan mode gelap).
+     Pola sama dengan tombol: overlay putih di light, hitam di dark. */
+  .fx-switch {
+    position: relative;
+    --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25)
+      color-overlay(white,.3) contrast(1.25);
+  }
+
+  .dark .fx-switch {
+    --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25)
+      color-overlay(black,.3) contrast(1.25);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not(.light) .fx-switch {
       --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25)
         color-overlay(black,.3) contrast(1.25);
     }
@@ -299,10 +354,84 @@ body {
     background-size: 16px 16px;
   }
 
+  .dark .select-chevron {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2398989d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
   .transition-soft {
     transition-property: color, background-color, border-color, box-shadow, opacity;
     transition-duration: 160ms;
     transition-timing-function: ease-out;
+  }
+}
+
+/* Chrome mobile (topbar + bottom nav ala YouTube). Putih di light mode,
+   gelap di dark mode via preferensi OS atau class .dark. */
+:root {
+  --mchrome-bg: #ffffff;
+  --mchrome-fg: #1d1d1f;
+  --mchrome-border: #e5e5ea;
+  --mchrome-idle: #6e6e73;
+  --mchrome-active: #1d1d1f;
+  --mchrome-avatar-bg: #d4d4d8;
+  --mchrome-avatar-fg: #3f3f46;
+  --mchrome-avatar-active-bg: #1d1d1f;
+  --mchrome-avatar-active-fg: #ffffff;
+}
+
+.dark {
+  --mchrome-bg: #0f0f0f;
+  --mchrome-fg: #ffffff;
+  --mchrome-border: rgb(255 255 255 / 0.1);
+  --mchrome-idle: #a3a3a3;
+  --mchrome-active: #ffffff;
+  --mchrome-avatar-bg: #52525b;
+  --mchrome-avatar-fg: #ffffff;
+  --mchrome-avatar-active-bg: #ffffff;
+  --mchrome-avatar-active-fg: #000000;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mchrome-bg: #0f0f0f;
+    --mchrome-fg: #ffffff;
+    --mchrome-border: rgb(255 255 255 / 0.1);
+    --mchrome-idle: #a3a3a3;
+    --mchrome-active: #ffffff;
+    --mchrome-avatar-bg: #52525b;
+    --mchrome-avatar-fg: #ffffff;
+    --mchrome-avatar-active-bg: #ffffff;
+    --mchrome-avatar-active-fg: #000000;
+  }
+}
+
+@layer components {
+  .mchrome-bar {
+    background-color: var(--mchrome-bg);
+    color: var(--mchrome-fg);
+    border-color: var(--mchrome-border);
+  }
+
+  .mchrome-link {
+    color: var(--mchrome-idle);
+  }
+
+  .mchrome-link-active {
+    color: var(--mchrome-active);
+  }
+
+  .mchrome-avatar {
+    background-color: var(--mchrome-avatar-bg);
+    color: var(--mchrome-avatar-fg);
+  }
+
+  .mchrome-avatar-active {
+    background-color: var(--mchrome-avatar-active-bg);
+    color: var(--mchrome-avatar-active-fg);
+  }
+
+  .mchrome-badge {
+    border-color: var(--mchrome-bg);
   }
 }
 

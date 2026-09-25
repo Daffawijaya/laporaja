@@ -84,3 +84,77 @@ export async function getMonthlyLaporan(
     indikatorIds: indikatorByKegiatan.get(kegiatan.id) ?? [],
   }));
 }
+
+// Jumlah kegiatan milik user yang berstatus revisi (badge bel mobile).
+export async function countRevision(
+  supabase: ServerClient,
+  userId: string
+): Promise<number> {
+  const { data: kegiatanList, error: kegiatanError } = await supabase
+    .from("kegiatan")
+    .select("id")
+    .eq("user_id", userId);
+  if (kegiatanError) throw new Error("Gagal memuat notifikasi. Coba lagi.");
+  const ids = (kegiatanList ?? []).map((kegiatan) => kegiatan.id);
+  if (ids.length === 0) return 0;
+  const { count, error: reviewError } = await supabase
+    .from("reviews")
+    .select("kegiatan_id", { count: "exact", head: true })
+    .in("kegiatan_id", ids)
+    .eq("status", "revision");
+  if (reviewError) throw new Error("Gagal memuat notifikasi. Coba lagi.");
+  return count ?? 0;
+}
+
+// Jumlah kegiatan tanpa review (badge bel mobile superadmin).
+export async function countPendingReview(supabase: ServerClient): Promise<number> {
+  const [{ data: kegiatanList, error: kegiatanError }, { data: reviewList, error: reviewError }] =
+    await Promise.all([
+      supabase.from("kegiatan").select("id"),
+      supabase.from("reviews").select("kegiatan_id"),
+    ]);
+  if (kegiatanError || reviewError) {
+    throw new Error("Gagal memuat notifikasi. Coba lagi.");
+  }
+  const reviewed = new Set((reviewList ?? []).map((review) => review.kegiatan_id));
+  return (kegiatanList ?? []).filter((kegiatan) => !reviewed.has(kegiatan.id)).length;
+}
+
+export interface RevisiItem {
+  id: string;
+  tanggal: string;
+  nama: string;
+  catatan: string | null;
+}
+
+// Daftar kegiatan user yang berstatus revisi untuk halaman notifikasi.
+export async function getRevisionList(
+  supabase: ServerClient,
+  userId: string
+): Promise<RevisiItem[]> {
+  const { data: kegiatanList, error: kegiatanError } = await supabase
+    .from("kegiatan")
+    .select("id, tanggal, nama_kegiatan")
+    .eq("user_id", userId)
+    .order("tanggal", { ascending: false });
+  if (kegiatanError) throw new Error("Gagal memuat notifikasi. Coba lagi.");
+  const ids = (kegiatanList ?? []).map((kegiatan) => kegiatan.id);
+  if (ids.length === 0) return [];
+  const { data: reviewList, error: reviewError } = await supabase
+    .from("reviews")
+    .select("kegiatan_id, catatan")
+    .in("kegiatan_id", ids)
+    .eq("status", "revision");
+  if (reviewError) throw new Error("Gagal memuat notifikasi. Coba lagi.");
+  const catatanById = new Map(
+    (reviewList ?? []).map((review) => [review.kegiatan_id, review.catatan])
+  );
+  return (kegiatanList ?? [])
+    .filter((kegiatan) => catatanById.has(kegiatan.id))
+    .map((kegiatan) => ({
+      id: kegiatan.id,
+      tanggal: kegiatan.tanggal,
+      nama: kegiatan.nama_kegiatan,
+      catatan: catatanById.get(kegiatan.id) ?? null,
+    }));
+}

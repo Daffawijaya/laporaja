@@ -57,7 +57,7 @@ export function AdminMonthlyList({
                       : `${item.keterangan.length} keterangan`}
                   </p>
                   {item.review?.status === "revision" && item.review.catatan && (
-                    <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+                    <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                       {item.review.catatan}
                     </p>
                   )}

@@ -23,6 +23,16 @@ Alasan: netral agar konten laporan yang menonjol, bukan chrome UI.
 - Aksen tunggal: `#0071e3` (hanya untuk aksi utama dan status fokus)
 - Netral (putih, abu) tidak dihitung sebagai warna inti. Total: netral + 1 aksen.
 
+### Mode gelap
+
+- Toggle berupa switch liquid glass di halaman profil (`/anda`,
+  `ThemeSwitchSetting`, `next-themes`, default ikut OS).
+- Token `.dark`: latar `#000000`, permukaan `#1c1c1e`, teks `#f5f5f7`,
+  aksen `#0a84ff` (aksen terang jebol kontrasnya di latar gelap),
+  danger `#ff453a`.
+- Catatan amber dan emerald memakai `dark:bg-*-950/60 dark:text-*-200`.
+- Mayoritas layar otomatis ikut karena memakai token semantik.
+
 Larangan: tidak ada gradient biru ke ungu, tidak ada glow, tidak ada orb warna, tidak ada pola grid latar.
 
 ## Tipografi
@@ -59,6 +69,13 @@ Alasan: tiga status adalah informasi utama di aplikasi, jadi harus langsung terb
 ## Komposisi
 
 - Bukan template Hero + grid fitur + testimoni + pricing + footer.
+- Mobile memakai chrome gelap ala YouTube: topbar (`MobileTopbar`, logo kiri,
+  bel badge dan avatar kanan) dan bottom nav empat slot (`MobileBottomnav`,
+  Beranda di ujung kiri, tanpa profil karena sudah di avatar navbar).
+  Alasan: navigasi satu tangan di layar kecil. Hanya di mobile (`md:hidden`),
+  desktop tetap header kaca dan tab atas. Bar mengikuti mode (putih di light,
+  `#0f0f0f` di dark via token `--mchrome-*`), bukan blur,
+  agar tidak menambah permukaan glass.
 - Login: satu kolom terpusat, satu panel.
 - Halaman utama user adalah Monthly Activity List: judul bulan, navigasi bulan, ringkasan status, satu tombol Tambah Kegiatan, lalu daftar per tanggal yang berisi kegiatan. Tanggal kosong tidak ditampilkan dan tidak ada kalender.
 - Dashboard superadmin: satu header, satu baris angka dengan pemisah tipis, dan daftar tanpa card berlebihan.

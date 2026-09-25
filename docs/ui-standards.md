@@ -51,9 +51,9 @@ teknis (nama tabel, kode, atau pesan sistem) yang tampil ke pengguna biasa.
 
 - Nama kegiatan wajib, 2-200 karakter.
 - Nama indikator wajib, 2-120 karakter.
-- Target indikator wajib angka bulat 1-100000.
-- Periode indikator wajib tahun 2000-2100 dan bulan selesai sama atau setelah bulan mulai.
-- Indikator wajib tercakup tepat satu: satu bidang atau satu user.
+- Jumlah per bulan wajib angka bulat 1-100000 saat diisi di menu Bidang atau User.
+  Boleh kosong saat tambah cepat di menu Indikator.
+- Indikator paling milik satu bidang atau satu user. Tanpa pemilik berarti global.
 - Tanggal kegiatan wajib.
 - Minimal satu keterangan per kegiatan.
 - Blok teks tidak boleh kosong.

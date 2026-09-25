@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import {
   UserFormDialog,
   type BidangOption,
+  type IndikatorAwal,
   type UserFormInitial,
 } from "@/components/admin/user-form-dialog";
 import {
@@ -33,9 +34,11 @@ export interface AdminUserRow {
 export function UserManager({
   users,
   bidangOptions,
+  indikatorsByUser,
 }: {
   users: AdminUserRow[];
   bidangOptions: BidangOption[];
+  indikatorsByUser: Map<string, IndikatorAwal[]>;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -260,6 +263,11 @@ export function UserManager({
           initial={initialFor(dialog)}
           bidangOptions={bidangOptions}
           passwordOptional={dialog.mode === "edit"}
+          indikatorAwal={
+            dialog.mode === "add"
+              ? []
+              : (indikatorsByUser.get(dialog.user.profile.id) ?? [])
+          }
           saving={saving}
           serverError={serverError}
           onClose={() => setDialog(null)}

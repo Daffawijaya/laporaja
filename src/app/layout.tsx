@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { AuthListener } from "@/components/auth/auth-listener";
 import { ToastProvider } from "@/components/ui/toast";
 import { FxFilterLoader } from "@/components/ui/fx-filter-loader";
@@ -26,13 +27,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html
+      lang="id"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
       <body className="min-h-full antialiased">
-        <FxFilterLoader />
-        <ToastProvider>
-          <AuthListener />
-          {children}
-        </ToastProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <FxFilterLoader />
+          <ToastProvider>
+            <AuthListener />
+            {children}
+          </ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

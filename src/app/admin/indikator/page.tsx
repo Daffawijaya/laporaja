@@ -7,9 +7,9 @@ export default async function IndikatorPage() {
   const supabase = await createClient();
   const [indikatorResult, bidangResult, profilesResult, kegiatanResult] =
     await Promise.all([
-      supabase.from("indikator").select("*").order("tahun").order("nama"),
+      supabase.from("indikator").select("*").order("nama"),
       supabase.from("bidang").select("*").order("nama"),
-      supabase.from("profiles").select("id, nama, username, bidang_id").order("nama"),
+      supabase.from("profiles").select("id, nama, username").order("nama"),
       supabase.from("kegiatan").select("id, tanggal"),
     ]);
   assertOk(indikatorResult.error, "Gagal memuat indikator. Coba lagi.");
@@ -22,11 +22,15 @@ export default async function IndikatorPage() {
   const profiles = profilesResult.data ?? [];
   const kegiatanList = kegiatanResult.data ?? [];
 
+  const now = new Date();
+  const bulanBerjalan = now.getMonth() + 1;
+  const tahunBerjalan = now.getFullYear();
+
   const bidangNama = new Map(bidangList.map((bidang) => [bidang.id, bidang.nama]));
+  const userById = new Map(profiles.map((profile) => [profile.id, profile]));
   const tanggalByKegiatan = new Map(kegiatanList.map((row) => [row.id, row.tanggal]));
 
-  // Capaian total per indikator: tautan kegiatan yang tanggalnya dalam periode.
-  const capaian = new Map<string, number>();
+  const capaian = new Map<string, { bulanIni: number; total: number }>();
   if (kegiatanList.length > 0) {
     const { data: links, error: linksError } = await supabase
       .from("kegiatan_indikator")
@@ -34,54 +38,49 @@ export default async function IndikatorPage() {
       .in("kegiatan_id", kegiatanList.map((row) => row.id));
     assertOk(linksError, "Gagal memuat capaian. Coba lagi.");
     for (const indikator of indikators) {
-      let count = 0;
+      let bulanIni = 0;
+      let total = 0;
       for (const link of links ?? []) {
         if (link.indikator_id !== indikator.id) continue;
         const tanggal = tanggalByKegiatan.get(link.kegiatan_id);
         if (!tanggal) continue;
+        total += 1;
         const [y, m] = tanggal.split("-").map(Number);
-        if (y === indikator.tahun && m >= indikator.bulan_mulai && m <= indikator.bulan_selesai) {
-          count += 1;
-        }
+        if (y === tahunBerjalan && m === bulanBerjalan) bulanIni += 1;
       }
-      capaian.set(indikator.id, count);
+      capaian.set(indikator.id, { bulanIni, total });
     }
   }
 
-  const items: IndikatorRow[] = indikators.map((indikator) => ({
-    id: indikator.id,
-    nama: indikator.nama,
-    target: indikator.target,
-    tahun: indikator.tahun,
-    bulanMulai: indikator.bulan_mulai,
-    bulanSelesai: indikator.bulan_selesai,
-    scopeLabel: indikator.bidang_id
-      ? `Bidang ${bidangNama.get(indikator.bidang_id) ?? ""}`
-      : (() => {
-          const owner = profiles.find((profile) => profile.id === indikator.user_id);
-          return owner ? `${owner.nama} (${owner.username})` : "User dihapus";
-        })(),
-    capaian: capaian.get(indikator.id) ?? 0,
-  }));
+  const items: IndikatorRow[] = indikators.map((indikator) => {
+    const hitung = capaian.get(indikator.id) ?? { bulanIni: 0, total: 0 };
+    const owner = !indikator.bidang_id && !indikator.user_id
+      ? "Semua"
+      : indikator.bidang_id
+        ? `Bidang ${bidangNama.get(indikator.bidang_id) ?? ""}`
+        : (() => {
+            const profile = indikator.user_id ? userById.get(indikator.user_id) : undefined;
+            return profile ? `${profile.nama} (${profile.username})` : "User dihapus";
+          })();
+    return {
+      id: indikator.id,
+      nama: indikator.nama,
+      target: indikator.target_bulanan,
+      owner,
+      bulanIni: hitung.bulanIni,
+      total: hitung.total,
+    };
+  });
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="mx-auto w-full max-w-4xl">
       <AdminNav />
       <h1 className="text-xl font-semibold tracking-tight">Indikator</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Target kinerja per bidang atau per user. User menandai kegiatan yang memenuhinya.
+        Seluruh target kinerja. Tambah di sini berlaku untuk semua user.
       </p>
       <div className="mt-6">
-        <IndikatorManager
-          initial={items}
-          bidangOptions={bidangList.map((bidang) => ({ id: bidang.id, nama: bidang.nama }))}
-          userOptions={profiles.map((profile) => ({
-            id: profile.id,
-            nama: profile.nama,
-            username: profile.username,
-            bidangNama: profile.bidang_id ? (bidangNama.get(profile.bidang_id) ?? null) : null,
-          }))}
-        />
+        <IndikatorManager initial={items} />
       </div>
     </div>
   );

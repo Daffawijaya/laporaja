@@ -82,9 +82,9 @@ export function KegiatanDetail({
       )}
 
       {item.review?.status === "revision" && item.review.catatan && (
-        <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-sm font-medium text-amber-800">Catatan perbaikan</p>
-          <p className="mt-1 text-sm text-amber-800">{item.review.catatan}</p>
+        <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/60">
+          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Catatan perbaikan</p>
+          <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">{item.review.catatan}</p>
         </div>
       )}
 

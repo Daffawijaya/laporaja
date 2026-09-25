@@ -7,10 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog } from "@/components/ui/dialog";
 import { BlocksEditor, type DraftBlock } from "@/components/laporan/blocks-editor";
-import {
-  formatPeriode,
-  type IndikatorOption,
-} from "@/lib/indikator/queries";
+import type { IndikatorOption } from "@/lib/indikator/queries";
 
 export interface KegiatanFormInput {
   nama: string;
@@ -55,15 +52,6 @@ export function KegiatanFormDialog({
   const [selected, setSelected] = useState<string[]>(initial.indikatorIds);
   const [formError, setFormError] = useState<string | null>(null);
   const [invalidKeys, setInvalidKeys] = useState<string[]>([]);
-
-  // Hanya indikator yang periodenya mencakup tanggal kegiatan.
-  const [tahunDipilih, bulanDipilih] = tanggal.split("-").map(Number);
-  const tersedia = indikators.filter(
-    (indikator) =>
-      indikator.tahun === tahunDipilih &&
-      bulanDipilih >= indikator.bulanMulai &&
-      bulanDipilih <= indikator.bulanSelesai
-  );
 
   function toggleIndikator(id: string) {
     setSelected((prev) =>
@@ -164,9 +152,9 @@ export function KegiatanFormDialog({
 
         <fieldset>
           <legend className="text-sm font-medium">Indikator kinerja</legend>
-          {tersedia.length === 0 ? (
+          {indikators.length === 0 ? (
             <p className="mt-1 text-sm text-muted-foreground">
-              Tidak ada indikator untuk tanggal ini.
+              Belum ada indikator.
             </p>
           ) : (
             <>
@@ -174,7 +162,7 @@ export function KegiatanFormDialog({
                 Centang bila kegiatan ini memenuhi indikator.
               </p>
               <ul className="mt-2 flex flex-col gap-1">
-                {tersedia.map((indikator) => (
+                {indikators.map((indikator) => (
                   <li key={indikator.id}>
                     <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md border border-border px-3 py-2 has-checked:border-accent has-checked:bg-accent/5">
                       <input
@@ -189,7 +177,9 @@ export function KegiatanFormDialog({
                           {indikator.nama}
                         </span>
                         <span className="block text-xs text-muted-foreground">
-                          Target {indikator.target} ({formatPeriode(indikator.tahun, indikator.bulanMulai, indikator.bulanSelesai)})
+                          {indikator.target == null
+                            ? "Target belum diatur"
+                            : `Target ${indikator.target} per bulan`}
                         </span>
                       </span>
                     </label>

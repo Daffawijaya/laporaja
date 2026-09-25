@@ -59,10 +59,7 @@ export type ReviewRow = {
 export type IndikatorRow = {
   id: string;
   nama: string;
-  target: number;
-  tahun: number;
-  bulan_mulai: number;
-  bulan_selesai: number;
+  target_bulanan: number | null;
   bidang_id: string | null;
   user_id: string | null;
   created_at: string;
@@ -121,19 +118,14 @@ export type Database = {
       };
       indikator: {
         Row: IndikatorRow;
-        Insert: Pick<
-          IndikatorRow,
-          "nama" | "target" | "tahun" | "bulan_mulai" | "bulan_selesai"
-        > &
+        Insert: Pick<IndikatorRow, "nama"> &
           Partial<
-            Pick<IndikatorRow, "id" | "bidang_id" | "user_id" | "created_at" | "updated_at">
+            Pick<
+              IndikatorRow,
+              "id" | "target_bulanan" | "bidang_id" | "user_id" | "created_at" | "updated_at"
+            >
           >;
-        Update: Partial<
-          Pick<
-            IndikatorRow,
-            "nama" | "target" | "tahun" | "bulan_mulai" | "bulan_selesai" | "bidang_id" | "user_id"
-          >
-        >;
+        Update: Partial<Pick<IndikatorRow, "nama" | "target_bulanan">>;
         Relationships: [];
       };
       kegiatan_indikator: {

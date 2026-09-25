@@ -10,6 +10,15 @@ Tahap ini hanya database dan model data. Tidak ada fitur UI baru.
   (maksimal 5 MB, hanya `image/jpeg`, `image/png`, `image/webp`, `image/gif`)
 - Indikator kinerja: `supabase/migrations/20260924000003_indikator_kinerja.sql`
   (tabel `indikator` dan `kegiatan_indikator`)
+- Penyederhanaan indikator: `supabase/migrations/20260924000004_indikator_sederhana.sql`
+  (tanpa periode, tanpa cakupan bidang, target per bulan milik satu user)
+- Indikator bidang atau user: `supabase/migrations/20260924000005_indikator_bidang_user.sql`
+  (satu indikator tepat milik satu bidang atau satu user, dikelola dari menu
+  Bidang dan menu User)
+- Indikator global: `supabase/migrations/20260924000006_indikator_global.sql`
+  (boleh tanpa pemilik, berlaku untuk semua, ditambah dari menu Indikator)
+- Target opsional: `supabase/migrations/20260924000007_indikator_target_opsional.sql`
+  (tambah indikator cukup isi nama, jumlah diisi di menu Bidang atau User)
 - Tipe aplikasi: `src/lib/supabase/database.types.ts`
 - Helper login username: `src/lib/auth/username.ts`
 - Client Supabase (sudah memakai tipe `Database`):
@@ -23,8 +32,8 @@ Tahap ini hanya database dan model data. Tidak ada fitur UI baru.
 - `kegiatan.user_id` -> `profiles.id` (cascade)
 - `keterangan_kegiatan.kegiatan_id` -> `kegiatan.id` (cascade)
 - `reviews.kegiatan_id` -> `kegiatan.id` (cascade, unik, satu review aktif per kegiatan)
-- `indikator.bidang_id` -> `bidang.id` (cascade, cakupan satu bidang)
-- `indikator.user_id` -> `profiles.id` (cascade, cakupan satu user)
+- `indikator.bidang_id` -> `bidang.id` (cascade, milik satu bidang)
+- `indikator.user_id` -> `profiles.id` (cascade, milik satu user)
 - `kegiatan_indikator.kegiatan_id` -> `kegiatan.id` (cascade)
 - `kegiatan_indikator.indikator_id` -> `indikator.id` (cascade)
 - Storage `kegiatan-images` path `<user_id>/<kegiatan_id>/...`
@@ -61,10 +70,11 @@ Aturan username: huruf kecil, angka, titik, underscore, strip, 3-32 karakter.
   memblokir user biasa yang mengubah `role` atau `bidang_id`.
 - `user_sub_bidang` dan `kegiatan`: hanya pemilik (`user_id = auth.uid()`)
   atau superadmin.
-- `indikator`: baca oleh superadmin atau user yang tercakup (khusus user itu
-  atau bidangnya). Tulis hanya superadmin. Tautan `kegiatan_indikator`
-  divalidasi trigger `validate_kegiatan_indikator` agar kegiatan hanya
-  ditautkan ke indikator yang berlaku untuk pemiliknya.
+- `indikator`: baca oleh superadmin atau user yang tercakup (global, miliknya,
+  atau bidangnya). Tulis hanya superadmin. Paling satu pemilik (keduanya
+  kosong berarti global). Target `target_bulanan` berarti jumlah per bulan.
+  Tautan `kegiatan_indikator` divalidasi trigger `validate_kegiatan_indikator`
+  agar kegiatan hanya ditautkan ke indikator yang berlaku untuk pemiliknya.
 - `keterangan_kegiatan`: mengikuti kepemilikan `kegiatan` induk.
 - `reviews`: baca oleh pemilik kegiatan atau superadmin. Tulis, ubah, hapus
   hanya superadmin. User tidak dapat mengubah review.
