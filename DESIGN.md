@@ -39,8 +39,17 @@ Alasan: keterbacaan dan karakter sistem modern yang netral.
 - Radius: 10px untuk tombol dan input, 14px untuk panel. Bukan pill untuk semua elemen.
 - Border: 1px tipis dan subtle (`#e5e5ea`).
 - Shadow: hanya `0 1px 2px rgb(0 0 0 / 0.04)`. Tidak ada shadow besar yang membuat halaman terasa melayang.
-- Liquid Glass dipakai hemat, maksimal 2 permukaan: bar navigasi dan panel login. Alasan: memisahkan lapisan navigasi dari konten tanpa menutup konten. Tidak dipakai di semua card, modal, dan sidebar sekaligus.
+- Liquid Glass dipakai hemat, maksimal 2 permukaan: bar navigasi (`.glass-bar`) dan panel login (`.glass-panel`). Alasan: memisahkan lapisan navigasi dari konten tanpa menutup konten. Tidak dipakai di semua card, modal, dan sidebar sekaligus.
+- Permukaan biasa memakai `.panel`: putih, garis 1px, dan elevasi satu tingkat. Ini pengganti default untuk daftar dan form, bukan card di mana-mana.
 - Tanpa dekorasi yang tidak punya fungsi. Whitespace adalah struktur.
+
+## Status
+
+Alasan: tiga status adalah informasi utama di aplikasi, jadi harus langsung terbaca tanpa ramai.
+
+- Satu bahasa visual yang sama untuk semua status: titik warna + label, radius 10px, garis tipis.
+- Menunggu Review: netral (abu). Disetujui: emerald. Revisi: amber.
+- Warna status hanya muncul di badge dan catatan revisi. Di luar itu tidak dipakai sebagai hiasan.
 
 ## Gerak
 
@@ -51,7 +60,8 @@ Alasan: keterbacaan dan karakter sistem modern yang netral.
 
 - Bukan template Hero + grid fitur + testimoni + pricing + footer.
 - Login: satu kolom terpusat, satu panel.
-- Dashboard: satu header, satu daftar kosong, tanpa card berlebihan.
+- Halaman utama user adalah Monthly Activity List: judul bulan, navigasi bulan, ringkasan status, satu tombol Tambah Kegiatan, lalu daftar per tanggal yang berisi kegiatan. Tanggal kosong tidak ditampilkan dan tidak ada kalender.
+- Dashboard superadmin: satu header, satu baris angka dengan pemisah tipis, dan daftar tanpa card berlebihan.
 - Ikon Lucide hanya bila relevan dengan labelnya. Tanpa ikon sparkle, robot, atau sihir sebagai hiasan.
 
 ## Alasan tiap keputusan (R-31)

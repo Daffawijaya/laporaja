@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { MANUAL_SIGNOUT_KEY } from "@/components/auth/auth-listener";
 
 export function LogoutButton() {
   const router = useRouter();
@@ -15,8 +16,12 @@ export function LogoutButton() {
     if (busy) return;
     setBusy(true);
     try {
+      // Tandai keluar sengaja agar tidak ditampilkan sebagai sesi berakhir.
+      window.sessionStorage.setItem(MANUAL_SIGNOUT_KEY, "1");
       const supabase = createClient();
       await supabase.auth.signOut();
+    } catch {
+      // Diabaikan: pengguna tetap diarahkan ke halaman masuk.
     } finally {
       router.push("/login");
       router.refresh();

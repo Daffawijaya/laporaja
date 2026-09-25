@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { KeteranganImage } from "@/components/laporan/keterangan-image";
 import { MAX_IMAGE_BYTES } from "@/lib/supabase/storage";
 
@@ -39,10 +40,12 @@ export function BlocksEditor({
   blocks,
   onChange,
   disabled = false,
+  invalidKeys = [],
 }: {
   blocks: DraftBlock[];
   onChange: (next: DraftBlock[]) => void;
   disabled?: boolean;
+  invalidKeys?: string[];
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [targetIndex, setTargetIndex] = useState<number | null>(null);
@@ -136,20 +139,26 @@ export function BlocksEditor({
       </div>
 
       {error && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
 
       {blocks.length === 0 && (
-        <p className="text-sm text-muted-foreground">Belum ada keterangan.</p>
+        <p className="text-sm text-muted-foreground">
+          Tambahkan teks atau gambar sebagai keterangan.
+        </p>
       )}
 
       <ol className="flex flex-col gap-2">
-        {blocks.map((block, index) => (
+        {blocks.map((block, index) => {
+          const invalid = invalidKeys.includes(block.key);
+          return (
           <li
             key={block.key}
-            className="rounded-md border border-border bg-white px-3 py-3"
+            className={`rounded-md border bg-surface px-3 py-3 ${
+              invalid ? "border-red-300" : "border-border"
+            }`}
           >
             <div className="flex items-center justify-between gap-1">
               <span className="text-xs font-medium text-muted-foreground">
@@ -188,7 +197,7 @@ export function BlocksEditor({
 
             <div className="mt-2">
               {block.tipe === "text" ? (
-                <textarea
+                <Textarea
                   value={block.text}
                   onChange={(event) =>
                     onChange(
@@ -200,7 +209,6 @@ export function BlocksEditor({
                   rows={3}
                   placeholder="Tulis keterangan..."
                   disabled={disabled}
-                  className="shadow-subtle transition-soft flex w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 />
               ) : block.previewUrl ? (
                 // img biasa disengaja: pratinjau blob lokal tidak lewat optimizer next/image.
@@ -214,6 +222,7 @@ export function BlocksEditor({
                 <KeteranganImage
                   path={block.storedPath}
                   alt={`Gambar ${index + 1}`}
+                  fallback="full"
                   className="max-h-48 w-full rounded-md border border-border object-cover"
                 />
               ) : null}
@@ -244,9 +253,17 @@ export function BlocksEditor({
                   </Button>
                 </>
               )}
+              {invalid && (
+                <p role="alert" className="mt-2 text-xs text-danger">
+                  {block.tipe === "text"
+                    ? "Teks tidak boleh kosong. Isi atau hapus blok ini."
+                    : "Gambar belum dipilih. Pilih ulang gambarnya."}
+                </p>
+              )}
             </div>
           </li>
-        ))}
+          );
+        })}
       </ol>
     </div>
   );

@@ -9,6 +9,8 @@ import {
   removeStoragePaths,
   uploadKegiatanImage,
 } from "@/lib/supabase/storage";
+import { replaceKegiatanIndikator } from "@/lib/indikator/queries";
+import { SessionExpiredError, failWith, isSessionError } from "@/lib/errors";
 import type { DraftBlock } from "@/components/laporan/blocks-editor";
 import type { KegiatanItem } from "@/components/laporan/types";
 
@@ -16,6 +18,7 @@ export interface KegiatanSaveInput {
   nama: string;
   tanggal: string;
   blocks: DraftBlock[];
+  indikatorIds: string[];
 }
 
 // Seluruh tulis data memakai sesi user sendiri sehingga RLS pemilik berlaku.
@@ -25,6 +28,16 @@ export function useKegiatanMutations(userId: string) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
+
+  function handleFailure(err: unknown, fallback: string) {
+    if (err instanceof SessionExpiredError || isSessionError(err)) {
+      setError("Sesi Anda berakhir. Silakan masuk lagi.");
+      router.replace("/login?expired=1");
+      return;
+    }
+    setError(err instanceof Error ? err.message : fallback);
+  }
 
   function cleanInput(input: KegiatanSaveInput) {
     const nama = input.nama.trim();
@@ -32,13 +45,16 @@ export function useKegiatanMutations(userId: string) {
       throw new Error("Nama kegiatan harus 2-200 karakter.");
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(input.tanggal)) {
-      throw new Error("Tanggal tidak valid.");
+      throw new Error("Tanggal kegiatan wajib diisi.");
     }
     const blocks = input.blocks.filter((block) =>
       block.tipe === "text"
         ? block.text.trim().length > 0
         : block.file !== null || block.storedPath !== null
     );
+    if (blocks.length === 0) {
+      throw new Error("Tambahkan minimal satu keterangan.");
+    }
     return { nama, tanggal: input.tanggal, blocks };
   }
 
@@ -54,16 +70,25 @@ export function useKegiatanMutations(userId: string) {
         .select("id")
         .single();
       if (insertError || !kegiatan) {
-        throw new Error("Gagal menambah kegiatan. Coba lagi.");
+        failWith(insertError, "Gagal menambah kegiatan. Coba lagi.");
       }
-      await replaceKeterangan(supabase, userId, kegiatan.id, cleaned.blocks, []);
+      await replaceKeterangan(
+        supabase,
+        userId,
+        kegiatan.id,
+        cleaned.blocks,
+        [],
+        uploadProgressLabel(setProgress)
+      );
+      await replaceKegiatanIndikator(supabase, kegiatan.id, input.indikatorIds ?? []);
       router.refresh();
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menyimpan.");
+      handleFailure(err, "Gagal menyimpan.");
       return false;
     } finally {
       setSaving(false);
+      setProgress(null);
     }
   }
 
@@ -78,18 +103,29 @@ export function useKegiatanMutations(userId: string) {
         .update({ tanggal: cleaned.tanggal, nama_kegiatan: cleaned.nama })
         .eq("id", item.id)
         .eq("user_id", userId);
-      if (updateError) throw new Error("Gagal menyimpan perubahan. Coba lagi.");
+      if (updateError) {
+        failWith(updateError, "Gagal menyimpan perubahan. Coba lagi.");
+      }
       const oldPaths = item.keterangan
         .filter((row) => row.tipe === "image" && row.image_url)
         .map((row) => row.image_url as string);
-      await replaceKeterangan(supabase, userId, item.id, cleaned.blocks, oldPaths);
+      await replaceKeterangan(
+        supabase,
+        userId,
+        item.id,
+        cleaned.blocks,
+        oldPaths,
+        uploadProgressLabel(setProgress)
+      );
+      await replaceKegiatanIndikator(supabase, item.id, input.indikatorIds ?? []);
       router.refresh();
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menyimpan.");
+      handleFailure(err, "Gagal menyimpan.");
       return false;
     } finally {
       setSaving(false);
+      setProgress(null);
     }
   }
 
@@ -104,34 +140,48 @@ export function useKegiatanMutations(userId: string) {
         .delete()
         .eq("id", item.id)
         .eq("user_id", userId);
-      if (deleteError) throw new Error("Gagal menghapus kegiatan. Coba lagi.");
+      if (deleteError) {
+        failWith(deleteError, "Gagal menghapus kegiatan. Coba lagi.");
+      }
       router.refresh();
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menghapus.");
+      handleFailure(err, "Gagal menghapus.");
       return false;
     } finally {
       setDeleting(false);
     }
   }
 
-  return { saving, deleting, error, setError, saveAdd, saveEdit, remove };
+  return { saving, deleting, error, setError, progress, saveAdd, saveEdit, remove };
 }
 
 type Client = ReturnType<typeof createClient>;
+
+// Label progres unggah. Angka 0 berarti masih menyiapkan berkas pertama.
+function uploadProgressLabel(
+  setProgress: (value: string) => void
+): (done: number, total: number) => void {
+  return (done, total) => {
+    setProgress(done === 0 ? "Menyiapkan gambar..." : `Mengunggah gambar ${done} dari ${total}...`);
+  };
+}
 
 async function replaceKeterangan(
   supabase: Client,
   userId: string,
   kegiatanId: string,
   blocks: DraftBlock[],
-  oldPaths: string[]
+  oldPaths: string[],
+  onUpload: (done: number, total: number) => void
 ): Promise<void> {
   const { error: hapusError } = await supabase
     .from("keterangan_kegiatan")
     .delete()
     .eq("kegiatan_id", kegiatanId);
-  if (hapusError) throw new Error("Gagal menyimpan keterangan. Coba lagi.");
+  if (hapusError) {
+    failWith(hapusError, "Gagal menyimpan keterangan. Coba lagi.");
+  }
 
   const rows: {
     kegiatan_id: string;
@@ -141,6 +191,9 @@ async function replaceKeterangan(
     urutan: number;
   }[] = [];
   const usedPaths = new Set<string>();
+  const uploadTotal = blocks.filter((block) => block.tipe === "image" && block.file).length;
+  let uploaded = 0;
+  if (uploadTotal > 0) onUpload(0, uploadTotal);
 
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];
@@ -156,6 +209,10 @@ async function replaceKeterangan(
       const path = block.file
         ? await uploadKegiatanImage(supabase, userId, kegiatanId, block.file)
         : (block.storedPath as string);
+      if (block.file) {
+        uploaded += 1;
+        onUpload(uploaded, uploadTotal);
+      }
       usedPaths.add(path);
       const caption = block.text.trim();
       rows.push({
@@ -170,7 +227,9 @@ async function replaceKeterangan(
 
   if (rows.length > 0) {
     const { error: insertError } = await supabase.from("keterangan_kegiatan").insert(rows);
-    if (insertError) throw new Error("Gagal menyimpan keterangan. Coba lagi.");
+    if (insertError) {
+      failWith(insertError, "Gagal menyimpan keterangan. Coba lagi.");
+    }
   }
 
   await removeStoragePaths(

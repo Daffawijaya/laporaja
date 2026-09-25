@@ -97,7 +97,7 @@ export function SubBidangEditor({
       </div>
 
       {error && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
@@ -134,7 +134,7 @@ export function SubBidangEditor({
             ) : (
               <li
                 key={`${item}-${index}`}
-                className="flex min-h-[44px] items-center justify-between gap-2 rounded-md border border-border bg-white px-3"
+                className="flex min-h-[44px] items-center justify-between gap-2 rounded-md border border-border bg-surface px-3"
               >
                 <span className="min-w-0 truncate text-sm">{item}</span>
                 <span className="flex shrink-0 items-center">

@@ -22,7 +22,15 @@ export async function createClient() {
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            cookieStore.set(name, value, {
+              ...options,
+              path: "/",
+              sameSite: "lax",
+              // Cookie sesi harus bisa dibaca client Supabase di browser untuk
+              // menandatangani permintaan, jadi tidak boleh httpOnly.
+              httpOnly: false,
+              secure: process.env.NODE_ENV === "production",
+            })
           );
         } catch {
           // Dipanggil dari Server Component yang hanya bisa membaca cookie.

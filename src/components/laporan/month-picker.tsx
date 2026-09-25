@@ -1,7 +1,10 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { NAMA_BULAN } from "@/components/laporan/types";
 
 export function MonthPicker({
@@ -14,62 +17,82 @@ export function MonthPicker({
   const router = useRouter();
   const searchParams = useSearchParams();
   const now = new Date();
+  const startYear = Math.min(now.getFullYear() - 3, tahun);
+  const endYear = Math.max(now.getFullYear() + 1, tahun);
   const tahunList: number[] = [];
-  for (let y = now.getFullYear() - 3; y <= now.getFullYear() + 1; y++) {
-    tahunList.push(y);
-  }
+  for (let y = startYear; y <= endYear; y++) tahunList.push(y);
+
+  const isCurrent = bulan === now.getMonth() + 1 && tahun === now.getFullYear();
 
   function go(nextBulan: number, nextTahun: number) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("bulan", String(nextBulan));
     params.set("tahun", String(nextTahun));
-    router.push(`/laporan/bulan?${params.toString()}`);
+    router.push(`/laporan?${params.toString()}`);
   }
 
-  const selectClass =
-    "shadow-subtle transition-soft min-h-[44px] rounded-md border border-border bg-white px-3 text-sm text-foreground";
+  function shift(delta: number) {
+    const total = tahun * 12 + (bulan - 1) + delta;
+    go((total % 12) + 1, Math.floor(total / 12));
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <label htmlFor="pilih-bulan" className="sr-only">
-        Pilih bulan
-      </label>
-      <select
-        id="pilih-bulan"
+      <Button
+        type="button"
+        variant="secondary"
+        size="icon"
+        onClick={() => shift(-1)}
+        aria-label="Bulan sebelumnya"
+      >
+        <ChevronLeft aria-hidden="true" />
+      </Button>
+
+      <Select
+        aria-label="Pilih bulan"
         value={bulan}
         onChange={(event) => go(Number(event.target.value), tahun)}
-        className={selectClass}
+        className="w-auto"
       >
         {NAMA_BULAN.map((nama, index) => (
           <option key={nama} value={index + 1}>
             {nama}
           </option>
         ))}
-      </select>
+      </Select>
 
-      <label htmlFor="pilih-tahun" className="sr-only">
-        Pilih tahun
-      </label>
-      <select
-        id="pilih-tahun"
+      <Select
+        aria-label="Pilih tahun"
         value={tahun}
         onChange={(event) => go(bulan, Number(event.target.value))}
-        className={selectClass}
+        className="w-auto"
       >
         {tahunList.map((y) => (
           <option key={y} value={y}>
             {y}
           </option>
         ))}
-      </select>
+      </Select>
 
-      <button
+      <Button
         type="button"
-        onClick={() => go(now.getMonth() + 1, now.getFullYear())}
-        className="transition-soft flex min-h-[44px] items-center rounded-md px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+        variant="secondary"
+        size="icon"
+        onClick={() => shift(1)}
+        aria-label="Bulan berikutnya"
       >
-        Bulan ini
-      </button>
+        <ChevronRight aria-hidden="true" />
+      </Button>
+
+      {!isCurrent && (
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => go(now.getMonth() + 1, now.getFullYear())}
+        >
+          Bulan ini
+        </Button>
+      )}
     </div>
   );
 }

@@ -6,6 +6,8 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useToast } from "@/components/ui/toast";
 import {
   UserFormDialog,
   type BidangOption,
@@ -15,6 +17,7 @@ import {
   createUserAction,
   deleteUserAction,
   updateUserAction,
+  type UserActionResult,
   type UserFormInput,
 } from "@/app/admin/users/actions";
 import type { Database } from "@/lib/supabase/database.types";
@@ -35,6 +38,7 @@ export function UserManager({
   bidangOptions: BidangOption[];
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [dialog, setDialog] = useState<
     | { mode: "add" }
     | { mode: "edit"; user: AdminUserRow }
@@ -63,6 +67,17 @@ export function UserManager({
     };
   }
 
+  // Sesi berakhir dikembalikan sebagai kode dari Server Action.
+  function handleUnauthorized(result: UserActionResult, setLocalError: (value: string) => void): boolean {
+    if (result.code === "unauthorized") {
+      toast.error(result.message);
+      router.replace("/login?expired=1");
+      return true;
+    }
+    setLocalError(result.message);
+    return false;
+  }
+
   async function handleSubmit(input: UserFormInput) {
     if (!dialog || saving) return;
     setSaving(true);
@@ -73,9 +88,10 @@ export function UserManager({
         : await updateUserAction(dialog.user.profile.id, input);
     setSaving(false);
     if (!result.ok) {
-      setServerError(result.message);
+      handleUnauthorized(result, setServerError);
       return;
     }
+    toast.success(result.message);
     setDialog(null);
     router.refresh();
   }
@@ -83,12 +99,14 @@ export function UserManager({
   async function handleDelete() {
     if (!deleteTarget || deleting) return;
     setDeleting(true);
+    setPageError(null);
     const result = await deleteUserAction(deleteTarget.profile.id);
     setDeleting(false);
     if (!result.ok) {
-      setPageError(result.message);
+      handleUnauthorized(result, setPageError);
       return;
     }
+    toast.success(result.message);
     setDeleteTarget(null);
     router.refresh();
   }
@@ -111,14 +129,31 @@ export function UserManager({
       </div>
 
       {pageError && (
-        <p role="alert" className="mt-3 text-sm text-red-700">
+        <p role="alert" className="mt-3 text-sm text-danger">
           {pageError}
         </p>
       )}
 
-      {users.length > 0 && (
+      {users.length === 0 ? (
+        <EmptyState
+          className="mt-4"
+          title="Belum ada user"
+          description="Tambahkan user pertama agar mereka dapat mulai melapor."
+          action={
+            <Button
+              onClick={() => {
+                setServerError(null);
+                setDialog({ mode: "add" });
+              }}
+            >
+              <Plus aria-hidden="true" />
+              Tambah User
+            </Button>
+          }
+        />
+      ) : (
         <>
-          <div className="shadow-subtle mt-4 hidden overflow-x-auto rounded-lg border border-border bg-white md:block">
+          <div className="panel mt-4 hidden overflow-x-auto rounded-lg md:block">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-border text-xs text-muted-foreground">
@@ -170,12 +205,9 @@ export function UserManager({
             </table>
           </div>
 
-          <ul className="mt-4 flex flex-col gap-3 md:hidden">
+          <ul className="panel mt-4 divide-y divide-border overflow-hidden rounded-lg md:hidden">
             {users.map((user) => (
-              <li
-                key={user.profile.id}
-                className="shadow-subtle rounded-lg border border-border bg-white px-4 py-4"
-              >
+              <li key={user.profile.id} className="px-4 py-4">
                 <p className="text-sm font-medium">{user.profile.nama}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{user.profile.username}</p>
                 <dl className="mt-3 flex flex-col gap-1 text-sm">

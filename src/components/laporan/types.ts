@@ -9,6 +9,7 @@ export interface KegiatanItem {
   nama: string;
   keterangan: KeteranganRow[];
   review: Pick<ReviewRow, "status" | "catatan"> | null;
+  indikatorIds: string[];
 }
 
 export const NAMA_BULAN = [
@@ -39,4 +40,12 @@ export function formatTanggalPanjang(iso: string): string {
   const tanggal = new Date(y, m - 1, d);
   const hari = tanggal.toLocaleDateString("id-ID", { weekday: "long" });
   return `${hari}, ${pad2(d)} ${NAMA_BULAN[m - 1]} ${y}`;
+}
+
+// Versi ringkas untuk judul kelompok tanggal: "Senin, 1 September".
+export function formatHariTanggal(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const tanggal = new Date(y, m - 1, d);
+  const hari = tanggal.toLocaleDateString("id-ID", { weekday: "long" });
+  return `${hari}, ${d} ${NAMA_BULAN[m - 1]}`;
 }

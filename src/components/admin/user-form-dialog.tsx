@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Dialog } from "@/components/ui/dialog";
 import { SubBidangEditor } from "@/components/admin/sub-bidang-editor";
 import { isValidUsername } from "@/lib/auth/username";
@@ -53,12 +54,24 @@ export function UserFormDialog({
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
+    if (nama.trim().length === 0) {
+      setFormError("Nama wajib diisi.");
+      return;
+    }
     if (nama.trim().length < 2 || nama.trim().length > 120) {
       setFormError("Nama harus 2-120 karakter.");
       return;
     }
+    if (username.trim().length === 0) {
+      setFormError("Username wajib diisi.");
+      return;
+    }
     if (!isValidUsername(username)) {
       setFormError("Username harus 3-32 karakter: huruf kecil, angka, titik, underscore, atau strip.");
+      return;
+    }
+    if (!passwordOptional && password.length === 0) {
+      setFormError("Kata sandi wajib diisi.");
       return;
     }
     if (!passwordOptional && password.length < 8) {
@@ -87,7 +100,10 @@ export function UserFormDialog({
           <Input
             id="user-nama"
             value={nama}
-            onChange={(event) => setNama(event.target.value)}
+            onChange={(event) => {
+              setNama(event.target.value);
+              setFormError(null);
+            }}
             placeholder="Contoh: Daffa"
             disabled={saving}
           />
@@ -98,7 +114,10 @@ export function UserFormDialog({
           <Input
             id="user-username"
             value={username}
-            onChange={(event) => setUsername(event.target.value)}
+            onChange={(event) => {
+              setUsername(event.target.value);
+              setFormError(null);
+            }}
             placeholder="Contoh: daffa"
             autoComplete="off"
             disabled={saving}
@@ -111,7 +130,10 @@ export function UserFormDialog({
             id="user-password"
             type="password"
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              setFormError(null);
+            }}
             placeholder={passwordOptional ? "Kosongkan bila tidak diubah" : "Minimal 8 karakter"}
             autoComplete="new-password"
             disabled={saving}
@@ -120,12 +142,11 @@ export function UserFormDialog({
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="user-bidang">Bidang</Label>
-          <select
+          <Select
             id="user-bidang"
             value={bidangId}
             onChange={(event) => setBidangId(event.target.value)}
             disabled={saving}
-            className="shadow-subtle transition-soft flex min-h-[44px] w-full rounded-md border border-border bg-white px-3 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="">Tanpa bidang</option>
             {bidangOptions.map((bidang) => (
@@ -133,13 +154,20 @@ export function UserFormDialog({
                 {bidang.nama}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
-        <SubBidangEditor value={subBidang} onChange={setSubBidang} disabled={saving} />
+        <SubBidangEditor
+          value={subBidang}
+          onChange={(next) => {
+            setSubBidang(next);
+            setFormError(null);
+          }}
+          disabled={saving}
+        />
 
         {(formError || serverError) && (
-          <p role="alert" className="text-sm text-red-700">
+          <p role="alert" className="text-sm text-danger">
             {formError ?? serverError}
           </p>
         )}

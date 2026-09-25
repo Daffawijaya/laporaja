@@ -1,11 +1,13 @@
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
+import { AdminNav } from "@/components/admin/admin-nav";
+import { assertOk } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import { NAMA_BULAN, formatTanggalPanjang } from "@/components/laporan/types";
 
-// Dashboard superadmin: ringkas dan berorientasi tindakan. Tanpa analytics
-// rumit dan tanpa grafik. Angka bulan berjalan, daftar tunggu review,
-// dan ringkasan per user yang mengarah ke laporan masing-masing.
+// Dashboard superadmin: ringkas dan berorientasi tindakan. Tanpa grafik.
+// Angka bulan berjalan, daftar tunggu review, dan ringkasan per user.
 export default async function AdminPage() {
   const now = new Date();
   const tahun = now.getFullYear();
@@ -16,31 +18,39 @@ export default async function AdminPage() {
   const labelBulan = `${NAMA_BULAN[bulan - 1]} ${tahun}`;
 
   const supabase = await createClient();
-  const [{ data: profiles }, { data: bidangList }] = await Promise.all([
-    supabase.from("profiles").select("id, nama, username, role, bidang_id").order("nama"),
+  const [profilesResult, bidangResult] = await Promise.all([
+    supabase.from("profiles").select("id, nama, username, bidang_id").eq("role", "user").order("nama"),
     supabase.from("bidang").select("id, nama"),
   ]);
-
-  const users = (profiles ?? []).filter((profile) => profile.role === "user");
+  assertOk(profilesResult.error, "Gagal memuat data pengguna. Coba lagi.");
+  assertOk(bidangResult.error, "Gagal memuat data bidang. Coba lagi.");
+  const users = profilesResult.data ?? [];
+  const bidangList = bidangResult.data;
   const bidangNama = new Map((bidangList ?? []).map((bidang) => [bidang.id, bidang.nama]));
   const userIds = users.map((user) => user.id);
 
   let kegiatanBulanIni: { id: string; user_id: string; tanggal: string; nama_kegiatan: string }[] = [];
   let reviewBulanIni: { kegiatan_id: string; status: "approved" | "revision" }[] = [];
   if (userIds.length > 0) {
-    const [{ data: kegiatan }, { data: reviews }] = await Promise.all([
-      supabase
-        .from("kegiatan")
-        .select("id, user_id, tanggal, nama_kegiatan")
-        .in("user_id", userIds)
-        .gte("tanggal", firstDay)
-        .lte("tanggal", lastDay),
-      supabase.from("reviews").select("kegiatan_id, status"),
-    ]);
-    kegiatanBulanIni = kegiatan ?? [];
-    // Hanya review untuk kegiatan bulan ini.
-    const idsBulanIni = new Set(kegiatanBulanIni.map((kegiatan) => kegiatan.id));
-    reviewBulanIni = (reviews ?? []).filter((review) => idsBulanIni.has(review.kegiatan_id));
+    const kegiatanResult = await supabase
+      .from("kegiatan")
+      .select("id, user_id, tanggal, nama_kegiatan")
+      .in("user_id", userIds)
+      .gte("tanggal", firstDay)
+      .lte("tanggal", lastDay);
+    assertOk(kegiatanResult.error, "Gagal memuat kegiatan bulan ini. Coba lagi.");
+    kegiatanBulanIni = kegiatanResult.data ?? [];
+
+    // Review diambil hanya untuk kegiatan bulan ini, bukan seluruh tabel.
+    const idsBulanIni = kegiatanBulanIni.map((kegiatan) => kegiatan.id);
+    if (idsBulanIni.length > 0) {
+      const reviewsResult = await supabase
+        .from("reviews")
+        .select("kegiatan_id, status")
+        .in("kegiatan_id", idsBulanIni);
+      assertOk(reviewsResult.error, "Gagal memuat status review. Coba lagi.");
+      reviewBulanIni = reviewsResult.data ?? [];
+    }
   }
 
   const statusByKegiatan = new Map(reviewBulanIni.map((review) => [review.kegiatan_id, review.status]));
@@ -77,18 +87,19 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
+      <AdminNav />
       <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
       <p className="mt-1 text-sm text-muted-foreground">{labelBulan}</p>
 
-      <div className="mt-6 grid grid-cols-2 gap-2 md:grid-cols-4">
+      <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border shadow-subtle md:grid-cols-4">
         {stats.map((stat) => (
           <Link
             key={stat.label}
             href={stat.href}
-            className="transition-soft shadow-subtle rounded-lg border border-border bg-white px-4 py-4 hover:bg-muted"
+            className="transition-soft bg-surface px-4 py-4 hover:bg-muted/60"
           >
             <p className="text-2xl font-semibold tracking-tight">{stat.value}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{stat.label}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{stat.label}</p>
           </Link>
         ))}
       </div>
@@ -100,25 +111,23 @@ export default async function AdminPage() {
             Semua laporan bulan ini sudah direview.
           </p>
         ) : (
-          <ul className="mt-3 flex flex-col gap-2">
+          <ul className="panel mt-3 divide-y divide-border overflow-hidden rounded-lg">
             {perluReview.map((kegiatan) => (
               <li
                 key={kegiatan.id}
-                className="shadow-subtle flex items-center justify-between gap-3 rounded-lg border border-border bg-white px-4 py-3"
+                className="flex items-center justify-between gap-3 px-4 py-3"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{namaByUser.get(kegiatan.user_id)}</p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {formatTanggalPanjang(kegiatan.tanggal)}
+                  <p className="truncate text-sm font-medium">
+                    {namaByUser.get(kegiatan.user_id)}
                   </p>
-                  <p className="truncate text-sm">{kegiatan.nama_kegiatan}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {formatTanggalPanjang(kegiatan.tanggal)} · {kegiatan.nama_kegiatan}
+                  </p>
                 </div>
-                <Link
-                  href={`/admin/laporan/${kegiatan.id}`}
-                  className="transition-soft flex min-h-[44px] shrink-0 items-center rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground hover:opacity-90"
-                >
-                  Review
-                </Link>
+                <Button asChild className="shrink-0">
+                  <Link href={`/admin/laporan/${kegiatan.id}`}>Review</Link>
+                </Button>
               </li>
             ))}
           </ul>
@@ -132,16 +141,18 @@ export default async function AdminPage() {
             Belum ada user. Tambahkan lewat halaman Pengguna.
           </p>
         ) : (
-          <ul className="mt-3 flex flex-col gap-2">
+          <ul className="panel mt-3 divide-y divide-border overflow-hidden rounded-lg">
             {ringkasan.map((item) => (
               <li key={item.user.id}>
                 <Link
                   href={`/admin/laporan?user=${item.user.id}&bulan=${bulan}&tahun=${tahun}`}
-                  className="transition-soft shadow-subtle block rounded-lg border border-border bg-white px-4 py-3 hover:bg-muted"
+                  className="transition-soft block px-4 py-3 hover:bg-muted/60"
                 >
                   <p className="text-sm font-medium">{item.user.nama}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {item.user.bidang_id ? (bidangNama.get(item.user.bidang_id) ?? "Tanpa bidang") : "Tanpa bidang"}
+                    {item.user.bidang_id
+                      ? (bidangNama.get(item.user.bidang_id) ?? "Tanpa bidang")
+                      : "Tanpa bidang"}
                     {" · "}
                     {labelBulan}
                   </p>

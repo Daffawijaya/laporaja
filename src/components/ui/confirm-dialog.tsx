@@ -27,11 +27,7 @@ export function ConfirmDialog({
         <Button variant="secondary" onClick={onCancel} disabled={busy}>
           Batal
         </Button>
-        <Button
-          onClick={onConfirm}
-          disabled={busy}
-          className="bg-red-600 text-white hover:bg-red-700"
-        >
+        <Button variant="danger" onClick={onConfirm} disabled={busy}>
           {busy ? "Menghapus..." : confirmLabel}
         </Button>
       </div>

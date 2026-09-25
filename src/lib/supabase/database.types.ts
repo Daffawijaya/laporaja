@@ -56,6 +56,25 @@ export type ReviewRow = {
   updated_at: string;
 };
 
+export type IndikatorRow = {
+  id: string;
+  nama: string;
+  target: number;
+  tahun: number;
+  bulan_mulai: number;
+  bulan_selesai: number;
+  bidang_id: string | null;
+  user_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type KegiatanIndikatorRow = {
+  kegiatan_id: string;
+  indikator_id: string;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -98,6 +117,30 @@ export type Database = {
         Insert: Pick<ReviewRow, "kegiatan_id" | "status"> &
           Partial<Pick<ReviewRow, "id" | "catatan" | "created_at" | "updated_at">>;
         Update: Partial<Pick<ReviewRow, "status" | "catatan">>;
+        Relationships: [];
+      };
+      indikator: {
+        Row: IndikatorRow;
+        Insert: Pick<
+          IndikatorRow,
+          "nama" | "target" | "tahun" | "bulan_mulai" | "bulan_selesai"
+        > &
+          Partial<
+            Pick<IndikatorRow, "id" | "bidang_id" | "user_id" | "created_at" | "updated_at">
+          >;
+        Update: Partial<
+          Pick<
+            IndikatorRow,
+            "nama" | "target" | "tahun" | "bulan_mulai" | "bulan_selesai" | "bidang_id" | "user_id"
+          >
+        >;
+        Relationships: [];
+      };
+      kegiatan_indikator: {
+        Row: KegiatanIndikatorRow;
+        Insert: Pick<KegiatanIndikatorRow, "kegiatan_id" | "indikator_id"> &
+          Partial<Pick<KegiatanIndikatorRow, "created_at">>;
+        Update: Partial<Pick<KegiatanIndikatorRow, "kegiatan_id" | "indikator_id">>;
         Relationships: [];
       };
     };

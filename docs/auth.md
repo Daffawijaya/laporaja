@@ -25,7 +25,8 @@ baris `profiles` dari metadata saat akun auth dibuat.
 ## Proteksi
 
 - `src/proxy.ts` menyegarkan sesi di setiap request sehingga sesi tetap
-  ada setelah refresh.
+  ada setelah refresh. Bila env Supabase belum diisi, proxy meneruskan request
+  agar halaman menampilkan pesan konfigurasi yang jelas.
 - `src/lib/auth/session.ts` menyediakan `requireUser` dan
   `requireSuperadmin` untuk layout server.
 - `AuthListener` di root layout menyinkronkan perubahan sesi client
@@ -36,8 +37,18 @@ baris `profiles` dari metadata saat akun auth dibuat.
 
 ## Sesi dan keluar
 
-- Sesi disimpan sebagai cookie httpOnly oleh `@supabase/ssr`.
+- Sesi disimpan sebagai cookie oleh `@supabase/ssr` dengan opsi
+  `path=/`, `sameSite=lax`, dan `secure` saat produksi.
+- Cookie sengaja **tidak** `httpOnly`. Client Supabase di browser harus
+  membacanya untuk menandatangani permintaan. Karena itu CSRF dimitigasi lewat
+  `sameSite=lax` dan akses data tetap dibatasi RLS, bukan oleh flag cookie.
 - Tombol Keluar memanggil `signOut` lalu mengarahkan ke `/login`.
+- Sesi yang berakhir tanpa aksi pengguna ditangani `AuthListener`: peristiwa
+  `SIGNED_OUT` mengarahkan ke `/login?expired=1` dan halaman masuk menampilkan
+  keterangan singkat. Keluar sengaja ditandai agar tidak terbaca sebagai sesi
+  berakhir.
+- Tulis data di client dan Server Action mendeteksi galat sesi (status 401 atau
+  kode PGRST301) lalu mengarahkan ke `/login?expired=1`.
 
 ## Seed superadmin pertama
 

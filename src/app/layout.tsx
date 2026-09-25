@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthListener } from "@/components/auth/auth-listener";
+import { ToastProvider } from "@/components/ui/toast";
+import { FxFilterLoader } from "@/components/ui/fx-filter-loader";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,8 +28,11 @@ export default function RootLayout({
   return (
     <html lang="id" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="min-h-full antialiased">
-        <AuthListener />
-        {children}
+        <FxFilterLoader />
+        <ToastProvider>
+          <AuthListener />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

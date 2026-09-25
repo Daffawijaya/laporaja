@@ -1,13 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
+import { assertOk } from "@/lib/errors";
+import { AdminNav } from "@/components/admin/admin-nav";
 import { UserManager, type AdminUserRow } from "@/components/admin/user-manager";
 
 export default async function UsersPage() {
   const supabase = await createClient();
-  const [{ data: profiles }, { data: bidangList }, { data: subs }] = await Promise.all([
+  const [profilesResult, bidangResult, subsResult] = await Promise.all([
     supabase.from("profiles").select("*").order("nama"),
     supabase.from("bidang").select("*").order("nama"),
     supabase.from("user_sub_bidang").select("*").order("nama"),
   ]);
+  assertOk(profilesResult.error, "Gagal memuat data pengguna. Coba lagi.");
+  assertOk(bidangResult.error, "Gagal memuat data bidang. Coba lagi.");
+  assertOk(subsResult.error, "Gagal memuat sub bidang. Coba lagi.");
+  const profiles = profilesResult.data;
+  const bidangList = bidangResult.data;
+  const subs = subsResult.data;
 
   const bidangNama = new Map((bidangList ?? []).map((bidang) => [bidang.id, bidang.nama]));
   const subsByUser = new Map<string, string[]>();
@@ -25,6 +33,7 @@ export default async function UsersPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl">
+      <AdminNav />
       <h1 className="text-xl font-semibold tracking-tight">Pengguna</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Akun yang dapat masuk memakai username dan kata sandi.

@@ -7,10 +7,12 @@ import {
   usernameToEmail,
 } from "@/lib/auth/username";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { removeUserFolder } from "@/lib/supabase/storage";
 
 export interface UserActionResult {
   ok: boolean;
   message: string;
+  code?: "unauthorized";
 }
 
 export interface UserFormInput {
@@ -21,10 +23,13 @@ export interface UserFormInput {
   subBidang: string[];
 }
 
+// Galat khusus agar pemanggil dapat membedakan sesi berakhir dari galat lain.
+class UnauthorizedError extends Error {}
+
 async function assertSuperadmin() {
   const { user, profile } = await getCurrentProfile();
   if (!user || !profile || profile.role !== "superadmin") {
-    throw new Error("Hanya superadmin yang dapat mengelola pengguna.");
+    throw new UnauthorizedError("Akses ditolak.");
   }
   return { user, profile };
 }
@@ -49,14 +54,25 @@ function cleanSubBidang(list: unknown): string[] {
 
 function cleanNama(nama: unknown): string {
   const cleaned = typeof nama === "string" ? nama.trim() : "";
+  if (cleaned.length === 0) throw new Error("Nama wajib diisi.");
   if (cleaned.length < 2 || cleaned.length > 120) {
     throw new Error("Nama harus 2-120 karakter.");
   }
   return cleaned;
 }
 
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Gagal menyimpan.";
+function toFailure(error: unknown): UserActionResult {
+  if (error instanceof UnauthorizedError) {
+    return {
+      ok: false,
+      code: "unauthorized",
+      message: "Sesi Anda berakhir. Silakan masuk lagi.",
+    };
+  }
+  return {
+    ok: false,
+    message: error instanceof Error ? error.message : "Gagal menyimpan. Coba lagi.",
+  };
 }
 
 export async function createUserAction(
@@ -102,7 +118,7 @@ export async function createUserAction(
       if (/already|exists|registered|duplicate/i.test(createError?.message ?? "")) {
         throw new Error("Username sudah dipakai.");
       }
-      throw new Error(`Gagal membuat akun: ${createError?.message ?? "tidak diketahui"}`);
+      throw new Error("Gagal membuat akun. Coba lagi.");
     }
 
     const userId = created.user.id;
@@ -111,7 +127,7 @@ export async function createUserAction(
       .update({ nama, bidang_id: bidangId })
       .eq("id", userId);
     if (profileError) {
-      throw new Error(`Akun dibuat tetapi profil gagal disimpan: ${profileError.message}`);
+      throw new Error("Akun dibuat, tetapi profil gagal disimpan. Coba lagi.");
     }
 
     if (subs.length > 0) {
@@ -119,14 +135,14 @@ export async function createUserAction(
         subs.map((namaSub) => ({ user_id: userId, nama: namaSub }))
       );
       if (subError) {
-        throw new Error(`User dibuat tetapi sub bidang gagal disimpan: ${subError.message}`);
+        throw new Error("User dibuat, tetapi sub bidang gagal disimpan. Coba lagi.");
       }
     }
 
     revalidatePath("/admin/users");
     return { ok: true, message: `User '${username}' ditambahkan.` };
   } catch (error) {
-    return { ok: false, message: toErrorMessage(error) };
+    return toFailure(error);
   }
 }
 
@@ -176,14 +192,14 @@ export async function updateUserAction(
         email: usernameToEmail(username),
         user_metadata: { username, nama },
       });
-      if (emailError) throw new Error(`Gagal mengubah username: ${emailError.message}`);
+      if (emailError) throw new Error("Gagal mengubah username. Coba lagi.");
     }
 
     if (gantiPassword) {
       const { error: passwordError } = await admin.auth.admin.updateUserById(id, {
         password: input.password,
       });
-      if (passwordError) throw new Error(`Gagal mengubah kata sandi: ${passwordError.message}`);
+      if (passwordError) throw new Error("Gagal mengubah kata sandi. Coba lagi.");
     }
 
     const { error: profileError } = await admin
@@ -191,7 +207,7 @@ export async function updateUserAction(
       .update({ nama, username, bidang_id: bidangId })
       .eq("id", id);
     if (profileError) {
-      throw new Error(`Gagal menyimpan profil: ${profileError.message}`);
+      throw new Error("Gagal menyimpan profil. Coba lagi.");
     }
 
     const { error: hapusSubError } = await admin
@@ -199,21 +215,21 @@ export async function updateUserAction(
       .delete()
       .eq("user_id", id);
     if (hapusSubError) {
-      throw new Error(`Gagal menyimpan sub bidang: ${hapusSubError.message}`);
+      throw new Error("Gagal menyimpan sub bidang. Coba lagi.");
     }
     if (subs.length > 0) {
       const { error: subError } = await admin.from("user_sub_bidang").insert(
         subs.map((namaSub) => ({ user_id: id, nama: namaSub }))
       );
       if (subError) {
-        throw new Error(`Gagal menyimpan sub bidang: ${subError.message}`);
+        throw new Error("Gagal menyimpan sub bidang. Coba lagi.");
       }
     }
 
     revalidatePath("/admin/users");
     return { ok: true, message: `User '${username}' diperbarui.` };
   } catch (error) {
-    return { ok: false, message: toErrorMessage(error) };
+    return toFailure(error);
   }
 }
 
@@ -232,12 +248,20 @@ export async function deleteUserAction(id: string): Promise<UserActionResult> {
       .maybeSingle();
     if (!profil) throw new Error("User tidak ditemukan.");
 
+    // Bersihkan gambar milik user agar tidak meninggalkan berkas yatim.
+    // Kegagalan di sini tidak menggagalkan penghapusan akun.
+    try {
+      await removeUserFolder(admin, id);
+    } catch {
+      // Diabaikan: akun tetap dihapus walau berkas gagal dibersihkan.
+    }
+
     const { error: deleteError } = await admin.auth.admin.deleteUser(id);
-    if (deleteError) throw new Error(`Gagal menghapus user: ${deleteError.message}`);
+    if (deleteError) throw new Error("Gagal menghapus user. Coba lagi.");
 
     revalidatePath("/admin/users");
     return { ok: true, message: `User '${profil.username}' dihapus.` };
   } catch (error) {
-    return { ok: false, message: toErrorMessage(error) };
+    return toFailure(error);
   }
 }

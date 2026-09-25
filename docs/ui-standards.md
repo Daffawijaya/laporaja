@@ -23,8 +23,42 @@ Arah visual LaporAja ada di `DESIGN.md`. Dokumen ini menerjemahkan prinsip anti-
 - Animasi: hanya transisi lembut 160ms. Tidak ada Fade Up massal, floating, atau bounce sebagai default.
 - Ikon: satu ikon per item navigasi yang relevan. Tanpa ikon generik AI dan tanpa panah di setiap tombol.
 - Card bukan layout default. Gunakan teks dan pemisah bila cukup. Satu panel per layar bila memang perlu pembatas visual.
+- Daftar bulanan memakai satu panel dengan pemisah tipis per hari, bukan satu card per kegiatan.
+- Status memakai satu bahasa visual di semua layar: titik warna plus label. Menunggu Review netral, Disetujui emerald, Revisi amber.
+- Tidak ada kalender. Aktivitas disusun sebagai daftar per tanggal yang ada isinya.
 - Tanpa badge kapsul berisi kata umum seperti Baru atau Beta tanpa fungsi nyata.
 - Tanpa FAQ template, tanpa logo bar, tanpa pricing tiga kolom, tanpa footer empat kolom template.
+
+## Keadaan wajib di setiap layar
+
+Setiap tampilan data dan form harus lengkap keadaannya, tanpa pengecualian.
+
+1. Memuat: kerangka halaman lewat `loading.tsx` dan label tombol yang berubah saat sibuk.
+2. Kosong: satu judul, satu kalimat bantuan, satu aksi berikutnya. Tidak lebih dari dua baris.
+3. Galat: batas galat halaman lewat `error.tsx` dengan tombol Coba lagi, plus galat inline di form dan daftar.
+4. Berhasil: toast singkat dari `useToast()` setelah aksi berhasil.
+5. Hapus: selalu lewat `ConfirmDialog`.
+6. Validasi form: wajib, panjang, dan format dicek sebelum kirim.
+7. Nonaktif: kontrol dinonaktifkan saat menyimpan, dengan label proses yang jelas.
+8. Unggah: progres bertahap "Mengunggah gambar X dari Y".
+9. Galat gambar: pesan singkat dan tombol Coba lagi.
+10. Sesi berakhir: arahkan ke `/login?expired=1` dengan keterangan singkat.
+
+Bahasa galat selalu sederhana dan berorientasi tindakan. Tidak ada pesan
+teknis (nama tabel, kode, atau pesan sistem) yang tampil ke pengguna biasa.
+
+### Aturan validasi
+
+- Nama kegiatan wajib, 2-200 karakter.
+- Nama indikator wajib, 2-120 karakter.
+- Target indikator wajib angka bulat 1-100000.
+- Periode indikator wajib tahun 2000-2100 dan bulan selesai sama atau setelah bulan mulai.
+- Indikator wajib tercakup tepat satu: satu bidang atau satu user.
+- Tanggal kegiatan wajib.
+- Minimal satu keterangan per kegiatan.
+- Blok teks tidak boleh kosong.
+- Gambar harus bertipe gambar dan maksimal 5 MB.
+- Review dengan status Revisi wajib memakai catatan.
 
 ## Pemeriksaan sebelum selesai
 

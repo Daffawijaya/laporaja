@@ -2,20 +2,26 @@
 
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { getSignedImageUrl } from "@/lib/supabase/storage";
 
 // Menampilkan gambar privat dari Storage lewat signed URL sementara.
+// `fallback` mengatur tampilan galat: "compact" untuk thumbnail, "full" untuk
+// gambar besar. Keduanya menyediakan cara memuat ulang.
 export function KeteranganImage({
   path,
   alt,
   className,
+  fallback = "compact",
 }: {
   path: string;
   alt: string;
   className?: string;
+  fallback?: "compact" | "full";
 }) {
+  const [reload, setReload] = useState(0);
   const [loaded, setLoaded] = useState<{
     path: string;
     url: string | null;
@@ -35,22 +41,47 @@ export function KeteranganImage({
     return () => {
       active = false;
     };
-  }, [path]);
+  }, [path, reload]);
 
   const current = loaded && loaded.path === path ? loaded : null;
   const url = current?.url ?? null;
   const failed = current?.failed ?? false;
 
+  function retry() {
+    setLoaded(null);
+    setReload((value) => value + 1);
+  }
+
   if (failed) {
+    if (fallback === "compact") {
+      return (
+        <button
+          type="button"
+          onClick={retry}
+          aria-label={`${alt}. Gambar tidak dapat dimuat. Ketuk untuk mencoba lagi.`}
+          className={cn(
+            "flex items-center justify-center rounded-md border border-border bg-muted text-muted-foreground",
+            className
+          )}
+        >
+          <span aria-hidden="true" className="text-xs">
+            Gagal
+          </span>
+        </button>
+      );
+    }
     return (
-      <span
+      <div
         className={cn(
-          "flex min-h-[64px] items-center justify-center rounded-md border border-border bg-muted px-3 text-xs text-muted-foreground",
+          "flex min-h-[96px] flex-col items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 py-6 text-center",
           className
         )}
       >
-        Gambar tidak dapat dimuat
-      </span>
+        <p className="text-sm text-muted-foreground">Gambar tidak dapat dimuat.</p>
+        <Button type="button" variant="secondary" onClick={retry}>
+          Coba lagi
+        </Button>
+      </div>
     );
   }
 

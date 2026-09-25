@@ -9,11 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
+import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import type { BidangWithCount } from "@/app/admin/bidang/page";
 
 export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
   const router = useRouter();
+  const toast = useToast();
   const [items, setItems] = useState(initial);
   const [dialog, setDialog] = useState<{ mode: "add" } | { mode: "edit"; id: string } | null>(null);
   const [nama, setNama] = useState("");
@@ -35,10 +39,27 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
     setDialog({ mode: "edit", id: item.id });
   }
 
+  function handleSession(error: unknown): boolean {
+    if (error instanceof SessionExpiredError || isSessionError(error)) {
+      toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
+      router.replace("/login?expired=1");
+      return true;
+    }
+    return false;
+  }
+
+  function isDuplicate(error: { message?: string } | null): boolean {
+    return /duplicate|unique|already/i.test(error?.message ?? "");
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving || !dialog) return;
     const cleaned = nama.trim();
+    if (cleaned.length === 0) {
+      setFormError("Nama bidang wajib diisi.");
+      return;
+    }
     if (cleaned.length < 2 || cleaned.length > 120) {
       setFormError("Nama bidang harus 2-120 karakter.");
       return;
@@ -54,8 +75,9 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
           .select("id, nama")
           .single();
         if (error || !data) {
+          if (handleSession(error)) return;
           setFormError(
-            /duplicate|unique|already/i.test(error?.message ?? "")
+            isDuplicate(error)
               ? "Nama bidang sudah dipakai."
               : "Gagal menambah bidang. Coba lagi."
           );
@@ -66,22 +88,23 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
             a.nama.localeCompare(b.nama, "id")
           )
         );
+        toast.success("Bidang ditambahkan.");
       } else {
         const { error } = await supabase
           .from("bidang")
           .update({ nama: cleaned })
           .eq("id", dialog.id);
         if (error) {
+          if (handleSession(error)) return;
           setFormError(
-            /duplicate|unique|already/i.test(error.message)
-              ? "Nama bidang sudah dipakai."
-              : "Gagal menyimpan. Coba lagi."
+            isDuplicate(error) ? "Nama bidang sudah dipakai." : "Gagal menyimpan. Coba lagi."
           );
           return;
         }
         setItems((prev) =>
           prev.map((item) => (item.id === dialog.id ? { ...item, nama: cleaned } : item))
         );
+        toast.success("Perubahan disimpan.");
       }
       setDialog(null);
       router.refresh();
@@ -93,15 +116,18 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
   async function handleDelete() {
     if (!deleteTarget || deleting) return;
     setDeleting(true);
+    setPageError(null);
     try {
       const supabase = createClient();
       const { error } = await supabase.from("bidang").delete().eq("id", deleteTarget.id);
       if (error) {
+        if (handleSession(error)) return;
         setPageError("Gagal menghapus bidang. Coba lagi.");
         return;
       }
       setItems((prev) => prev.filter((item) => item.id !== deleteTarget.id));
       setDeleteTarget(null);
+      toast.success("Bidang dihapus.");
       router.refresh();
     } finally {
       setDeleting(false);
@@ -121,17 +147,29 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
       </div>
 
       {pageError && (
-        <p role="alert" className="mt-3 text-sm text-red-700">
+        <p role="alert" className="mt-3 text-sm text-danger">
           {pageError}
         </p>
       )}
 
-      {items.length > 0 && (
-        <ul className="mt-4 flex flex-col gap-2">
+      {items.length === 0 ? (
+        <EmptyState
+          className="mt-4"
+          title="Belum ada bidang"
+          description="Tambahkan bidang pertama untuk mengelompokkan pengguna."
+          action={
+            <Button onClick={openAdd}>
+              <Plus aria-hidden="true" />
+              Tambah Bidang
+            </Button>
+          }
+        />
+      ) : (
+        <ul className="panel mt-4 divide-y divide-border overflow-hidden rounded-lg">
           {items.map((item) => (
             <li
               key={item.id}
-              className="shadow-subtle flex min-h-[56px] items-center justify-between gap-3 rounded-lg border border-border bg-white px-4 py-2"
+              className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-2"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{item.nama}</p>
@@ -176,13 +214,17 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
             <Input
               id="bidang-nama"
               value={nama}
-              onChange={(event) => setNama(event.target.value)}
+              onChange={(event) => {
+                setNama(event.target.value);
+                setFormError(null);
+              }}
               placeholder="Contoh: Digitalisasi"
               disabled={saving}
+              autoFocus
             />
           </div>
           {formError && (
-            <p role="alert" className="text-sm text-red-700">
+            <p role="alert" className="text-sm text-danger">
               {formError}
             </p>
           )}

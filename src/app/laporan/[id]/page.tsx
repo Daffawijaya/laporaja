@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
+import { assertOk } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
+import { getApplicableIndikators } from "@/lib/indikator/queries";
 import { KegiatanDetail } from "@/components/laporan/kegiatan-detail";
 import type { KegiatanItem } from "@/components/laporan/types";
 
@@ -14,22 +16,31 @@ export default async function KegiatanDetailPage({
   const user = data.user;
   if (!user) redirect("/login");
 
-  const { data: kegiatan } = await supabase
+  const { data: kegiatan, error: kegiatanError } = await supabase
     .from("kegiatan")
     .select("*")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
+  assertOk(kegiatanError, "Gagal memuat kegiatan. Coba lagi.");
   if (!kegiatan) notFound();
 
-  const [{ data: keteranganList }, { data: review }] = await Promise.all([
+  const [keteranganResult, reviewResult, linksResult, indikators] = await Promise.all([
     supabase
       .from("keterangan_kegiatan")
       .select("*")
       .eq("kegiatan_id", id)
       .order("urutan"),
     supabase.from("reviews").select("status, catatan").eq("kegiatan_id", id).maybeSingle(),
+    supabase.from("kegiatan_indikator").select("indikator_id").eq("kegiatan_id", id),
+    getApplicableIndikators(supabase, user.id),
   ]);
+  assertOk(
+    keteranganResult.error ?? reviewResult.error ?? linksResult.error,
+    "Gagal memuat keterangan kegiatan. Coba lagi."
+  );
+  const keteranganList = keteranganResult.data;
+  const review = reviewResult.data;
 
   const item: KegiatanItem = {
     id: kegiatan.id,
@@ -37,10 +48,11 @@ export default async function KegiatanDetailPage({
     nama: kegiatan.nama_kegiatan,
     keterangan: keteranganList ?? [],
     review,
+    indikatorIds: (linksResult.data ?? []).map((link) => link.indikator_id),
   };
 
   const [tahun, bulan] = kegiatan.tanggal.split("-").map(Number);
-  const backHref = `/laporan/bulan?bulan=${bulan}&tahun=${tahun}`;
+  const backHref = `/laporan?bulan=${bulan}&tahun=${tahun}`;
 
-  return <KegiatanDetail userId={user.id} item={item} backHref={backHref} />;
+  return <KegiatanDetail userId={user.id} item={item} backHref={backHref} indikators={indikators} />;
 }

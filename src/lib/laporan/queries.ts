@@ -29,7 +29,7 @@ export async function getMonthlyLaporan(
   const lastDate = new Date(tahun, bulan, 0).getDate();
   const lastDay = `${tahun}-${String(bulan).padStart(2, "0")}-${String(lastDate).padStart(2, "0")}`;
 
-  const { data: kegiatanList } = await supabase
+  const { data: kegiatanList, error: kegiatanError } = await supabase
     .from("kegiatan")
     .select("*")
     .eq("user_id", userId)
@@ -37,13 +37,15 @@ export async function getMonthlyLaporan(
     .lte("tanggal", lastDay)
     .order("tanggal")
     .order("created_at");
+  if (kegiatanError) throw new Error("Gagal memuat daftar kegiatan. Coba lagi.");
 
   const ids = (kegiatanList ?? []).map((kegiatan) => kegiatan.id);
   const keteranganByKegiatan = new Map<string, KegiatanItem["keterangan"]>();
   const reviewByKegiatan = new Map<string, KegiatanItem["review"]>();
+  const indikatorByKegiatan = new Map<string, string[]>();
 
   if (ids.length > 0) {
-    const [{ data: keteranganList }, { data: reviewList }] = await Promise.all([
+    const [keteranganResult, reviewResult, indikatorResult] = await Promise.all([
       supabase
         .from("keterangan_kegiatan")
         .select("*")
@@ -51,7 +53,13 @@ export async function getMonthlyLaporan(
         .order("kegiatan_id")
         .order("urutan"),
       supabase.from("reviews").select("kegiatan_id, status, catatan").in("kegiatan_id", ids),
+      supabase.from("kegiatan_indikator").select("kegiatan_id, indikator_id").in("kegiatan_id", ids),
     ]);
+    if (keteranganResult.error || reviewResult.error || indikatorResult.error) {
+      throw new Error("Gagal memuat keterangan kegiatan. Coba lagi.");
+    }
+    const keteranganList = keteranganResult.data;
+    const reviewList = reviewResult.data;
     for (const row of keteranganList ?? []) {
       const list = keteranganByKegiatan.get(row.kegiatan_id) ?? [];
       list.push(row);
@@ -59,6 +67,11 @@ export async function getMonthlyLaporan(
     }
     for (const review of reviewList ?? []) {
       reviewByKegiatan.set(review.kegiatan_id, review);
+    }
+    for (const link of indikatorResult.data ?? []) {
+      const list = indikatorByKegiatan.get(link.kegiatan_id) ?? [];
+      list.push(link.indikator_id);
+      indikatorByKegiatan.set(link.kegiatan_id, list);
     }
   }
 
@@ -68,5 +81,6 @@ export async function getMonthlyLaporan(
     nama: kegiatan.nama_kegiatan,
     keterangan: keteranganByKegiatan.get(kegiatan.id) ?? [],
     review: reviewByKegiatan.get(kegiatan.id) ?? null,
+    indikatorIds: indikatorByKegiatan.get(kegiatan.id) ?? [],
   }));
 }

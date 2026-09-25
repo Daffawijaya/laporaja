@@ -18,9 +18,3 @@ export function isValidUsername(username: string): boolean {
 export function usernameToEmail(username: string): string {
   return `${normalizeUsername(username)}@${AUTH_EMAIL_DOMAIN}`;
 }
-
-export function emailToUsername(email: string): string | null {
-  const suffix = `@${AUTH_EMAIL_DOMAIN}`;
-  if (!email.toLowerCase().endsWith(suffix)) return null;
-  return email.slice(0, -suffix.length).toLowerCase();
-}

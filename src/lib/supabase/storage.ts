@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
+import { failWith } from "@/lib/errors";
 
 export type StorageClient = SupabaseClient<Database>;
 
@@ -23,7 +24,9 @@ export async function uploadKegiatanImage(
     contentType: file.type || undefined,
     upsert: false,
   });
-  if (error) throw new Error(`Gagal mengunggah gambar: ${error.message}`);
+  if (error) {
+    failWith(error, "Gagal mengunggah gambar. Periksa koneksi lalu coba lagi.");
+  }
   return path;
 }
 
@@ -49,6 +52,25 @@ export async function removeKegiatanFolder(
       data.map((file) => `${prefix}/${file.name}`)
     );
   }
+}
+
+// Hapus seluruh gambar milik satu user. Dipakai saat akun dihapus agar tidak
+// meninggalkan berkas yatim di Storage. Best effort.
+export async function removeUserFolder(
+  client: StorageClient,
+  userId: string
+): Promise<void> {
+  const { data: kegiatanFolders } = await client.storage.from(BUCKET).list(userId);
+  if (!kegiatanFolders) return;
+  const paths: string[] = [];
+  for (const folder of kegiatanFolders) {
+    const prefix = `${userId}/${folder.name}`;
+    const { data: files } = await client.storage.from(BUCKET).list(prefix);
+    for (const file of files ?? []) {
+      paths.push(`${prefix}/${file.name}`);
+    }
+  }
+  await removeStoragePaths(client, paths);
 }
 
 export async function getSignedImageUrl(

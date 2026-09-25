@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { Select } from "@/components/ui/select";
 import { NAMA_BULAN } from "@/components/laporan/types";
 
 export interface UserOption {
@@ -9,9 +10,6 @@ export interface UserOption {
   nama: string;
   username: string;
 }
-
-const selectClass =
-  "shadow-subtle transition-soft min-h-[44px] rounded-md border border-border bg-white px-3 text-sm text-foreground";
 
 export function AdminLaporanFilter({
   users,
@@ -27,10 +25,10 @@ export function AdminLaporanFilter({
   const router = useRouter();
   const searchParams = useSearchParams();
   const now = new Date();
+  const startYear = Math.min(now.getFullYear() - 3, tahun);
+  const endYear = Math.max(now.getFullYear() + 1, tahun);
   const tahunList: number[] = [];
-  for (let y = now.getFullYear() - 3; y <= now.getFullYear() + 1; y++) {
-    tahunList.push(y);
-  }
+  for (let y = startYear; y <= endYear; y++) tahunList.push(y);
 
   function go(next: { user?: string; bulan?: number; tahun?: number }) {
     const params = new URLSearchParams(searchParams.toString());
@@ -42,14 +40,11 @@ export function AdminLaporanFilter({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <label htmlFor="filter-user" className="sr-only">
-        Pilih user
-      </label>
-      <select
-        id="filter-user"
+      <Select
+        aria-label="Pilih user"
         value={selectedUserId}
         onChange={(event) => go({ user: event.target.value })}
-        className={`${selectClass} max-w-full`}
+        className="w-auto max-w-full"
       >
         <option value="">Pilih user</option>
         {users.map((user) => (
@@ -57,39 +52,33 @@ export function AdminLaporanFilter({
             {user.nama} ({user.username})
           </option>
         ))}
-      </select>
+      </Select>
 
-      <label htmlFor="filter-bulan" className="sr-only">
-        Pilih bulan
-      </label>
-      <select
-        id="filter-bulan"
+      <Select
+        aria-label="Pilih bulan"
         value={bulan}
         onChange={(event) => go({ bulan: Number(event.target.value) })}
-        className={selectClass}
+        className="w-auto"
       >
         {NAMA_BULAN.map((nama, index) => (
           <option key={nama} value={index + 1}>
             {nama}
           </option>
         ))}
-      </select>
+      </Select>
 
-      <label htmlFor="filter-tahun" className="sr-only">
-        Pilih tahun
-      </label>
-      <select
-        id="filter-tahun"
+      <Select
+        aria-label="Pilih tahun"
         value={tahun}
         onChange={(event) => go({ tahun: Number(event.target.value) })}
-        className={selectClass}
+        className="w-auto"
       >
         {tahunList.map((y) => (
           <option key={y} value={y}>
             {y}
           </option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }

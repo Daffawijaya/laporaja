@@ -45,7 +45,15 @@ export async function GET(request: Request) {
     bidangNama = bidang?.nama ?? null;
   }
 
-  const items = await getMonthlyLaporan(supabase, userId, tahun, bulan);
+  let items: Awaited<ReturnType<typeof getMonthlyLaporan>>;
+  try {
+    items = await getMonthlyLaporan(supabase, userId, tahun, bulan);
+  } catch {
+    return Response.json(
+      { message: "Gagal menyiapkan laporan. Coba lagi." },
+      { status: 500 }
+    );
+  }
 
   // Ubah path Storage menjadi URL sementara agar renderer dapat mengunduhnya.
   // Gambar yang tidak dapat dijangkau dilewati agar export tidak gagal total.
