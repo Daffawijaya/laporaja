@@ -392,7 +392,8 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  /* :not(.light) agar pilihan manual lewat switch tetap menang atas OS. */
+  :root:not(.light) {
     --mchrome-bg: #0f0f0f;
     --mchrome-fg: #ffffff;
     --mchrome-border: rgb(255 255 255 / 0.1);
