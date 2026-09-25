@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { assertOk } from "@/lib/errors";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { BidangManager } from "@/components/admin/bidang-manager";
 
 export interface BidangWithCount {
@@ -35,7 +34,6 @@ export default async function BidangPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <AdminNav />
       <h1 className="text-xl font-semibold tracking-tight">Bidang</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Kelompok kerja untuk para pengguna.

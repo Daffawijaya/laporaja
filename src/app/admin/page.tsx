@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { assertOk } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import { NAMA_BULAN, formatTanggalPanjang } from "@/components/laporan/types";
@@ -87,7 +86,6 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <AdminNav />
       <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
       <p className="mt-1 text-sm text-muted-foreground">{labelBulan}</p>
 

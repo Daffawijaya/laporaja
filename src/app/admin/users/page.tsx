@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { assertOk } from "@/lib/errors";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { UserManager, type AdminUserRow } from "@/components/admin/user-manager";
 
 export default async function UsersPage() {
@@ -42,7 +41,6 @@ export default async function UsersPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <AdminNav />
       <h1 className="text-xl font-semibold tracking-tight">Pengguna</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Akun yang dapat masuk memakai username dan kata sandi.

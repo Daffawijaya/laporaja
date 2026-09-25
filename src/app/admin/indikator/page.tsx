@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { assertOk } from "@/lib/errors";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { IndikatorManager, type IndikatorRow } from "@/components/admin/indikator-manager";
 
 export default async function IndikatorPage() {
@@ -74,7 +73,6 @@ export default async function IndikatorPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <AdminNav />
       <h1 className="text-xl font-semibold tracking-tight">Indikator</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Seluruh target kinerja. Tambah di sini berlaku untuk semua user.

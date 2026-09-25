@@ -6,7 +6,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { assertOk } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import { clampBulan, clampTahun, getMonthlyLaporan } from "@/lib/laporan/queries";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminLaporanFilter } from "@/components/admin/admin-laporan-filter";
 import { AdminMonthlyList } from "@/components/admin/admin-monthly-list";
 
@@ -35,7 +34,6 @@ export default async function AdminLaporanPage({
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <AdminNav />
       <h1 className="text-xl font-semibold tracking-tight">Laporan User</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Pilih user dan bulan untuk memeriksa laporan.

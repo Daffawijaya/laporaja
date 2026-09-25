@@ -72,6 +72,10 @@ Alasan: tiga status adalah informasi utama di aplikasi, jadi harus langsung terb
 - Mobile memakai chrome gelap ala YouTube: topbar (`MobileTopbar`, logo kiri,
   bel badge dan avatar kanan) dan bottom nav empat slot (`MobileBottomnav`,
   Beranda di ujung kiri, tanpa profil karena sudah di avatar navbar).
+- Desktop memakai navbar kaca floating (`DesktopNavbar`): bar mengambang
+  sudut membulat (`glass-nav`: permukaan translusen + blur + bayangan lembut),
+  logo kiri, menu tengah, bel badge dan avatar kanan. Alasan: navigasi selalu
+  terlihat tanpa memakan ruang vertikal. Tab atas dihapus.
   Alasan: navigasi satu tangan di layar kecil. Hanya di mobile (`md:hidden`),
   desktop tetap header kaca dan tab atas. Bar mengikuti mode (putih di light,
   `#0f0f0f` di dark via token `--mchrome-*`), bukan blur,
