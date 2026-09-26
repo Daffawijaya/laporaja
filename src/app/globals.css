@@ -138,21 +138,13 @@ body {
     overflow: hidden;
   }
 
-  /* Satu-satunya warna: gradasi biru-putih full layar. Sidebar,
+  /* Satu-satunya warna: gradasi biru muda full layar. Sidebar,
      navbar, dan konten transparan agar warnanya sama persis. */
   .desk-viewport {
     min-height: 100dvh;
     height: 100dvh;
     overflow: hidden;
-    background: linear-gradient(
-      90deg,
-      #d3ddf1 0%,
-      #dde5f6 15%,
-      #e9eef9 32%,
-      #f3f6fc 50%,
-      #f5f7fd 62%,
-      #f5f7fd 100%
-    );
+    background: linear-gradient(90deg, #c2e5fb 0%, #c9e7f6 100%);
   }
 
   .desk-window {
@@ -180,25 +172,26 @@ body {
     background: transparent;
   }
 
-  /* Card konten: putih 70%, rounded kiri atas, border putih, full. */
+  /* Card konten: putih 70%, rounded kiri atas, tanpa border/garis pemisah. */
   .desk-card {
     background-color: rgb(251 252 255 / 0.7);
-    border-color: #ffffff;
-    box-shadow: 0 -8px 24px -16px rgb(30 41 82 / 0.12);
+    border: none;
+    box-shadow: none;
   }
 
   .dark .desk-card {
     background-color: rgb(255 255 255 / 0.03);
-    border-color: rgb(255 255 255 / 0.15);
+    border: none;
+    box-shadow: none;
   }
 
-  /* Divider putih, lebih terang dari sidebar dan navbar. */
+  /* Divider dimatikan: navbar dan sidebar tanpa garis pemisah. */
   .desk-divide {
-    border-color: rgb(255 255 255 / 0.8);
+    border: none;
   }
 
   .dark .desk-divide {
-    border-color: rgb(255 255 255 / 0.12);
+    border: none;
   }
 
   /* Liquid glass global untuk SELURUH Button.
@@ -455,6 +448,42 @@ body {
     color: #111;
     background: rgb(255 255 255 / 0.28);
     text-shadow: 0 1px 4px rgb(255 255 255 / 0.53);
+  }
+
+  /* Card liquid glass untuk konten dashboard, salinan liquid-glass() + blur()
+     dari /lab-glass (demo FxFilterJS, MIT).
+     Light (default): overlay putih. Dark (.dark atau OS dark): overlay hitam.
+     FxFilterJS memindai --fx-filter dan menyuntik .fx-container per card. */
+  .fx-liquid-card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    border: none;
+    --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25)
+      color-overlay(white,.3) contrast(1.25);
+    /* Fallback saat FxFilter belum load: kaca semi-transparan. */
+    background-color: color-mix(in srgb, var(--surface) 62%, transparent);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  .dark .fx-liquid-card {
+    --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25)
+      color-overlay(black,.3) contrast(1.25);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not(.light) .fx-liquid-card {
+      --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25)
+        color-overlay(black,.3) contrast(1.25);
+    }
+  }
+
+  /* FxFilter menyuntik .fx-container belakangan (butuh generate
+     displacement map dulu). Fade-in agar tidak pop gelap-transparan. */
+  .fx-liquid-card .fx-container {
+    animation: fx-modal-materialize 0.5s ease-out both;
   }
 
   /* Permukaan standar: putih, garis tipis, elevasi satu tingkat. */

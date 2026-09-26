@@ -55,13 +55,7 @@ const USER_TABS: DeskTab[] = [
   { key: "anda", label: "Anda", href: "/anda" },
 ];
 
-const ADMIN_TABS: DeskTab[] = [
-  { key: "beranda", label: "Dashboard", href: "/admin" },
-  { key: "laporan", label: "Laporan", href: "/admin/laporan", dot: true },
-  { key: "users", label: "Pengguna", href: "/admin/users" },
-  { key: "bidang", label: "Bidang", href: "/admin/bidang" },
-  { key: "indikator", label: "Indikator", href: "/admin/indikator" },
-];
+const ADMIN_TABS: DeskTab[] = [];
 
 function recentMonths(): { bulan: number; tahun: number; label: string; href: string }[] {  const out: { bulan: number; tahun: number; label: string; href: string }[] = [];
   const now = new Date();
@@ -77,21 +71,6 @@ function recentMonths(): { bulan: number; tahun: number; label: string; href: st
     });
   }
   return out;
-}
-
-// Judul strip di atas card konten (pengganti sub-tab ala referensi).
-function deskTitle(pathname: string, bulan: number, tahun: number): string {
-  if (pathname === "/laporan") return `${NAMA_BULAN[bulan - 1]} ${tahun}`;
-  if (pathname === "/laporan/notifikasi") return "Notifikasi";
-  if (pathname.startsWith("/laporan/")) return "Detail Kegiatan";
-  if (pathname === "/anda") return "Anda";
-  if (pathname === "/admin") return "Dashboard";
-  if (pathname === "/admin/users") return "Pengguna";
-  if (pathname === "/admin/bidang") return "Bidang";
-  if (pathname === "/admin/indikator") return "Indikator";
-  if (pathname === "/admin/laporan") return "Laporan";
-  if (pathname.startsWith("/admin/laporan/")) return "Detail Laporan";
-  return "";
 }
 
 // Jendela desktop ala macOS: wallpaper, panel kaca bulat, titlebar
@@ -167,7 +146,6 @@ export function DesktopWindow({
   const now = new Date();
   const spBulan = Number(searchParams.get("bulan")) || now.getMonth() + 1;
   const spTahun = Number(searchParams.get("tahun")) || now.getFullYear();
-  const title = deskTitle(pathname, spBulan, spTahun);
 
   const userSections: { title: string; items: SideItem[] }[] = [
     {
@@ -271,47 +249,51 @@ export function DesktopWindow({
   return (
     <div className="desk-viewport hidden md:flex">
       <div className="desk-window">
-        <header className="desk-divide flex shrink-0 items-center gap-2 border-b px-5 py-2.5">
+        <header className="flex shrink-0 items-center gap-2 border-0 px-5 py-2.5">
           <div aria-hidden="true" className="flex shrink-0 items-center gap-2">
             <span className="size-3 rounded-full bg-[#ff5f57]" />
             <span className="size-3 rounded-full bg-[#febc2e]" />
             <span className="size-3 rounded-full bg-[#28c840]" />
           </div>
 
-          <nav
-            aria-label={role === "superadmin" ? "Navigasi admin" : "Navigasi utama"}
-            className="flex min-w-0 flex-1 items-center justify-center gap-1"
-          >
-            {tabs.map((tab) => {
-              const active = isActive(tab.href, tab.hash);
-              const showDot = tab.dot && badgeCount > 0;
-              return (
-                <Link
-                  key={tab.key}
-                  href={tab.hash ? `${tab.href}${tab.hash}` : tab.href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "transition-soft relative flex min-h-[40px] items-center gap-1.5 rounded-lg px-4 text-sm whitespace-nowrap",
-                    active ? "font-medium text-[#2f7bff]" : "text-[#3c4257] hover:text-foreground dark:text-[#c3c9d8]"
-                  )}
-                >
-                  {tab.label}
-                  {showDot && (
-                    <span aria-hidden="true" className="size-1.5 rounded-full bg-[#2f7bff]" />
-                  )}
-                  <span className="sr-only">{showDot ? `, ${badgeCount} baru` : ""}</span>
-                  {active && (
-                    <motion.span
-                      layoutId="desk-tab-ink"
-                      aria-hidden="true"
-                      className="absolute inset-x-3 -bottom-[9px] h-[2.5px] rounded-full bg-[#2f7bff]"
-                      transition={{ type: "spring", stiffness: 500, damping: 38, mass: 0.9 }}
-                    />
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
+          {tabs.length > 0 ? (
+            <nav
+              aria-label={role === "superadmin" ? "Navigasi admin" : "Navigasi utama"}
+              className="flex min-w-0 flex-1 items-center justify-center gap-1"
+            >
+              {tabs.map((tab) => {
+                const active = isActive(tab.href, tab.hash);
+                const showDot = tab.dot && badgeCount > 0;
+                return (
+                  <Link
+                    key={tab.key}
+                    href={tab.hash ? `${tab.href}${tab.hash}` : tab.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "transition-soft relative flex min-h-[40px] items-center gap-1.5 rounded-lg px-4 text-sm whitespace-nowrap",
+                      active ? "font-medium text-[#2f7bff]" : "text-[#3c4257] hover:text-foreground dark:text-[#c3c9d8]"
+                    )}
+                  >
+                    {tab.label}
+                    {showDot && (
+                      <span aria-hidden="true" className="size-1.5 rounded-full bg-[#2f7bff]" />
+                    )}
+                    <span className="sr-only">{showDot ? `, ${badgeCount} baru` : ""}</span>
+                    {active && (
+                      <motion.span
+                        layoutId="desk-tab-ink"
+                        aria-hidden="true"
+                        className="absolute inset-x-3 -bottom-[9px] h-[2.5px] rounded-full bg-[#2f7bff]"
+                        transition={{ type: "spring", stiffness: 500, damping: 38, mass: 0.9 }}
+                      />
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
+          ) : (
+            <div aria-hidden="true" className="min-w-0 flex-1" />
+          )}
 
           <div className="relative w-56 shrink-0 lg:w-72">
             <Search
@@ -385,7 +367,7 @@ export function DesktopWindow({
         </header>
 
         <div className="flex min-h-0 flex-1">
-          <aside className="desk-divide desk-side hidden w-52 shrink-0 overflow-y-auto border-r px-3 py-4 md:block lg:w-60">
+          <aside className="desk-side hidden w-52 shrink-0 overflow-y-auto border-0 px-3 py-4 md:block lg:w-60">
             {sections.map((section) => (
               <div key={section.title} className="mt-5 first:mt-0">
                 <p className="px-3 text-xs text-[#8a90a6]">{section.title}</p>
@@ -437,12 +419,7 @@ export function DesktopWindow({
 
           <main className="min-w-0 flex-1 overflow-y-auto">
             <div className="flex min-h-full flex-col">
-              {title && (
-                <div className="px-6 pt-5 pb-4 lg:px-10">
-                  <h1 className="text-[15px] font-medium text-foreground">{title}</h1>
-                </div>
-              )}
-              <div className="desk-card flex-1 rounded-tl-2xl border border-b-0 px-6 py-6 lg:px-10">
+              <div className="desk-card flex-1 rounded-tl-2xl border-0 px-6 py-6 lg:px-10">
                 {children}
               </div>
             </div>

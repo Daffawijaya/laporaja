@@ -99,12 +99,12 @@ export default async function AdminPage() {
         <p className="mt-1 text-sm text-muted-foreground">{labelBulan}</p>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border shadow-subtle md:grid-cols-4">
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         {stats.map((stat) => (
           <Link
             key={stat.label}
             href={stat.href}
-            className="transition-soft bg-surface px-4 py-4 hover:bg-muted/60"
+            className="fx-liquid-card transition-soft px-4 py-4 hover:bg-muted/40"
           >
             <p className="text-2xl font-semibold tracking-tight">{stat.value}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{stat.label}</p>
@@ -115,9 +115,9 @@ export default async function AdminPage() {
       <div className="mt-8">
         <ContentGrid
           aside={
-            <section aria-label="Kelola">
-              <h2 className="text-sm font-semibold">Kelola</h2>
-              <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg text-sm">
+            <section aria-label="Kelola" className="fx-liquid-card py-4">
+              <h2 className="px-4 text-sm font-semibold">Kelola</h2>
+              <ul className="mt-2 divide-y divide-border/60 text-sm">
                 {kelola.map((item) => (
                   <li key={item.href}>
                     <Link
@@ -133,14 +133,14 @@ export default async function AdminPage() {
             </section>
           }
         >
-          <section aria-label="Perlu review" id="perlu-review" className="scroll-mt-20">
-            <h2 className="text-sm font-semibold">Perlu Review</h2>
+          <section aria-label="Perlu review" id="perlu-review" className="fx-liquid-card scroll-mt-20 py-4">
+            <h2 className="px-4 text-sm font-semibold">Perlu Review</h2>
             {perluReview.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="mt-2 px-4 text-sm text-muted-foreground">
                 Semua laporan bulan ini sudah direview.
               </p>
             ) : (
-              <ul className="panel mt-3 divide-y divide-border overflow-hidden rounded-lg">
+              <ul className="mt-3 divide-y divide-border/60">
                 {perluReview.map((kegiatan) => (
                   <li
                     key={kegiatan.id}
@@ -163,14 +163,14 @@ export default async function AdminPage() {
             )}
           </section>
 
-          <section aria-label="Ringkasan user" className="mt-8">
-            <h2 className="text-sm font-semibold">Ringkasan User</h2>
+          <section aria-label="Ringkasan user" className="fx-liquid-card mt-8 py-4">
+            <h2 className="px-4 text-sm font-semibold">Ringkasan User</h2>
             {ringkasan.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="mt-2 px-4 text-sm text-muted-foreground">
                 Belum ada user. Tambahkan lewat halaman Pengguna.
               </p>
             ) : (
-              <ul className="panel mt-3 divide-y divide-border overflow-hidden rounded-lg">
+              <ul className="mt-3 divide-y divide-border/60">
                 {ringkasan.map((item) => (
                   <li key={item.user.id}>
                     <Link
