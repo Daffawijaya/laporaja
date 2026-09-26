@@ -102,43 +102,37 @@ export default async function AdminPage() {
         <ContentGrid
           gapClassName="lg:gap-3"
           aside={
-            <section aria-label="Kelola" className="ref-card p-4 pb-6">
-              <h2 className="text-sm font-semibold">Kelola</h2>
-              <div className="mt-2 flex flex-col gap-2">
-                {kelola.map((item) => (
+            <section aria-label="Kelola" className="ref-card p-4">
+              <div className="divide-y divide-neutral-200/70 dark:divide-white/10">
+                {kelola.map((item, i) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="rounded-2xl bg-neutral-50 px-4 py-3 transition-colors hover:bg-neutral-100 dark:bg-white/5 dark:hover:bg-white/10"
+                    className={`flex items-center justify-between gap-3 px-1 transition-colors hover:text-black dark:hover:text-white${i === 0 ? " pb-3" : i === kelola.length - 1 ? " pt-3" : " py-3"}`}
                   >
-                    <span className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium">{item.label}</span>
-                      <span className="text-xs text-neutral-500">{item.desc}</span>
-                    </span>
+                    <span className="text-sm font-medium">{item.label}</span>
+                    <span className="text-xs text-neutral-500">{item.desc}</span>
                   </Link>
                 ))}
               </div>
             </section>
           }
         >
-          <div className="ref-card p-4 pb-6">
-            <h2 className="text-sm font-semibold">Overview</h2>
-            <div className="mt-2 rounded-2xl border border-[#e1e1e3] bg-[#f6f6f6] p-1 dark:border-white/10 dark:bg-white/5">
-              <div className="grid grid-cols-2 gap-1 md:grid-cols-4">
-                {stats.map((stat) => (
-                  <Link
-                    key={stat.label}
-                    href={stat.href}
-                    className="rounded-xl bg-white px-4 py-4 transition-shadow hover:shadow-md dark:bg-[#1c1c1e]"
-                  >
-                    <span className="block text-2xl font-semibold tracking-tight">{stat.value}</span>
-                    <span className="mt-0.5 block text-xs text-neutral-500">{stat.label}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            {stats.map((stat) => (
+              <Link
+                key={stat.label}
+                href={stat.href}
+                className="ref-card px-4 py-4"
+              >
+                <span className="block text-2xl font-semibold tracking-tight">{stat.value}</span>
+                <span className="mt-0.5 block text-xs text-neutral-500">{stat.label}</span>
+              </Link>
+            ))}
+          </div>
 
-            <section aria-label="Perlu review" id="perlu-review" className="mt-6 scroll-mt-20">
+          <div className="ref-card mt-3 p-4">
+            <section aria-label="Perlu review" id="perlu-review" className="scroll-mt-20">
               <h2 className="text-sm font-semibold">Perlu Review</h2>
               {perluReview.length === 0 ? (
                 <p className="mt-2 text-sm text-neutral-500">
@@ -146,10 +140,10 @@ export default async function AdminPage() {
                 </p>
               ) : (
                 <ul className="mt-2 divide-y divide-neutral-200/70 dark:divide-white/10">
-                  {perluReview.map((kegiatan) => (
+                  {perluReview.map((kegiatan, i) => (
                     <li
                       key={kegiatan.id}
-                      className="flex items-center justify-between gap-3 px-1 py-3"
+                      className={`flex items-center justify-between gap-3 px-1${i === 0 ? " pb-3" : i === perluReview.length - 1 ? " pt-3" : " py-3"}`}
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">
@@ -176,11 +170,11 @@ export default async function AdminPage() {
                 </p>
               ) : (
                 <ul className="mt-2 divide-y divide-neutral-200/70 dark:divide-white/10">
-                  {ringkasan.map((item) => (
+                  {ringkasan.map((item, i) => (
                     <li key={item.user.id}>
                       <Link
                         href={`/admin/laporan?user=${item.user.id}&bulan=${bulan}&tahun=${tahun}`}
-                        className="block px-1 py-3 transition-colors hover:text-black dark:hover:text-white"
+                        className={`block px-1 transition-colors hover:text-black dark:hover:text-white${i === 0 ? " pb-3" : i === ringkasan.length - 1 ? " pt-3" : " py-3"}`}
                       >
                         <p className="text-sm font-medium">{item.user.nama}</p>
                         <p className="mt-0.5 text-xs text-neutral-500">
