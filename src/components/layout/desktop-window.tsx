@@ -212,12 +212,13 @@ export function DesktopWindow({
         </div>
       </aside>
 
-      {/* Kolom kanan: topbar sticky + konten dalam satu scroll agar fade navbar terlihat */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+      {/* Kolom kanan: block (bukan flex-col) agar lapisan blur navbar ikut ter-render.
+          Sticky header flex-item + backdrop-filter tidak dilukis browser. */}
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         <header className="ref-navbar shrink-0">
           <div
             aria-hidden="true"
-            className="ref-navbar-bg pointer-events-none absolute inset-0 backdrop-blur-xl backdrop-saturate-[1.8]"
+            className="ref-navbar-bg pointer-events-none absolute inset-0 backdrop-blur-2xl backdrop-saturate-[1.8]"
           />
           <div className="relative flex items-center gap-3 px-6 pt-4 pb-4 lg:px-8">
           <h1 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight">{title}</h1>
@@ -275,7 +276,7 @@ export function DesktopWindow({
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 px-6 pb-6 lg:px-8">{children}</main>
+        <main className="px-6 pb-6 lg:px-8">{children}</main>
       </div>
     </div>
   );
