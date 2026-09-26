@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { RefListCard } from "@/components/ui/ref-list-card";
 import { ContentGrid } from "@/components/layout/content-grid";
 import { useModalKey } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
@@ -161,51 +162,65 @@ export function MonthlyList({
         gapClassName="lg:gap-3"
         aside={
           <>
-            <section aria-label="Bulan" className="ref-card p-4 pb-6">
-              <h2 className="text-sm font-semibold">Bulan</h2>
-              <div className="mt-2 rounded-2xl bg-neutral-50 p-3 dark:bg-white/5">
+            <RefListCard ariaLabel="Bulan" title="Bulan">
+              <div className="rounded-2xl bg-neutral-50 p-3 dark:bg-white/5">
                 <MonthPicker bulan={bulan} tahun={tahun} />
               </div>
-            </section>
+            </RefListCard>
 
             {visibleItems.length > 0 && (
-              <section aria-label="Ringkasan bulan ini" className="ref-card p-4 pb-6">
-                <h2 className="text-sm font-semibold">Bulan ini</h2>
-                <ul className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
-                  <li className="flex items-center justify-between gap-3 px-1 py-2.5">
-                    <span className="text-neutral-500">Kegiatan</span>
-                    <span className="font-medium">{visibleItems.length}</span>
+              <RefListCard ariaLabel="Ringkasan bulan ini" title="Bulan ini">
+                <ul className="divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
+                  <li className="flex items-center justify-between gap-3 px-1 pb-3">
+                    <span className="text-sm font-medium">Kegiatan</span>
+                    <span className="shrink-0 text-xs text-neutral-500">
+                      {visibleItems.length}
+                    </span>
                   </li>
-                  {ringkasan.map((row) => (
+                  {ringkasan.map((row, idx) => (
                     <li
                       key={row.key}
-                      className="flex items-center justify-between gap-3 px-1 py-2.5"
+                      className={
+                        idx === ringkasan.length - 1
+                          ? "flex items-center justify-between gap-3 px-1 pt-3"
+                          : "flex items-center justify-between gap-3 px-1 py-3"
+                      }
                     >
-                      <span className="flex items-center gap-1.5 text-neutral-500">
+                      <span className="flex items-center gap-1.5 text-sm font-medium">
                         <span
                           aria-hidden="true"
                           className={`size-1.5 rounded-full ${row.dot}`}
                         />
                         {row.label}
                       </span>
-                      <span className="font-medium">{row.value}</span>
+                      <span className="shrink-0 text-xs text-neutral-500">{row.value}</span>
                     </li>
                   ))}
                 </ul>
-              </section>
+              </RefListCard>
             )}
 
             {visibleIndikators.length > 0 && (
-              <section aria-label="Indikator kinerja" id="indikator" className="ref-card scroll-mt-20 p-4 pb-6">
-                <h2 className="text-sm font-semibold">Indikator kinerja</h2>
-                <ul className="mt-2 divide-y divide-neutral-200/70 dark:divide-white/10">
-                  {visibleIndikators.map((indikator) => {
+              <RefListCard
+                ariaLabel="Indikator kinerja"
+                title="Indikator kinerja"
+                id="indikator"
+                className="scroll-mt-20"
+              >
+                <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
+                  {visibleIndikators.map((indikator, idx) => {
                     const persen =
                       indikator.target == null
                         ? 0
                         : Math.min(100, Math.round((indikator.bulanIni / indikator.target) * 100));
+                    const pad =
+                      idx === 0
+                        ? "px-1 pb-3"
+                        : idx === visibleIndikators.length - 1
+                          ? "px-1 pt-3"
+                          : "px-1 py-3";
                     return (
-                      <li key={indikator.id} className="px-1 py-3">
+                      <li key={indikator.id} className={pad}>
                         <div className="flex items-baseline justify-between gap-3">
                           <p className="min-w-0 truncate text-sm font-medium">
                             {indikator.nama}
@@ -242,23 +257,19 @@ export function MonthlyList({
                     );
                   })}
                 </ul>
-              </section>
+              </RefListCard>
             )}
           </>
         }
       >
         <p className="text-sm text-neutral-500 md:hidden">Selamat datang, {nama}</p>
-        <div className="mt-1 md:hidden">
-          <h1 className="text-xl font-semibold tracking-tight">
-            {NAMA_BULAN[bulan - 1]} {tahun}
-          </h1>
-        </div>
 
-        <div className="ref-card mt-2 p-4 pb-6 md:mt-0">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold max-md:hidden">
-              {NAMA_BULAN[bulan - 1]} {tahun}
-            </h2>
+        <RefListCard
+          ariaLabel="Daftar kegiatan"
+          title={`${NAMA_BULAN[bulan - 1]} ${tahun}`}
+          className="mt-2 md:mt-0"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 px-1 pb-3">
             <Button onClick={openAdd} className="w-full sm:w-auto md:ml-auto">
               <Plus aria-hidden="true" />
               Tambah Kegiatan
@@ -306,14 +317,26 @@ export function MonthlyList({
                       .slice(0, 3);
                     return (
                       <li key={item.id} className="px-1 py-3">
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center justify-between gap-3">
                           <Link
                             href={`/laporan/${item.id}`}
                             className="min-w-0 flex-1 text-sm font-medium transition-soft hover:text-accent"
                           >
                             {item.nama}
                           </Link>
-                          <ReviewBadge status={item.review?.status ?? null} />
+                          <span className="flex shrink-0 items-center gap-1">
+                            <ReviewBadge status={item.review?.status ?? null} />
+                            <Link
+                              href={`/laporan/${item.id}`}
+                              aria-label={`Lihat ${item.nama}`}
+                              className="flex items-center justify-center"
+                            >
+                              <ChevronRight
+                                aria-hidden="true"
+                                className="size-5 text-neutral-400"
+                              />
+                            </Link>
+                          </span>
                         </div>
 
                         {textRow && (
@@ -380,7 +403,7 @@ export function MonthlyList({
           })}
           </div>
           )}
-        </div>
+        </RefListCard>
       </ContentGrid>
 
       {error && !dialog && (

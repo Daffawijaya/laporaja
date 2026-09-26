@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/auth/session";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ContentGrid } from "@/components/layout/content-grid";
 import { ThemeSwitchSetting } from "@/components/layout/theme-switch";
+import { RefListCard } from "@/components/ui/ref-list-card";
 import { redirect } from "next/navigation";
 
 // Halaman akun ala menu Anda: ringkasan profil, pengaturan, tombol keluar.
@@ -23,20 +24,18 @@ export default async function AndaPage() {
         gapClassName="lg:gap-3"
         aside={
           <>
-            <section aria-label="Pengaturan" className="ref-card p-4 pb-6">
-              <h2 className="text-sm font-semibold">Pengaturan</h2>
-              <div className="mt-2 rounded-2xl bg-neutral-50 p-3 dark:bg-white/5">
+            <RefListCard ariaLabel="Pengaturan" title="Pengaturan">
+              <div className="rounded-2xl bg-neutral-50 p-3 dark:bg-white/5">
                 <ThemeSwitchSetting />
               </div>
-            </section>
+            </RefListCard>
 
             <LogoutButton />
           </>
         }
       >
-        <div className="ref-card p-4 pb-6">
-          <h2 className="text-sm font-semibold">Akun</h2>
-          <div className="mt-2 flex items-center gap-4">
+        <RefListCard ariaLabel="Akun" title="Akun">
+          <div className="flex items-center gap-4 px-1 pb-3">
             <span
               aria-hidden="true"
               className="flex size-16 items-center justify-center rounded-full bg-accent text-2xl font-semibold text-white"
@@ -49,17 +48,21 @@ export default async function AndaPage() {
             </div>
           </div>
 
-          <dl className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
-            <div className="flex gap-2 px-1 py-3">
-              <dt className="w-24 shrink-0 text-neutral-500">Peran</dt>
-              <dd>{profile.role === "superadmin" ? "Superadmin" : "Pengguna"}</dd>
-            </div>
-            <div className="flex gap-2 px-1 py-3">
-              <dt className="w-24 shrink-0 text-neutral-500">Bidang</dt>
-              <dd>{bidang?.nama ?? "Tanpa bidang"}</dd>
-            </div>
-          </dl>
-        </div>
+          <ul className="divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
+            <li className="flex items-center justify-between gap-3 px-1 py-3">
+              <span className="text-sm font-medium">Peran</span>
+              <span className="shrink-0 text-xs text-neutral-500">
+                {profile.role === "superadmin" ? "Superadmin" : "Pengguna"}
+              </span>
+            </li>
+            <li className="flex items-center justify-between gap-3 px-1 pt-3">
+              <span className="text-sm font-medium">Bidang</span>
+              <span className="shrink-0 text-xs text-neutral-500">
+                {bidang?.nama ?? "Tanpa bidang"}
+              </span>
+            </li>
+          </ul>
+        </RefListCard>
       </ContentGrid>
       </div>
     </div>

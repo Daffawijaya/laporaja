@@ -73,10 +73,23 @@ body {
 @layer base {
   * {
     border-color: var(--border);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
   }
 
   html {
     -webkit-tap-highlight-color: transparent;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
   }
 
   :focus-visible {
@@ -754,6 +767,16 @@ body {
     transition-property: color, background-color, border-color, box-shadow, opacity;
     transition-duration: 160ms;
     transition-timing-function: ease-out;
+  }
+
+  /* Sembunyikan scrollbar di seluruh halaman, scroll tetap jalan. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }
 

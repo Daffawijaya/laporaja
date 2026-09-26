@@ -7,6 +7,7 @@ import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { RefListCard } from "@/components/ui/ref-list-card";
 import { ContentGrid } from "@/components/layout/content-grid";
 import { useModalKey } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
@@ -79,23 +80,22 @@ export function KegiatanDetail({
           gapClassName="lg:gap-3"
           aside={
             <>
-              <section aria-label="Info kegiatan" className="ref-card p-4 pb-6">
-                <h2 className="text-sm font-semibold">Info</h2>
-                <dl className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
-                  <div className="flex gap-2 px-1 py-2.5">
-                    <dt className="w-20 shrink-0 text-neutral-500">Tanggal</dt>
-                    <dd>{formatTanggalPanjang(item.tanggal)}</dd>
-                  </div>
-                  <div className="flex items-center gap-2 px-1 py-2.5">
-                    <dt className="w-20 shrink-0 text-neutral-500">Status</dt>
-                    <dd>
-                      <ReviewBadge status={item.review?.status ?? null} />
-                    </dd>
-                  </div>
+              <RefListCard ariaLabel="Info kegiatan" title="Info">
+                <ul className="divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
+                  <li className="flex items-center justify-between gap-3 px-1 pb-3">
+                    <span className="text-sm font-medium">Tanggal</span>
+                    <span className="shrink-0 text-xs text-neutral-500">
+                      {formatTanggalPanjang(item.tanggal)}
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between gap-3 px-1 py-3">
+                    <span className="text-sm font-medium">Status</span>
+                    <ReviewBadge status={item.review?.status ?? null} />
+                  </li>
                   {item.indikatorIds.length > 0 && (
-                    <div className="flex gap-2 px-1 py-2.5">
-                      <dt className="w-20 shrink-0 text-neutral-500">Indikator</dt>
-                      <dd>
+                    <li className="flex items-center justify-between gap-3 px-1 pt-3">
+                      <span className="text-sm font-medium">Indikator</span>
+                      <span className="max-w-[60%] shrink-0 truncate text-right text-xs text-neutral-500">
                         {item.indikatorIds
                           .map(
                             (id) =>
@@ -103,15 +103,14 @@ export function KegiatanDetail({
                           )
                           .filter((nama) => nama.length > 0)
                           .join(", ")}
-                      </dd>
-                    </div>
+                      </span>
+                    </li>
                   )}
-                </dl>
-              </section>
+                </ul>
+              </RefListCard>
 
-              <section aria-label="Kelola kegiatan" className="ref-card p-4 pb-6">
-                <h2 className="text-sm font-semibold">Kelola</h2>
-                <div className="mt-2 flex flex-col gap-2">
+              <RefListCard ariaLabel="Kelola kegiatan" title="Kelola">
+                <div className="flex flex-col gap-2">
                   <Button variant="secondary" className="w-full" onClick={openEdit}>
                     <Pencil aria-hidden="true" />
                     Ubah
@@ -133,23 +132,20 @@ export function KegiatanDetail({
                     </p>
                   )}
                 </div>
-              </section>
+              </RefListCard>
             </>
           }
         >
-          <div className="ref-card p-4 pb-6">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm text-neutral-500">
-                  {formatTanggalPanjang(item.tanggal)}
-                </p>
-                <h1 className="mt-0.5 text-xl font-semibold tracking-tight">{item.nama}</h1>
-              </div>
+          <RefListCard ariaLabel="Detail kegiatan" title={item.nama}>
+            <div className="flex items-center justify-between gap-3 px-1 pb-3">
+              <span className="text-xs text-neutral-500">
+                {formatTanggalPanjang(item.tanggal)}
+              </span>
               <ReviewBadge status={item.review?.status ?? null} />
             </div>
 
             {item.indikatorIds.length > 0 && (
-              <p className="mt-2 text-sm text-neutral-500">
+              <p className="px-1 pb-3 text-sm text-neutral-500">
               {item.indikatorIds
                 .map((id) => indikators.find((indikator) => indikator.id === id)?.nama ?? "")
                 .filter((nama) => nama.length > 0)
@@ -158,13 +154,13 @@ export function KegiatanDetail({
           )}
 
           {item.review?.status === "revision" && item.review.catatan && (
-            <div className="mt-5 max-w-prose rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/60">
+            <div className="mx-1 max-w-prose rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/60">
               <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Catatan perbaikan</p>
               <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">{item.review.catatan}</p>
             </div>
           )}
 
-          <div className="mt-6 flex flex-col gap-5">
+          <div className="flex flex-col gap-5 px-1 pt-3">
             {item.keterangan.length === 0 && (
               <p className="text-sm text-neutral-500">Belum ada keterangan.</p>
             )}
@@ -190,7 +186,7 @@ export function KegiatanDetail({
               ) : null
             )}
           </div>
-          </div>
+          </RefListCard>
         </ContentGrid>
       </div>
 

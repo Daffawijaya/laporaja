@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface RefListCardItem {
@@ -13,6 +13,8 @@ export interface RefListCardItem {
   meta?: string;
   /** Teks kecil di kanan (gaya Kelola, mis. "5 akun"). */
   desc?: string;
+  /** Catatan amber di bawah (gaya revisi / notifikasi). */
+  note?: string;
   /** Bila diisi, seluruh baris jadi Link. */
   href?: string;
   /** Bila diisi, tampil tombol kecil di kanan (gaya Perlu Review). */
@@ -21,7 +23,9 @@ export interface RefListCardItem {
 }
 
 interface RefListCardProps {
-  items: RefListCardItem[];
+  items?: RefListCardItem[];
+  /** Isi kustom di dalam card (dipakai bila baris butuh badge, gambar, tombol). */
+  children?: React.ReactNode;
   /** Judul di LUAR card (opsional). */
   title?: string;
   /** Teks saat daftar kosong (opsional). */
@@ -36,7 +40,8 @@ interface RefListCardProps {
 // card ref-card p-4, title di luar, baris divide abu,
 // baris pertama tanpa pt, tengah py-3, terakhir tanpa pb.
 export function RefListCard({
-  items,
+  items = [],
+  children,
   title,
   emptyText,
   ariaLabel,
@@ -47,7 +52,9 @@ export function RefListCard({
     <section aria-label={ariaLabel} id={id} className={className}>
       {title && <h2 className="text-[17px] font-semibold tracking-tight">{title}</h2>}
       <div className={cn("ref-card p-4", title && "mt-2")}>
-        {items.length === 0 ? (
+        {children != null ? (
+          children
+        ) : items.length === 0 ? (
           emptyText ? (
             <p className="text-sm text-neutral-500">{emptyText}</p>
           ) : null
@@ -59,14 +66,29 @@ export function RefListCard({
               const stacked = item.meta != null;
               const linkable = item.href != null && item.actionHref == null;
 
-              const inner = stacked ? (
-                <>
-                  <p className="text-sm font-medium">{item.title}</p>
-                  {item.subtitle && (
-                    <p className="mt-0.5 text-xs text-neutral-500">{item.subtitle}</p>
-                  )}
-                  <p className="mt-1 text-sm text-neutral-500">{item.meta}</p>
-                </>
+              const chevron = linkable ? (
+                <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-neutral-400" />
+              ) : item.actionHref ? (
+                <Link
+                  href={item.actionHref}
+                  aria-label={item.actionLabel ?? "Lihat"}
+                  className="flex shrink-0 items-center justify-center"
+                >
+                  <ChevronRight aria-hidden="true" className="size-5 text-neutral-400" />
+                </Link>
+              ) : null;
+
+              const row = stacked ? (
+                <span className="flex items-center justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{item.title}</span>
+                    {item.subtitle && (
+                      <span className="mt-0.5 block text-xs text-neutral-500">{item.subtitle}</span>
+                    )}
+                    <span className="mt-1 block text-sm text-neutral-500">{item.meta}</span>
+                  </span>
+                  {chevron}
+                </span>
               ) : (
                 <span className="flex items-center justify-between gap-3">
                   <span className="min-w-0">
@@ -77,15 +99,24 @@ export function RefListCard({
                       </span>
                     )}
                   </span>
-                  {item.desc && (
-                    <span className="shrink-0 text-xs text-neutral-500">{item.desc}</span>
-                  )}
-                  {item.actionHref && !linkable && (
-                    <Button asChild className="shrink-0">
-                      <Link href={item.actionHref}>{item.actionLabel ?? "Lihat"}</Link>
-                    </Button>
-                  )}
+                  <span className="flex shrink-0 items-center gap-1">
+                    {item.desc && (
+                      <span className="text-xs text-neutral-500">{item.desc}</span>
+                    )}
+                    {chevron}
+                  </span>
                 </span>
+              );
+
+              const inner = (
+                <>
+                  {row}
+                  {item.note && (
+                    <span className="mt-2 block rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                      {item.note}
+                    </span>
+                  )}
+                </>
               );
 
               return (
