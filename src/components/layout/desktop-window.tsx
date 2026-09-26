@@ -221,10 +221,10 @@ export function DesktopWindow({
             className="pointer-events-none absolute inset-0"
             style={{
               background: dark
-                ? "linear-gradient(to bottom, rgb(16 16 20 / 1) 0%, rgb(16 16 20 / 0) 100%)"
-                : "linear-gradient(to bottom, rgb(242 241 247 / 1) 0%, rgb(242 241 247 / 0) 100%)",
-              backdropFilter: "blur(8px) saturate(1.5)",
-              WebkitBackdropFilter: "blur(8px) saturate(1.5)",
+                ? "linear-gradient(to bottom, rgb(16 16 20 / 0.8) 0%, rgb(16 16 20 / 0) 100%)"
+                : "linear-gradient(to bottom, rgb(242 241 247 / 0.8) 0%, rgb(242 241 247 / 0) 100%)",
+              backdropFilter: "blur(3px) saturate(1.5)",
+              WebkitBackdropFilter: "blur(3px) saturate(1.5)",
               WebkitMaskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
               maskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
             }}
@@ -232,7 +232,7 @@ export function DesktopWindow({
           <div className="relative flex items-center gap-3 px-6 pt-4 pb-4 lg:px-8">
           <h1 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight">{title}</h1>
 
-          <div className="relative w-56 shrink-0 lg:w-72">
+          <div className="ref-search-wrap relative w-56 shrink-0 lg:w-72">
             <Search
               aria-hidden="true"
               className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-neutral-400"
@@ -248,10 +248,11 @@ export function DesktopWindow({
             />
           </div>
 
+          <div className="ref-icon-btn-liquid">
           <Link
             href={bellHref}
             aria-label={badgeCount > 0 ? `Notifikasi, ${badgeCount} baru` : "Notifikasi"}
-            className="ref-icon-btn relative"
+            className="ref-icon-btn-plain relative"
           >
             {badgeCount > 0 ? (
               <HiBell aria-hidden="true" className="size-5" />
@@ -267,21 +268,31 @@ export function DesktopWindow({
               </span>
             )}
           </Link>
-          <Link href={bellHref} aria-label="Pesan" className="ref-icon-btn">
-            <MessageCircle aria-hidden="true" className="size-5" />
-          </Link>
-          <Link
-            href="/anda"
-            aria-label="Akun Anda"
-            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm dark:bg-white/10"
+          </div>
+          <div className="ref-icon-btn-liquid">
+          <button
+            type="button"
+            onClick={() => setTheme(dark ? "light" : "dark")}
+            aria-label={dark ? "Matikan mode gelap" : "Nyalakan mode gelap"}
+            className="ref-icon-btn-plain"
           >
-            <span
-              aria-hidden="true"
-              className="flex size-8 items-center justify-center rounded-full bg-neutral-200 text-sm font-semibold text-neutral-600 dark:bg-white/15 dark:text-white"
-            >
-              {initial}
-            </span>
-          </Link>
+            {dark ? (
+              <Sun aria-hidden="true" className="size-5" />
+            ) : (
+              <Moon aria-hidden="true" className="size-5" />
+            )}
+          </button>
+          </div>
+          <div className="ref-icon-btn-liquid ref-profile-bare shrink-0">
+            <Link href="/anda" aria-label="Akun Anda" className="ref-icon-btn-plain">
+              <span
+                aria-hidden="true"
+                className="flex size-11 items-center justify-center rounded-full bg-neutral-200 text-sm font-semibold text-neutral-600 dark:bg-white/15 dark:text-white"
+              >
+                {initial}
+              </span>
+            </Link>
+          </div>
           </div>
         </header>
 
