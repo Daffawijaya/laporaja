@@ -215,17 +215,21 @@ export function DesktopWindow({
       {/* Kolom kanan: block (bukan flex-col) agar sticky header ter-render
           benar. Blur langsung di header, bukan lapisan absolute terpisah. */}
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-        <header
-          className="ref-navbar shrink-0"
-          style={{
-            background: dark
-              ? "linear-gradient(to bottom, rgb(16 16 20 / 1) 0%, rgb(16 16 20 / 0) 100%)"
-              : "linear-gradient(to bottom, rgb(242 241 247 / 1) 0%, rgb(242 241 247 / 0) 100%)",
-            backdropFilter: "blur(4px) saturate(1.5)",
-            WebkitBackdropFilter: "blur(4px) saturate(1.5)",
-          }}
-        >
-          <div className="flex items-center gap-3 px-6 pt-4 pb-4 lg:px-8">
+        <header className="ref-navbar shrink-0">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background: dark
+                ? "linear-gradient(to bottom, rgb(16 16 20 / 1) 0%, rgb(16 16 20 / 0) 100%)"
+                : "linear-gradient(to bottom, rgb(242 241 247 / 1) 0%, rgb(242 241 247 / 0) 100%)",
+              backdropFilter: "blur(8px) saturate(1.5)",
+              WebkitBackdropFilter: "blur(8px) saturate(1.5)",
+              WebkitMaskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
+              maskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
+            }}
+          />
+          <div className="relative flex items-center gap-3 px-6 pt-4 pb-4 lg:px-8">
           <h1 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight">{title}</h1>
 
           <div className="relative w-56 shrink-0 lg:w-72">
