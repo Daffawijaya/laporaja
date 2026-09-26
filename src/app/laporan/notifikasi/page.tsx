@@ -27,17 +27,18 @@ export default async function NotifikasiPage() {
         </p>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-5 md:mt-1">
         <ContentGrid
+          gapClassName="lg:gap-3"
           aside={
-            <section aria-label="Ringkasan">
+            <section aria-label="Ringkasan" className="ref-card p-4 pb-6">
               <h2 className="text-sm font-semibold">Ringkasan</h2>
-              <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg text-sm">
-                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
-                  <span className="text-muted-foreground">Perlu diperbaiki</span>
+              <ul className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
+                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
+                  <span className="text-neutral-500">Perlu diperbaiki</span>
                   <span className="font-medium">{items.length}</span>
                 </li>
-                <li className="px-4 py-2.5">
+                <li className="px-1 py-2.5">
                   <Link
                     href="/laporan"
                     className="transition-soft text-sm font-medium text-accent hover:opacity-70"
@@ -49,33 +50,38 @@ export default async function NotifikasiPage() {
             </section>
           }
         >
-          {items.length === 0 ? (
-            <EmptyState
-              title="Semua beres"
-              description="Tidak ada catatan perbaikan dari admin."
-            />
-          ) : (
-            <ul className="panel divide-y divide-border overflow-hidden rounded-lg">
-              {items.map((item) => (
-                <li key={item.id} className="px-4 py-3.5">
-                  <p className="text-xs text-muted-foreground">
-                    {formatHariTanggal(item.tanggal)}
-                  </p>
-                  <Link
-                    href={`/laporan/${item.id}`}
-                    className="transition-soft mt-0.5 block text-sm font-medium hover:text-accent"
-                  >
-                    {item.nama}
-                  </Link>
-                  {item.catatan && (
-                    <p className="mt-2 max-w-prose rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-                      {item.catatan}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="ref-card p-4 pb-6">
+            <h2 className="text-sm font-semibold">Notifikasi</h2>
+            <div className="mt-2">
+              {items.length === 0 ? (
+                <EmptyState
+                  title="Semua beres"
+                  description="Tidak ada catatan perbaikan dari admin."
+                />
+              ) : (
+                <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
+                  {items.map((item) => (
+                    <li key={item.id} className="px-1 py-3">
+                      <p className="text-xs text-neutral-500">
+                        {formatHariTanggal(item.tanggal)}
+                      </p>
+                      <Link
+                        href={`/laporan/${item.id}`}
+                        className="transition-soft mt-0.5 block text-sm font-medium hover:text-accent"
+                      >
+                        {item.nama}
+                      </Link>
+                      {item.catatan && (
+                        <p className="mt-2 max-w-prose rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                          {item.catatan}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
         </ContentGrid>
       </div>
     </div>

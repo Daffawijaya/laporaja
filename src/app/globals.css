@@ -129,69 +129,310 @@ body {
       0 18px 40px -24px rgb(0 0 0 / 0.6);
   }
 
-  /* Jendela desktop ala macOS: mentok ke tepi viewport tanpa bg terluar.
-     Titlebar dan sidebar datar (tanpa card, hanya divider putih), konten
-     card-dalam-card. Permukaan solid agar tidak ada bias wallpaper. */
-  .desk-viewport {
+  /* Shell desktop ala referensi: bg abu flat, sidebar kiri + kolom kanan.
+     Kartu konten putih rounded-3xl dengan shadow lembut. */
+  .ref-shell {
     min-height: 100dvh;
     height: 100dvh;
     overflow: hidden;
+    background: #f1f1f1;
+    gap: 20px;
+    padding: 14px 20px 14px 14px;
   }
 
-  /* Satu-satunya warna: gradasi biru muda full layar. Sidebar,
-     navbar, dan konten transparan agar warnanya sama persis. */
-  .desk-viewport {
-    min-height: 100dvh;
-    height: 100dvh;
+  .dark .ref-shell {
+    background: #101014;
+  }
+
+  /* Logo segi-empat 4 kuadran ala referensi. */
+  .ref-logo {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
     overflow: hidden;
-    background: linear-gradient(90deg, #c2e5fb 0%, #c9e7f6 100%);
+    background: #1d1d1f;
+    flex-shrink: 0;
   }
 
-  .desk-window {
-    width: 100%;
-    height: 100%;
+  .ref-logo-q {
+    display: block;
+    border: 1px solid #1d1d1f;
+  }
+
+  .ref-logo-tl { background: #6e6e73; border-radius: 12px 0 0 0; }
+  .ref-logo-tr { background: #a3a3a3; border-radius: 0 12px 0 0; }
+  .ref-logo-bl { background: #d4d4d8; border-radius: 0 0 0 12px; }
+  .ref-logo-br { background: #f5f5f7; border-radius: 0 0 12px 0; }
+
+  /* Item menu sidebar: idle teks abu, aktif kartu putih shadow. */
+  .ref-menu-item {
     display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    color: #6e6e73;
+    transition: color 160ms ease-out, background-color 160ms ease-out, box-shadow 160ms ease-out;
+  }
+
+  .ref-menu-item:hover {
+    color: #1d1d1f;
+  }
+
+  .ref-menu-active {
+    background: #ffffff;
+    color: #1d1d1f;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 20px -12px rgb(0 0 0 / 0.18);
+  }
+
+  .dark .ref-menu-item {
+    color: #a3a3a3;
+  }
+
+  .dark .ref-menu-item:hover {
+    color: #ffffff;
+  }
+
+  .dark .ref-menu-active {
+    background: #1c1c1e;
+    color: #ffffff;
+  }
+
+  /* Tombol ikon lingkaran putih ala referensi. */
+  .ref-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 9999px;
+    background: #ffffff;
+    color: #1d1d1f;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+    transition: transform 160ms ease-out, box-shadow 160ms ease-out;
+  }
+
+  .ref-icon-btn:hover {
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+  }
+
+  .dark .ref-icon-btn {
+    background: #1c1c1e;
+    color: #f5f5f7;
+  }
+
+  /* Search pill putih. */
+  .ref-search {
+    height: 44px;
+    width: 100%;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background: #ffffff;
+    padding-left: 40px;
+    padding-right: 16px;
+    font-size: 14px;
+    outline: none;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  }
+
+  .ref-search::placeholder {
+    color: #a3a3a3;
+  }
+
+  .ref-search:focus {
+    border-color: rgb(0 0 0 / 0.12);
+  }
+
+  .dark .ref-search {
+    background: #1c1c1e;
+    color: #f5f5f7;
+  }
+
+  /* Tombol Create hitam pill. */
+  .ref-create {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    padding: 0 28px;
+    border-radius: 9999px;
+    background: #1d1d1f;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    flex-shrink: 0;
+    box-shadow: 0 8px 20px -10px rgb(0 0 0 / 0.5);
+    transition: transform 160ms ease-out, box-shadow 160ms ease-out;
+  }
+
+  .ref-create:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px -10px rgb(0 0 0 / 0.5);
+  }
+
+  .dark .ref-create {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  /* Kartu putih rounded-3xl ala referensi. */
+  .ref-card {
+    background: #ffffff;
+    border: none;
+    border-radius: 24px;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 12px 32px -20px rgb(0 0 0 / 0.15);
+  }
+
+  .dark .ref-card {
+    background: #1c1c1e;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  }
+
+  /* Panel dalam (angka Overview) dengan border tipis. */
+  .ref-inner {
+    background: #ffffff;
+    border: 1px solid #ececee;
+    border-radius: 20px;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  }
+
+  .dark .ref-inner {
     background: transparent;
+    border-color: rgb(255 255 255 / 0.1);
   }
 
-  .dark .desk-window {
-    background: #141926;
+  /* Pill statis (periode) ala dropdown referensi. */
+  .ref-pill-static {
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 18px;
+    border-radius: 9999px;
+    border: 1px solid #e4e4e7;
+    font-size: 13px;
+    color: #6e6e73;
+    white-space: nowrap;
   }
 
-  .desk-side {
-    background: transparent;
+  .dark .ref-pill-static {
+    border-color: rgb(255 255 255 / 0.14);
+    color: #a3a3a3;
   }
 
-  .dark .desk-side {
-    background-color: rgb(255 255 255 / 0.04);
+  /* Badge naik (hijau) / turun (merah) / netral ala referensi. */
+  .ref-badge-up {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0a9b58;
+    background: rgb(10 155 88 / 0.08);
+    border: 1px solid rgb(10 155 88 / 0.18);
+    white-space: nowrap;
   }
 
-  .desk-main {
-    background: transparent;
+  .ref-badge-down {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #e0572f;
+    background: rgb(224 87 47 / 0.08);
+    border: 1px solid rgb(224 87 47 / 0.18);
+    white-space: nowrap;
   }
 
-  /* Card konten: putih 70%, rounded kiri atas, tanpa border/garis pemisah. */
-  .desk-card {
-    background-color: rgb(251 252 255 / 0.7);
-    border: none;
-    box-shadow: none;
+  .ref-badge-neutral {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6e6e73;
+    background: rgb(110 110 115 / 0.08);
+    border: 1px solid rgb(110 110 115 / 0.18);
+    white-space: nowrap;
   }
 
-  .dark .desk-card {
-    background-color: rgb(255 255 255 / 0.03);
-    border: none;
-    box-shadow: none;
+  /* Bar chart: abu untuk biasa, hijau gradien untuk tertinggi. */
+  .ref-bar {
+    width: 100%;
+    border-radius: 8px;
+    background: #ececee;
   }
 
-  /* Divider dimatikan: navbar dan sidebar tanpa garis pemisah. */
-  .desk-divide {
-    border: none;
+  .dark .ref-bar {
+    background: rgb(255 255 255 / 0.1);
   }
 
-  .dark .desk-divide {
-    border: none;
+  .ref-bar-active {
+    width: 100%;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #4ade80 0%, #86efac 55%, rgb(134 239 172 / 0.25) 100%);
+  }
+
+  /* Baris item (pengguna teratas): kartu border tipis. */
+  .ref-row-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 16px;
+    border: 1px solid #f0f0f2;
+    transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
+  }
+
+  .ref-row-item:hover {
+    border-color: #e4e4e7;
+    box-shadow: 0 4px 14px -8px rgb(0 0 0 / 0.15);
+  }
+
+  .dark .ref-row-item {
+    border-color: rgb(255 255 255 / 0.08);
+  }
+
+  /* Tombol outline pill full-width ala "All products". */
+  .ref-outline-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    width: 100%;
+    border-radius: 9999px;
+    border: 1px solid #e4e4e7;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6e6e73;
+    transition: border-color 160ms ease-out, color 160ms ease-out;
+  }
+
+  .ref-outline-btn:hover {
+    border-color: #1d1d1f;
+    color: #1d1d1f;
+  }
+
+  .dark .ref-outline-btn {
+    border-color: rgb(255 255 255 / 0.14);
+    color: #a3a3a3;
+  }
+
+  .dark .ref-outline-btn:hover {
+    border-color: #ffffff;
+    color: #ffffff;
   }
 
   /* Liquid glass global untuk SELURUH Button.

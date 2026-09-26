@@ -148,7 +148,7 @@ export function UserManager({
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-neutral-500">
           {visibleUsers.length === 0 ? "Belum ada user." : `${visibleUsers.length} user.`}
         </p>
         <Button
@@ -185,10 +185,10 @@ export function UserManager({
         />
       ) : (
         <>
-          <div className="panel mt-4 hidden overflow-x-auto rounded-lg md:block">
+          <div className="mt-2 overflow-x-auto rounded-2xl border border-[#e1e1e3] bg-white max-md:hidden dark:border-white/10 dark:bg-[#1c1c1e]">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-border text-xs text-muted-foreground">
+                <tr className="border-b border-neutral-200/70 text-xs text-neutral-500 dark:border-white/10">
                   <th scope="col" className="px-4 py-3 font-medium">Nama</th>
                   <th scope="col" className="px-4 py-3 font-medium">Username</th>
                   <th scope="col" className="px-4 py-3 font-medium">Bidang</th>
@@ -198,11 +198,11 @@ export function UserManager({
               </thead>
               <tbody>
                 {visibleUsers.map((user) => (
-                  <tr key={user.profile.id} className="border-b border-border last:border-0">
+                  <tr key={user.profile.id} className="border-b border-neutral-200/70 last:border-0 dark:border-white/10">
                     <td className="px-4 py-3 font-medium">{user.profile.nama}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{user.profile.username}</td>
+                    <td className="px-4 py-3 text-neutral-500">{user.profile.username}</td>
                     <td className="px-4 py-3">{user.bidangNama ?? "Tanpa bidang"}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    <td className="px-4 py-3 text-neutral-500">
                       {user.subBidang.length === 0 ? "Belum ada" : user.subBidang.join(", ")}
                     </td>
                     <td className="px-4 py-3">
@@ -234,19 +234,19 @@ export function UserManager({
             </table>
           </div>
 
-          <ul className="panel mt-4 divide-y divide-border overflow-hidden rounded-lg md:hidden">
+          <ul className="mt-2 divide-y divide-neutral-200/70 md:hidden dark:divide-white/10">
             {visibleUsers.map((user) => (
-              <li key={user.profile.id} className="px-4 py-4">
+              <li key={user.profile.id} className="px-1 py-4">
                 <p className="text-sm font-medium">{user.profile.nama}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{user.profile.username}</p>
+                <p className="mt-0.5 text-xs text-neutral-500">{user.profile.username}</p>
                 <dl className="mt-3 flex flex-col gap-1 text-sm">
                   <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-muted-foreground">Bidang</dt>
+                    <dt className="w-24 shrink-0 text-neutral-500">Bidang</dt>
                     <dd>{user.bidangNama ?? "Tanpa bidang"}</dd>
                   </div>
                   <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-muted-foreground">Sub bidang</dt>
-                    <dd className="text-muted-foreground">
+                    <dt className="w-24 shrink-0 text-neutral-500">Sub bidang</dt>
+                    <dd className="text-neutral-500">
                       {user.subBidang.length === 0 ? "Belum ada" : user.subBidang.join(", ")}
                     </dd>
                   </div>

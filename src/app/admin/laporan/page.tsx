@@ -42,12 +42,13 @@ export default async function AdminLaporanPage({
         </p>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-5 md:mt-1">
         <ContentGrid
+          gapClassName="lg:gap-3"
           aside={
-            <section aria-label="Filter laporan">
+            <section aria-label="Filter laporan" className="ref-card p-4 pb-6">
               <h2 className="text-sm font-semibold">Filter</h2>
-              <div className="panel mt-2 rounded-lg p-4">
+              <div className="mt-2 rounded-2xl bg-neutral-50 p-3 dark:bg-white/5">
                 <AdminLaporanFilter
                   users={userList.map((user) => ({ id: user.id, nama: user.nama, username: user.username }))}
                   selectedUserId={selected?.id ?? ""}
@@ -58,37 +59,44 @@ export default async function AdminLaporanPage({
             </section>
           }
         >
-          {userList.length === 0 ? (
-            <EmptyState
-              title="Belum ada user"
-              description="Tambahkan user lewat halaman Pengguna."
-            />
-          ) : !selected ? (
-            <EmptyState
-              title="Pilih user"
-              description="Pilih user di samping untuk melihat laporan bulanannya."
-            />
-          ) : (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{selected.nama}</p>
-                  <p className="text-xs text-muted-foreground">{selected.username}</p>
-                </div>
-                <Button asChild variant="secondary" className="w-full sm:w-auto">
-                  <Link
-                    href={`/admin/laporan/export?user=${selected.id}&bulan=${bulan}&tahun=${tahun}`}
-                  >
-                    <Download aria-hidden="true" />
-                    Export PDF
-                  </Link>
-                </Button>
-              </div>
-              <div className="mt-5">
-                <AdminMonthlyList items={items} />
-              </div>
-            </>
-          )}
+          <div className="ref-card p-4 pb-6">
+            <h2 className="text-sm font-semibold">
+              {selected ? selected.nama : "Laporan"}
+            </h2>
+            <div className="mt-2">
+              {userList.length === 0 ? (
+                <EmptyState
+                  title="Belum ada user"
+                  description="Tambahkan user lewat halaman Pengguna."
+                />
+              ) : !selected ? (
+                <EmptyState
+                  title="Pilih user"
+                  description="Pilih user di samping untuk melihat laporan bulanannya."
+                />
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{selected.nama}</p>
+                      <p className="text-xs text-neutral-500">{selected.username}</p>
+                    </div>
+                    <Button asChild variant="secondary" className="w-full sm:w-auto">
+                      <Link
+                        href={`/admin/laporan/export?user=${selected.id}&bulan=${bulan}&tahun=${tahun}`}
+                      >
+                        <Download aria-hidden="true" />
+                        Export PDF
+                      </Link>
+                    </Button>
+                  </div>
+                  <div className="mt-5">
+                    <AdminMonthlyList items={items} />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </ContentGrid>
       </div>
     </div>

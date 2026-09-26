@@ -55,22 +55,23 @@ export default async function UsersPage() {
           Akun yang dapat masuk memakai username dan kata sandi.
         </p>
       </div>
-      <div className="mt-6">
+      <div className="mt-5 md:mt-1">
         <ContentGrid
+          gapClassName="lg:gap-3"
           aside={
-            <section aria-label="Sebaran bidang">
+            <section aria-label="Sebaran bidang" className="ref-card p-4 pb-6">
               <h2 className="text-sm font-semibold">Sebaran bidang</h2>
-              <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg text-sm">
-                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
-                  <span className="text-muted-foreground">Total user</span>
+              <ul className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
+                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
+                  <span className="text-neutral-500">Total user</span>
                   <span className="font-medium">{users.length}</span>
                 </li>
                 {sebaran.map(([nama, jumlah]) => (
                   <li
                     key={nama}
-                    className="flex items-center justify-between gap-3 px-4 py-2.5"
+                    className="flex items-center justify-between gap-3 px-1 py-2.5"
                   >
-                    <span className="min-w-0 truncate text-muted-foreground">{nama}</span>
+                    <span className="min-w-0 truncate text-neutral-500">{nama}</span>
                     <span className="font-medium">{jumlah}</span>
                   </li>
                 ))}
@@ -78,14 +79,19 @@ export default async function UsersPage() {
             </section>
           }
         >
-          <UserManager
-            users={users}
-            bidangOptions={(bidangList ?? []).map((bidang) => ({
-              id: bidang.id,
-              nama: bidang.nama,
-            }))}
-            indikatorsByUser={indikatorsByUser}
-          />
+          <div className="ref-card p-4 pb-6">
+            <h2 className="text-sm font-semibold">Pengguna</h2>
+            <div className="mt-2">
+              <UserManager
+                users={users}
+                bidangOptions={(bidangList ?? []).map((bidang) => ({
+                  id: bidang.id,
+                  nama: bidang.nama,
+                }))}
+                indikatorsByUser={indikatorsByUser}
+              />
+            </div>
+          </div>
         </ContentGrid>
       </div>
     </div>

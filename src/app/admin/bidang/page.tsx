@@ -44,29 +44,35 @@ export default async function BidangPage() {
           Kelompok kerja untuk para pengguna.
         </p>
       </div>
-      <div className="mt-6">
+      <div className="mt-5 md:mt-1">
         <ContentGrid
+          gapClassName="lg:gap-3"
           aside={
-            <section aria-label="Ringkasan">
+            <section aria-label="Ringkasan" className="ref-card p-4 pb-6">
               <h2 className="text-sm font-semibold">Ringkasan</h2>
-              <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg text-sm">
-                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
-                  <span className="text-muted-foreground">Total bidang</span>
+              <ul className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
+                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
+                  <span className="text-neutral-500">Total bidang</span>
                   <span className="font-medium">{initial.length}</span>
                 </li>
-                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
-                  <span className="text-muted-foreground">Total user</span>
+                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
+                  <span className="text-neutral-500">Total user</span>
                   <span className="font-medium">{totalUser}</span>
                 </li>
-                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
-                  <span className="text-muted-foreground">Bidang kosong</span>
+                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
+                  <span className="text-neutral-500">Bidang kosong</span>
                   <span className="font-medium">{kosong}</span>
                 </li>
               </ul>
             </section>
           }
         >
-          <BidangManager initial={initial} />
+          <div className="ref-card p-4 pb-6">
+            <h2 className="text-sm font-semibold">Bidang</h2>
+            <div className="mt-2">
+              <BidangManager initial={initial} />
+            </div>
+          </div>
         </ContentGrid>
       </div>
     </div>

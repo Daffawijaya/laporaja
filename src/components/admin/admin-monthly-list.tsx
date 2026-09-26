@@ -34,7 +34,7 @@ export function AdminMonthlyList({
 
   if (visibleItems.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-neutral-500">
         {query ? `Tidak ada yang cocok dengan "${query}".` : "Belum ada kegiatan pada bulan ini."}
       </p>
     );
@@ -47,9 +47,9 @@ export function AdminMonthlyList({
         return (
           <section key={tanggal} aria-label={formatHariTanggal(tanggal)}>
             <h2 className="text-sm font-semibold">{formatHariTanggal(tanggal)}</h2>
-            <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg">
+            <ul className="mt-2 divide-y divide-neutral-200/70 dark:divide-white/10">
               {daftar.map((item) => (
-                <li key={item.id} className="px-4 py-3.5">
+                <li key={item.id} className="px-1 py-3.5">
                   <div className="flex items-start justify-between gap-3">
                     <Link
                       href={`/admin/laporan/${item.id}`}
@@ -59,7 +59,7 @@ export function AdminMonthlyList({
                     </Link>
                     <ReviewBadge status={item.review?.status ?? null} />
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xs text-neutral-500">
                     {item.keterangan.length === 0
                       ? "Belum ada keterangan"
                       : `${item.keterangan.length} keterangan`}

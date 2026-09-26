@@ -80,18 +80,19 @@ export default async function IndikatorPage() {
           Seluruh target kinerja. Tambah di sini berlaku untuk semua user.
         </p>
       </div>
-      <div className="mt-6">
+      <div className="mt-5 md:mt-1">
         <ContentGrid
+          gapClassName="lg:gap-3"
           aside={
-            <section aria-label="Ringkasan">
+            <section aria-label="Ringkasan" className="ref-card p-4 pb-6">
               <h2 className="text-sm font-semibold">Ringkasan</h2>
-              <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg text-sm">
-                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
-                  <span className="text-muted-foreground">Total indikator</span>
+              <ul className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
+                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
+                  <span className="text-neutral-500">Total indikator</span>
                   <span className="font-medium">{items.length}</span>
                 </li>
-                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
-                  <span className="text-muted-foreground">Tercapai bulan ini</span>
+                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
+                  <span className="text-neutral-500">Tercapai bulan ini</span>
                   <span className="font-medium">
                     {
                       items.filter(
@@ -101,8 +102,8 @@ export default async function IndikatorPage() {
                     }
                   </span>
                 </li>
-                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
-                  <span className="text-muted-foreground">Tanpa target</span>
+                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
+                  <span className="text-neutral-500">Tanpa target</span>
                   <span className="font-medium">
                     {items.filter((item) => item.target == null).length}
                   </span>
@@ -111,7 +112,12 @@ export default async function IndikatorPage() {
             </section>
           }
         >
-          <IndikatorManager initial={items} />
+          <div className="ref-card p-4 pb-6">
+            <h2 className="text-sm font-semibold">Indikator</h2>
+            <div className="mt-2">
+              <IndikatorManager initial={items} />
+            </div>
+          </div>
         </ContentGrid>
       </div>
     </div>

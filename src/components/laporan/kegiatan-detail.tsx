@@ -76,24 +76,25 @@ export function KegiatanDetail({
 
       <div className="mt-2">
         <ContentGrid
+          gapClassName="lg:gap-3"
           aside={
             <>
-              <section aria-label="Info kegiatan">
+              <section aria-label="Info kegiatan" className="ref-card p-4 pb-6">
                 <h2 className="text-sm font-semibold">Info</h2>
-                <dl className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg text-sm">
-                  <div className="flex gap-2 px-4 py-2.5">
-                    <dt className="w-20 shrink-0 text-muted-foreground">Tanggal</dt>
+                <dl className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
+                  <div className="flex gap-2 px-1 py-2.5">
+                    <dt className="w-20 shrink-0 text-neutral-500">Tanggal</dt>
                     <dd>{formatTanggalPanjang(item.tanggal)}</dd>
                   </div>
-                  <div className="flex items-center gap-2 px-4 py-2.5">
-                    <dt className="w-20 shrink-0 text-muted-foreground">Status</dt>
+                  <div className="flex items-center gap-2 px-1 py-2.5">
+                    <dt className="w-20 shrink-0 text-neutral-500">Status</dt>
                     <dd>
                       <ReviewBadge status={item.review?.status ?? null} />
                     </dd>
                   </div>
                   {item.indikatorIds.length > 0 && (
-                    <div className="flex gap-2 px-4 py-2.5">
-                      <dt className="w-20 shrink-0 text-muted-foreground">Indikator</dt>
+                    <div className="flex gap-2 px-1 py-2.5">
+                      <dt className="w-20 shrink-0 text-neutral-500">Indikator</dt>
                       <dd>
                         {item.indikatorIds
                           .map(
@@ -108,9 +109,9 @@ export function KegiatanDetail({
                 </dl>
               </section>
 
-              <section aria-label="Kelola kegiatan">
+              <section aria-label="Kelola kegiatan" className="ref-card p-4 pb-6">
                 <h2 className="text-sm font-semibold">Kelola</h2>
-                <div className="panel mt-2 flex flex-col gap-2 rounded-lg p-4">
+                <div className="mt-2 flex flex-col gap-2">
                   <Button variant="secondary" className="w-full" onClick={openEdit}>
                     <Pencil aria-hidden="true" />
                     Ubah
@@ -136,18 +137,19 @@ export function KegiatanDetail({
             </>
           }
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm text-muted-foreground">
-                {formatTanggalPanjang(item.tanggal)}
-              </p>
-              <h1 className="mt-0.5 text-xl font-semibold tracking-tight">{item.nama}</h1>
+          <div className="ref-card p-4 pb-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm text-neutral-500">
+                  {formatTanggalPanjang(item.tanggal)}
+                </p>
+                <h1 className="mt-0.5 text-xl font-semibold tracking-tight">{item.nama}</h1>
+              </div>
+              <ReviewBadge status={item.review?.status ?? null} />
             </div>
-            <ReviewBadge status={item.review?.status ?? null} />
-          </div>
 
-          {item.indikatorIds.length > 0 && (
-            <p className="mt-2 text-sm text-muted-foreground">
+            {item.indikatorIds.length > 0 && (
+              <p className="mt-2 text-sm text-neutral-500">
               {item.indikatorIds
                 .map((id) => indikators.find((indikator) => indikator.id === id)?.nama ?? "")
                 .filter((nama) => nama.length > 0)
@@ -162,9 +164,9 @@ export function KegiatanDetail({
             </div>
           )}
 
-          <div className="mt-8 flex flex-col gap-5">
+          <div className="mt-6 flex flex-col gap-5">
             {item.keterangan.length === 0 && (
-              <p className="text-sm text-muted-foreground">Belum ada keterangan.</p>
+              <p className="text-sm text-neutral-500">Belum ada keterangan.</p>
             )}
             {item.keterangan.map((row, index) =>
               row.tipe === "text" ? (
@@ -180,13 +182,14 @@ export function KegiatanDetail({
                     className="w-full rounded-lg border border-border object-cover"
                   />
                   {row.isi_text && (
-                    <figcaption className="mt-1.5 max-w-prose text-sm text-muted-foreground">
+                    <figcaption className="mt-1.5 max-w-prose text-sm text-neutral-500">
                       {row.isi_text}
                     </figcaption>
                   )}
                 </figure>
               ) : null
             )}
+          </div>
           </div>
         </ContentGrid>
       </div>

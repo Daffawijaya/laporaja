@@ -154,7 +154,7 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-neutral-500">
           {visibleItems.length === 0 ? "Belum ada bidang." : `${visibleItems.length} bidang.`}
         </p>
         <Button onClick={openAdd}>
@@ -188,15 +188,15 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
           }
         />
       ) : (
-        <ul className="panel mt-4 divide-y divide-border overflow-hidden rounded-lg">
+        <ul className="mt-2 divide-y divide-neutral-200/70 dark:divide-white/10">
           {visibleItems.map((item) => (
             <li
               key={item.id}
-              className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-2"
+              className="flex min-h-[56px] items-center justify-between gap-3 px-1 py-2"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{item.nama}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-neutral-500">
                   {item.userCount === 0 ? "Belum ada user" : `${item.userCount} user`}
                 </p>
               </div>

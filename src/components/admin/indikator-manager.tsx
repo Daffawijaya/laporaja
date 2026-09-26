@@ -174,7 +174,7 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
 
   return (
     <div>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-neutral-500">
         {items.length === 0 ? "Belum ada indikator." : `${items.length} indikator.`}
       </p>
 
@@ -186,7 +186,7 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
 
       <form
         onSubmit={handleTambah}
-        className="panel mt-4 hidden items-center gap-2 rounded-lg p-3 md:flex"
+        className="mt-2 hidden items-center gap-2 rounded-2xl bg-neutral-50 p-3 md:flex dark:bg-white/5"
       >
         <label htmlFor="indikator-baru" className="sr-only">
           Nama indikator baru
@@ -215,7 +215,7 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
 
       <form
         onSubmit={handleTambah}
-        className="panel mt-4 flex flex-col gap-2 rounded-lg p-3 md:hidden"
+        className="mt-2 flex flex-col gap-2 rounded-2xl bg-neutral-50 p-3 md:hidden dark:bg-white/5"
       >
         <label htmlFor="indikator-baru-mobile" className="text-sm font-medium">
           Indikator baru
@@ -253,10 +253,10 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
         />
       ) : (
         <>
-          <div className="panel mt-4 hidden overflow-x-auto rounded-lg md:block">
+          <div className="mt-2 overflow-x-auto rounded-2xl border border-[#e1e1e3] bg-white max-md:hidden dark:border-white/10 dark:bg-[#1c1c1e]">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-border text-xs text-muted-foreground">
+                <tr className="border-b border-neutral-200/70 text-xs text-neutral-500 dark:border-white/10">
                   <th scope="col" className="px-4 py-3 font-medium">Nama</th>
                   <th scope="col" className="px-4 py-3 font-medium">Milik</th>
                   <th scope="col" className="px-4 py-3 font-medium">Target per bulan</th>
@@ -267,12 +267,12 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
               </thead>
               <tbody>
                 {visibleItems.map((item) => (
-                  <tr key={item.id} className="border-b border-border last:border-0">
+                  <tr key={item.id} className="border-b border-neutral-200/70 last:border-0 dark:border-white/10">
                     <td className="px-4 py-3 font-medium">{item.nama}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.owner}</td>
+                    <td className="px-4 py-3 text-neutral-500">{item.owner}</td>
                     <td className="px-4 py-3">{targetText(item)}</td>
                     <td className="px-4 py-3">{bulanIniText(item)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.total}</td>
+                    <td className="px-4 py-3 text-neutral-500">{item.total}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <Button
@@ -302,23 +302,23 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
             </table>
           </div>
 
-          <ul className="panel mt-4 divide-y divide-border overflow-hidden rounded-lg md:hidden">
+          <ul className="mt-2 divide-y divide-neutral-200/70 md:hidden dark:divide-white/10">
             {visibleItems.map((item) => (
-              <li key={item.id} className="px-4 py-4">
+              <li key={item.id} className="px-1 py-4">
                 <p className="text-sm font-medium">{item.nama}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{item.owner}</p>
+                <p className="mt-0.5 text-xs text-neutral-500">{item.owner}</p>
                 <dl className="mt-3 flex flex-col gap-1 text-sm">
                   <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-muted-foreground">Target</dt>
+                    <dt className="w-24 shrink-0 text-neutral-500">Target</dt>
                     <dd>{targetText(item)} per bulan</dd>
                   </div>
                   <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-muted-foreground">Bulan ini</dt>
+                    <dt className="w-24 shrink-0 text-neutral-500">Bulan ini</dt>
                     <dd>{bulanIniText(item)}</dd>
                   </div>
                   <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-muted-foreground">Total</dt>
-                    <dd className="text-muted-foreground">{item.total}</dd>
+                    <dt className="w-24 shrink-0 text-neutral-500">Total</dt>
+                    <dd className="text-neutral-500">{item.total}</dd>
                   </div>
                 </dl>
                 <div className="mt-3 flex gap-2">

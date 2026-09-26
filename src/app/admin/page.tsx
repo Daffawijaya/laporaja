@@ -6,8 +6,7 @@ import { assertOk } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import { NAMA_BULAN, formatTanggalPanjang } from "@/components/laporan/types";
 
-// Dashboard superadmin: ringkas dan berorientasi tindakan. Tanpa grafik.
-// Angka bulan berjalan, daftar tunggu review, dan ringkasan per user.
+// Dashboard superadmin: 2 card sejajar — card utama (kiri) dan card Kelola (kanan).
 export default async function AdminPage() {
   const now = new Date();
   const tahun = now.getFullYear();
@@ -96,105 +95,112 @@ export default async function AdminPage() {
     <div className="w-full">
       <div className="md:hidden">
         <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{labelBulan}</p>
+        <p className="mt-1 text-sm text-neutral-500">{labelBulan}</p>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {stats.map((stat) => (
-          <Link
-            key={stat.label}
-            href={stat.href}
-            className="fx-liquid-card transition-soft px-4 py-4 hover:bg-muted/40"
-          >
-            <p className="text-2xl font-semibold tracking-tight">{stat.value}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{stat.label}</p>
-          </Link>
-        ))}
-      </div>
-
-      <div className="mt-8">
+      <div className="mt-5 md:mt-1">
         <ContentGrid
+          gapClassName="lg:gap-3"
           aside={
-            <section aria-label="Kelola" className="fx-liquid-card py-4">
-              <h2 className="px-4 text-sm font-semibold">Kelola</h2>
-              <ul className="mt-2 divide-y divide-border/60 text-sm">
+            <section aria-label="Kelola" className="ref-card p-4 pb-6">
+              <h2 className="text-sm font-semibold">Kelola</h2>
+              <div className="mt-2 flex flex-col gap-2">
                 {kelola.map((item) => (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className="transition-soft flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/60"
-                    >
-                      <span className="font-medium">{item.label}</span>
-                      <span className="text-xs text-muted-foreground">{item.desc}</span>
-                    </Link>
-                  </li>
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="rounded-2xl bg-neutral-50 px-4 py-3 transition-colors hover:bg-neutral-100 dark:bg-white/5 dark:hover:bg-white/10"
+                  >
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium">{item.label}</span>
+                      <span className="text-xs text-neutral-500">{item.desc}</span>
+                    </span>
+                  </Link>
                 ))}
-              </ul>
+              </div>
             </section>
           }
         >
-          <section aria-label="Perlu review" id="perlu-review" className="fx-liquid-card scroll-mt-20 py-4">
-            <h2 className="px-4 text-sm font-semibold">Perlu Review</h2>
-            {perluReview.length === 0 ? (
-              <p className="mt-2 px-4 text-sm text-muted-foreground">
-                Semua laporan bulan ini sudah direview.
-              </p>
-            ) : (
-              <ul className="mt-3 divide-y divide-border/60">
-                {perluReview.map((kegiatan) => (
-                  <li
-                    key={kegiatan.id}
-                    className="flex items-center justify-between gap-3 px-4 py-3"
+          <div className="ref-card p-4 pb-6">
+            <h2 className="text-sm font-semibold">Overview</h2>
+            <div className="mt-2 rounded-2xl border border-[#e1e1e3] bg-[#f6f6f6] p-1 dark:border-white/10 dark:bg-white/5">
+              <div className="grid grid-cols-2 gap-1 md:grid-cols-4">
+                {stats.map((stat) => (
+                  <Link
+                    key={stat.label}
+                    href={stat.href}
+                    className="rounded-xl bg-white px-4 py-4 transition-shadow hover:shadow-md dark:bg-[#1c1c1e]"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {namaByUser.get(kegiatan.user_id)}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {formatTanggalPanjang(kegiatan.tanggal)} · {kegiatan.nama_kegiatan}
-                      </p>
-                    </div>
-                    <Button asChild className="shrink-0">
-                      <Link href={`/admin/laporan/${kegiatan.id}`}>Review</Link>
-                    </Button>
-                  </li>
+                    <span className="block text-2xl font-semibold tracking-tight">{stat.value}</span>
+                    <span className="mt-0.5 block text-xs text-neutral-500">{stat.label}</span>
+                  </Link>
                 ))}
-              </ul>
-            )}
-          </section>
+              </div>
+            </div>
 
-          <section aria-label="Ringkasan user" className="fx-liquid-card mt-8 py-4">
-            <h2 className="px-4 text-sm font-semibold">Ringkasan User</h2>
-            {ringkasan.length === 0 ? (
-              <p className="mt-2 px-4 text-sm text-muted-foreground">
-                Belum ada user. Tambahkan lewat halaman Pengguna.
-              </p>
-            ) : (
-              <ul className="mt-3 divide-y divide-border/60">
-                {ringkasan.map((item) => (
-                  <li key={item.user.id}>
-                    <Link
-                      href={`/admin/laporan?user=${item.user.id}&bulan=${bulan}&tahun=${tahun}`}
-                      className="transition-soft block px-4 py-3 hover:bg-muted/60"
+            <section aria-label="Perlu review" id="perlu-review" className="mt-6 scroll-mt-20">
+              <h2 className="text-sm font-semibold">Perlu Review</h2>
+              {perluReview.length === 0 ? (
+                <p className="mt-2 text-sm text-neutral-500">
+                  Semua laporan bulan ini sudah direview.
+                </p>
+              ) : (
+                <ul className="mt-2 divide-y divide-neutral-200/70 dark:divide-white/10">
+                  {perluReview.map((kegiatan) => (
+                    <li
+                      key={kegiatan.id}
+                      className="flex items-center justify-between gap-3 px-1 py-3"
                     >
-                      <p className="text-sm font-medium">{item.user.nama}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {item.user.bidang_id
-                          ? (bidangNama.get(item.user.bidang_id) ?? "Tanpa bidang")
-                          : "Tanpa bidang"}
-                        {" · "}
-                        {labelBulan}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {item.total} kegiatan · {item.disetujui} disetujui · {item.revisi} revisi ·{" "}
-                        {item.menunggu} menunggu review
-                      </p>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {namaByUser.get(kegiatan.user_id)}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-neutral-500">
+                          {formatTanggalPanjang(kegiatan.tanggal)} · {kegiatan.nama_kegiatan}
+                        </p>
+                      </div>
+                      <Button asChild className="shrink-0">
+                        <Link href={`/admin/laporan/${kegiatan.id}`}>Review</Link>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section aria-label="Ringkasan user" className="mt-6">
+              <h2 className="text-sm font-semibold">Ringkasan User</h2>
+              {ringkasan.length === 0 ? (
+                <p className="mt-2 text-sm text-neutral-500">
+                  Belum ada user. Tambahkan lewat halaman Pengguna.
+                </p>
+              ) : (
+                <ul className="mt-2 divide-y divide-neutral-200/70 dark:divide-white/10">
+                  {ringkasan.map((item) => (
+                    <li key={item.user.id}>
+                      <Link
+                        href={`/admin/laporan?user=${item.user.id}&bulan=${bulan}&tahun=${tahun}`}
+                        className="block px-1 py-3 transition-colors hover:text-black dark:hover:text-white"
+                      >
+                        <p className="text-sm font-medium">{item.user.nama}</p>
+                        <p className="mt-0.5 text-xs text-neutral-500">
+                          {item.user.bidang_id
+                            ? (bidangNama.get(item.user.bidang_id) ?? "Tanpa bidang")
+                            : "Tanpa bidang"}
+                          {" · "}
+                          {labelBulan}
+                        </p>
+                        <p className="mt-1 text-sm text-neutral-500">
+                          {item.total} kegiatan · {item.disetujui} disetujui · {item.revisi} revisi ·{" "}
+                          {item.menunggu} menunggu review
+                        </p>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
         </ContentGrid>
       </div>
     </div>

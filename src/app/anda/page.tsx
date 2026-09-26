@@ -18,12 +18,14 @@ export default async function AndaPage() {
 
   return (
     <div className="w-full">
+      <div className="mt-5 md:mt-1">
       <ContentGrid
+        gapClassName="lg:gap-3"
         aside={
           <>
-            <section aria-label="Pengaturan">
+            <section aria-label="Pengaturan" className="ref-card p-4 pb-6">
               <h2 className="text-sm font-semibold">Pengaturan</h2>
-              <div className="panel mt-2 overflow-hidden rounded-lg">
+              <div className="mt-2 rounded-2xl bg-neutral-50 p-3 dark:bg-white/5">
                 <ThemeSwitchSetting />
               </div>
             </section>
@@ -32,30 +34,34 @@ export default async function AndaPage() {
           </>
         }
       >
-        <div className="flex items-center gap-4">
-          <span
-            aria-hidden="true"
-            className="flex size-16 items-center justify-center rounded-full bg-accent text-2xl font-semibold text-white"
-          >
-            {(profile.nama.charAt(0) || "?").toUpperCase()}
-          </span>
-          <div className="min-w-0">
-            <h1 className="truncate text-xl font-semibold tracking-tight">{profile.nama}</h1>
-            <p className="text-sm text-muted-foreground">@{profile.username}</p>
+        <div className="ref-card p-4 pb-6">
+          <h2 className="text-sm font-semibold">Akun</h2>
+          <div className="mt-2 flex items-center gap-4">
+            <span
+              aria-hidden="true"
+              className="flex size-16 items-center justify-center rounded-full bg-accent text-2xl font-semibold text-white"
+            >
+              {(profile.nama.charAt(0) || "?").toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-xl font-semibold tracking-tight">{profile.nama}</p>
+              <p className="text-sm text-neutral-500">@{profile.username}</p>
+            </div>
           </div>
-        </div>
 
-        <dl className="panel mt-6 divide-y divide-border overflow-hidden rounded-lg text-sm">
-          <div className="flex gap-2 px-4 py-3">
-            <dt className="w-24 shrink-0 text-muted-foreground">Peran</dt>
-            <dd>{profile.role === "superadmin" ? "Superadmin" : "Pengguna"}</dd>
-          </div>
-          <div className="flex gap-2 px-4 py-3">
-            <dt className="w-24 shrink-0 text-muted-foreground">Bidang</dt>
-            <dd>{bidang?.nama ?? "Tanpa bidang"}</dd>
-          </div>
-        </dl>
+          <dl className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
+            <div className="flex gap-2 px-1 py-3">
+              <dt className="w-24 shrink-0 text-neutral-500">Peran</dt>
+              <dd>{profile.role === "superadmin" ? "Superadmin" : "Pengguna"}</dd>
+            </div>
+            <div className="flex gap-2 px-1 py-3">
+              <dt className="w-24 shrink-0 text-neutral-500">Bidang</dt>
+              <dd>{bidang?.nama ?? "Tanpa bidang"}</dd>
+            </div>
+          </dl>
+        </div>
       </ContentGrid>
+      </div>
     </div>
   );
 }

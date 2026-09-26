@@ -158,29 +158,30 @@ export function MonthlyList({
   return (
     <div className="w-full">
       <ContentGrid
+        gapClassName="lg:gap-3"
         aside={
           <>
-            <section aria-label="Bulan">
+            <section aria-label="Bulan" className="ref-card p-4 pb-6">
               <h2 className="text-sm font-semibold">Bulan</h2>
-              <div className="panel mt-2 rounded-lg p-4">
+              <div className="mt-2 rounded-2xl bg-neutral-50 p-3 dark:bg-white/5">
                 <MonthPicker bulan={bulan} tahun={tahun} />
               </div>
             </section>
 
             {visibleItems.length > 0 && (
-              <section aria-label="Ringkasan bulan ini">
+              <section aria-label="Ringkasan bulan ini" className="ref-card p-4 pb-6">
                 <h2 className="text-sm font-semibold">Bulan ini</h2>
-                <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg text-sm">
-                  <li className="flex items-center justify-between gap-3 px-4 py-2.5">
-                    <span className="text-muted-foreground">Kegiatan</span>
+                <ul className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
+                  <li className="flex items-center justify-between gap-3 px-1 py-2.5">
+                    <span className="text-neutral-500">Kegiatan</span>
                     <span className="font-medium">{visibleItems.length}</span>
                   </li>
                   {ringkasan.map((row) => (
                     <li
                       key={row.key}
-                      className="flex items-center justify-between gap-3 px-4 py-2.5"
+                      className="flex items-center justify-between gap-3 px-1 py-2.5"
                     >
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <span className="flex items-center gap-1.5 text-neutral-500">
                         <span
                           aria-hidden="true"
                           className={`size-1.5 rounded-full ${row.dot}`}
@@ -195,21 +196,21 @@ export function MonthlyList({
             )}
 
             {visibleIndikators.length > 0 && (
-              <section aria-label="Indikator kinerja" id="indikator" className="scroll-mt-20">
+              <section aria-label="Indikator kinerja" id="indikator" className="ref-card scroll-mt-20 p-4 pb-6">
                 <h2 className="text-sm font-semibold">Indikator kinerja</h2>
-                <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg">
+                <ul className="mt-2 divide-y divide-neutral-200/70 dark:divide-white/10">
                   {visibleIndikators.map((indikator) => {
                     const persen =
                       indikator.target == null
                         ? 0
                         : Math.min(100, Math.round((indikator.bulanIni / indikator.target) * 100));
                     return (
-                      <li key={indikator.id} className="px-4 py-3">
+                      <li key={indikator.id} className="px-1 py-3">
                         <div className="flex items-baseline justify-between gap-3">
                           <p className="min-w-0 truncate text-sm font-medium">
                             {indikator.nama}
                           </p>
-                          <p className="shrink-0 text-sm text-muted-foreground">
+                          <p className="shrink-0 text-sm text-neutral-500">
                             {indikator.target == null
                               ? `${indikator.bulanIni}`
                               : `${indikator.bulanIni} dari ${indikator.target}`}
@@ -230,7 +231,7 @@ export function MonthlyList({
                             />
                           </div>
                         )}
-                        <p className="mt-1.5 text-xs text-muted-foreground">
+                        <p className="mt-1.5 text-xs text-neutral-500">
                           {indikator.target == null
                             ? "Target belum diatur"
                             : `Target ${indikator.target} per bulan`}
@@ -246,37 +247,44 @@ export function MonthlyList({
           </>
         }
       >
-        <p className="text-sm text-muted-foreground md:hidden">Selamat datang, {nama}</p>
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-3 md:mt-0">
-          <h1 className="text-xl font-semibold tracking-tight md:hidden">
+        <p className="text-sm text-neutral-500 md:hidden">Selamat datang, {nama}</p>
+        <div className="mt-1 md:hidden">
+          <h1 className="text-xl font-semibold tracking-tight">
             {NAMA_BULAN[bulan - 1]} {tahun}
           </h1>
-          <Button onClick={openAdd} className="w-full sm:w-auto md:ml-auto">
-            <Plus aria-hidden="true" />
-            Tambah Kegiatan
-          </Button>
         </div>
 
-        {visibleItems.length === 0 ? (
-          <EmptyState
-            className="mt-5"
-            title={query ? "Tidak ada hasil" : "Belum ada kegiatan"}
-            description={
-              query
-                ? `Tidak ada yang cocok dengan "${query}".`
-                : "Tambahkan kegiatan pertama untuk bulan ini."
-            }
-            action={
-              query ? undefined : (
-                <Button onClick={openAdd}>
-                  <Plus aria-hidden="true" />
-                  Tambah Kegiatan
-                </Button>
-              )
-            }
-          />
-        ) : (
-          <div className="mt-5 flex flex-col gap-6">
+        <div className="ref-card mt-2 p-4 pb-6 md:mt-0">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold max-md:hidden">
+              {NAMA_BULAN[bulan - 1]} {tahun}
+            </h2>
+            <Button onClick={openAdd} className="w-full sm:w-auto md:ml-auto">
+              <Plus aria-hidden="true" />
+              Tambah Kegiatan
+            </Button>
+          </div>
+
+          {visibleItems.length === 0 ? (
+            <EmptyState
+              className="mt-2"
+              title={query ? "Tidak ada hasil" : "Belum ada kegiatan"}
+              description={
+                query
+                  ? `Tidak ada yang cocok dengan "${query}".`
+                  : "Tambahkan kegiatan pertama untuk bulan ini."
+              }
+              action={
+                query ? undefined : (
+                  <Button onClick={openAdd}>
+                    <Plus aria-hidden="true" />
+                    Tambah Kegiatan
+                  </Button>
+                )
+              }
+            />
+          ) : (
+            <div className="mt-4 flex flex-col gap-6">
           {days.map((tanggal) => {
             const daftar = grouped.get(tanggal) ?? [];
             return (
@@ -288,7 +296,7 @@ export function MonthlyList({
                   )}
                 </div>
 
-                <ul className="panel mt-2 divide-y divide-border overflow-hidden rounded-lg">
+                <ul className="mt-2 divide-y divide-neutral-200/70 dark:divide-white/10">
                   {daftar.map((item) => {
                     const textRow = item.keterangan.find(
                       (row) => row.tipe === "text" && row.isi_text
@@ -297,7 +305,7 @@ export function MonthlyList({
                       .filter((row) => row.tipe === "image" && row.image_url)
                       .slice(0, 3);
                     return (
-                      <li key={item.id} className="px-4 py-3.5">
+                      <li key={item.id} className="px-1 py-3">
                         <div className="flex items-start justify-between gap-3">
                           <Link
                             href={`/laporan/${item.id}`}
@@ -309,7 +317,7 @@ export function MonthlyList({
                         </div>
 
                         {textRow && (
-                          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                          <p className="mt-1 line-clamp-2 text-sm text-neutral-500">
                             {textRow.isi_text}
                           </p>
                         )}
@@ -334,7 +342,7 @@ export function MonthlyList({
                         )}
 
                         {item.indikatorIds.length > 0 && (
-                          <p className="mt-2 text-xs text-muted-foreground">
+                          <p className="mt-2 text-xs text-neutral-500">
                             {item.indikatorIds
                               .map((id) => namaIndikator.get(id) ?? "")
                               .filter((nama) => nama.length > 0)
@@ -370,8 +378,9 @@ export function MonthlyList({
               </section>
             );
           })}
+          </div>
+          )}
         </div>
-      )}
       </ContentGrid>
 
       {error && !dialog && (
