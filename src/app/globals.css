@@ -157,35 +157,13 @@ body {
     background: #101014;
   }
 
-  /* Navbar desktop sticky. Lapisan .ref-navbar-bg (blur + tint) terpisah
-     dari konten agar mask fade tidak ikut memudarkan isi navbar.
-     Mask bikin bawah 100% transparan (blur ikut memudar), atas solid.
-     Blur memakai utility Tailwind di TSX (lolos compiler lengkap),
-     mask + tint di sini. */
+  /* Navbar desktop: positioning saja di sini. Kaca blur-nya pakai utility
+     Tailwind langsung di header (desktop-window.tsx) supaya pasti
+     ke-generate compiler + prefix Safari. */
   .ref-navbar {
     position: sticky;
     top: 0;
-    z-index: 10;
-  }
-
-  .ref-navbar-bg {
-    -webkit-mask-image: linear-gradient(to top, transparent 0, black 100%);
-    mask-image: linear-gradient(to top, transparent 0, black 100%);
-    background: linear-gradient(
-      to top,
-      rgb(242 241 247 / 0) 0%,
-      rgb(242 241 247 / 0.35) 50%,
-      rgb(242 241 247 / 0.7) 100%
-    );
-  }
-
-  .dark .ref-navbar-bg {
-    background: linear-gradient(
-      to top,
-      rgb(16 16 20 / 0) 0%,
-      rgb(16 16 20 / 0.35) 50%,
-      rgb(16 16 20 / 0.7) 100%
-    );
+    z-index: 20;
   }
 
   /* Logo segi-empat 4 kuadran ala referensi. */
