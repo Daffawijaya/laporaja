@@ -49,10 +49,12 @@ export default async function UsersPage() {
 
   return (
     <div className="w-full">
-      <h1 className="text-xl font-semibold tracking-tight">Pengguna</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Akun yang dapat masuk memakai username dan kata sandi.
-      </p>
+      <div className="md:hidden">
+        <h1 className="text-xl font-semibold tracking-tight">Pengguna</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Akun yang dapat masuk memakai username dan kata sandi.
+        </p>
+      </div>
       <div className="mt-6">
         <ContentGrid
           aside={

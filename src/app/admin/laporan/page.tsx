@@ -35,10 +35,12 @@ export default async function AdminLaporanPage({
 
   return (
     <div className="w-full">
-      <h1 className="text-xl font-semibold tracking-tight">Laporan User</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Pilih user dan bulan untuk memeriksa laporan.
-      </p>
+      <div className="md:hidden">
+        <h1 className="text-xl font-semibold tracking-tight">Laporan User</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Pilih user dan bulan untuk memeriksa laporan.
+        </p>
+      </div>
 
       <div className="mt-6">
         <ContentGrid

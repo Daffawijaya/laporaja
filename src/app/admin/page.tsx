@@ -94,8 +94,10 @@ export default async function AdminPage() {
 
   return (
     <div className="w-full">
-      <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{labelBulan}</p>
+      <div className="md:hidden">
+        <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{labelBulan}</p>
+      </div>
 
       <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border shadow-subtle md:grid-cols-4">
         {stats.map((stat) => (

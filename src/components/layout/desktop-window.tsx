@@ -63,8 +63,7 @@ const ADMIN_TABS: DeskTab[] = [
   { key: "indikator", label: "Indikator", href: "/admin/indikator" },
 ];
 
-function recentMonths(): { bulan: number; tahun: number; label: string; href: string }[] {
-  const out: { bulan: number; tahun: number; label: string; href: string }[] = [];
+function recentMonths(): { bulan: number; tahun: number; label: string; href: string }[] {  const out: { bulan: number; tahun: number; label: string; href: string }[] = [];
   const now = new Date();
   for (let i = 0; i < 4; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -78,6 +77,21 @@ function recentMonths(): { bulan: number; tahun: number; label: string; href: st
     });
   }
   return out;
+}
+
+// Judul strip di atas card konten (pengganti sub-tab ala referensi).
+function deskTitle(pathname: string, bulan: number, tahun: number): string {
+  if (pathname === "/laporan") return `${NAMA_BULAN[bulan - 1]} ${tahun}`;
+  if (pathname === "/laporan/notifikasi") return "Notifikasi";
+  if (pathname.startsWith("/laporan/")) return "Detail Kegiatan";
+  if (pathname === "/anda") return "Anda";
+  if (pathname === "/admin") return "Dashboard";
+  if (pathname === "/admin/users") return "Pengguna";
+  if (pathname === "/admin/bidang") return "Bidang";
+  if (pathname === "/admin/indikator") return "Indikator";
+  if (pathname === "/admin/laporan") return "Laporan";
+  if (pathname.startsWith("/admin/laporan/")) return "Detail Laporan";
+  return "";
 }
 
 // Jendela desktop ala macOS: wallpaper, panel kaca bulat, titlebar
@@ -153,6 +167,7 @@ export function DesktopWindow({
   const now = new Date();
   const spBulan = Number(searchParams.get("bulan")) || now.getMonth() + 1;
   const spTahun = Number(searchParams.get("tahun")) || now.getFullYear();
+  const title = deskTitle(pathname, spBulan, spTahun);
 
   const userSections: { title: string; items: SideItem[] }[] = [
     {
@@ -420,8 +435,17 @@ export function DesktopWindow({
             ))}
           </aside>
 
-          <main className="min-w-0 flex-1 overflow-y-auto px-6 py-6 lg:px-10">
-            {children}
+          <main className="min-w-0 flex-1 overflow-y-auto">
+            <div className="flex min-h-full flex-col">
+              {title && (
+                <div className="px-6 pt-5 pb-4 lg:px-10">
+                  <h1 className="text-[15px] font-medium text-foreground">{title}</h1>
+                </div>
+              )}
+              <div className="desk-card flex-1 rounded-tl-2xl border border-b-0 px-6 py-6 lg:px-10">
+                {children}
+              </div>
+            </div>
           </main>
         </div>
       </div>

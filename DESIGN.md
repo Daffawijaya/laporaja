@@ -80,6 +80,9 @@ Alasan: tiga status adalah informasi utama di aplikasi, jadi harus langsung terb
 - Desktop full-bleed: konten mengisi gutter lewat `ContentGrid` (kolom utama
   + aside 300px sticky berisi filter, ringkasan, atau meta). Tanpa `max-w`
   di tengah. Teks panjang dikunci `max-w-prose`. Mobile tetap satu kolom.
+- Card konten desktop (`.desk-card`): putih, rounded atas, border, full
+  sampai bawah. Judul halaman tampil di strip di atas card (satu sumber
+  di chrome), h1 halaman disembunyikan di desktop (`md:hidden`).
   Alasan: navigasi satu tangan di layar kecil. Hanya di mobile (`md:hidden`),
   desktop tetap header kaca dan tab atas. Bar mengikuti mode (putih di light,
   `#0f0f0f` di dark via token `--mchrome-*`), bukan blur,

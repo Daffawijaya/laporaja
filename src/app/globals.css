@@ -138,26 +138,58 @@ body {
     overflow: hidden;
   }
 
+  /* Satu-satunya warna: gradasi biru-putih full layar. Sidebar,
+     navbar, dan konten transparan agar warnanya sama persis. */
+  .desk-viewport {
+    min-height: 100dvh;
+    height: 100dvh;
+    overflow: hidden;
+    background: linear-gradient(
+      90deg,
+      #d3ddf1 0%,
+      #dde5f6 15%,
+      #e9eef9 32%,
+      #f3f6fc 50%,
+      #f5f7fd 62%,
+      #f5f7fd 100%
+    );
+  }
+
   .desk-window {
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background-color: #e9eef8;
+    background: transparent;
   }
 
   .dark .desk-window {
-    background-color: #141926;
+    background: #141926;
   }
 
-  /* Sidebar sedikit lebih biru dari sekelilingnya. */
   .desk-side {
-    background-color: rgb(203 215 242 / 0.38);
+    background: transparent;
   }
 
   .dark .desk-side {
     background-color: rgb(255 255 255 / 0.04);
+  }
+
+  .desk-main {
+    background: transparent;
+  }
+
+  /* Card konten: putih 70%, rounded kiri atas, border putih, full. */
+  .desk-card {
+    background-color: rgb(251 252 255 / 0.7);
+    border-color: #ffffff;
+    box-shadow: 0 -8px 24px -16px rgb(30 41 82 / 0.12);
+  }
+
+  .dark .desk-card {
+    background-color: rgb(255 255 255 / 0.03);
+    border-color: rgb(255 255 255 / 0.15);
   }
 
   /* Divider putih, lebih terang dari sidebar dan navbar. */

@@ -38,10 +38,12 @@ export default async function BidangPage() {
 
   return (
     <div className="w-full">
-      <h1 className="text-xl font-semibold tracking-tight">Bidang</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Kelompok kerja untuk para pengguna.
-      </p>
+      <div className="md:hidden">
+        <h1 className="text-xl font-semibold tracking-tight">Bidang</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Kelompok kerja untuk para pengguna.
+        </p>
+      </div>
       <div className="mt-6">
         <ContentGrid
           aside={

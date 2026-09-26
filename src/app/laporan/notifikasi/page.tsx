@@ -18,12 +18,14 @@ export default async function NotifikasiPage() {
 
   return (
     <div className="w-full">
-      <h1 className="text-xl font-semibold tracking-tight">Notifikasi</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {items.length === 0
-          ? "Tidak ada yang perlu perhatian."
-          : `${items.length} kegiatan perlu diperbaiki.`}
-      </p>
+      <div className="md:hidden">
+        <h1 className="text-xl font-semibold tracking-tight">Notifikasi</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {items.length === 0
+            ? "Tidak ada yang perlu perhatian."
+            : `${items.length} kegiatan perlu diperbaiki.`}
+        </p>
+      </div>
 
       <div className="mt-5">
         <ContentGrid

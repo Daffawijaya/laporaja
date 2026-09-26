@@ -74,10 +74,12 @@ export default async function IndikatorPage() {
 
   return (
     <div className="w-full">
-      <h1 className="text-xl font-semibold tracking-tight">Indikator</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Seluruh target kinerja. Tambah di sini berlaku untuk semua user.
-      </p>
+      <div className="md:hidden">
+        <h1 className="text-xl font-semibold tracking-tight">Indikator</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Seluruh target kinerja. Tambah di sini berlaku untuk semua user.
+        </p>
+      </div>
       <div className="mt-6">
         <ContentGrid
           aside={

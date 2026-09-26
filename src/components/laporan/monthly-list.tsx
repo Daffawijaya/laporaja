@@ -246,12 +246,12 @@ export function MonthlyList({
           </>
         }
       >
-        <p className="text-sm text-muted-foreground">Selamat datang, {nama}</p>
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold tracking-tight">
+        <p className="text-sm text-muted-foreground md:hidden">Selamat datang, {nama}</p>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-3 md:mt-0">
+          <h1 className="text-xl font-semibold tracking-tight md:hidden">
             {NAMA_BULAN[bulan - 1]} {tahun}
           </h1>
-          <Button onClick={openAdd} className="w-full sm:w-auto">
+          <Button onClick={openAdd} className="w-full sm:w-auto md:ml-auto">
             <Plus aria-hidden="true" />
             Tambah Kegiatan
           </Button>
