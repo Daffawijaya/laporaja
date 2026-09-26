@@ -149,7 +149,7 @@ body {
     height: 100dvh;
     overflow: hidden;
     background: #f2f1f7;
-    gap: 20px;
+    gap: 0;
     padding: 0;
   }
 
@@ -250,8 +250,7 @@ body {
   }
 
   /* Tombol ikon navbar liquid, pola 1:1 search (wrapper div + kontrol transparan).
-     Filter Raw TANPA color-overlay (veil putih overlay bikin tombol solid).
-     Varian Raw dari /lab-glass: blur(4px) liquid-glass(2, 10) saturate(1.25).
+     Filter overlay persis search (lab-glass baris 2, Light/Dark).
      Light: putih 50%. Dark: transparan. Lingkaran 44px = tinggi search. */
   .ref-icon-btn-liquid {
     position: relative;
@@ -262,7 +261,7 @@ body {
     height: 44px;
     border-radius: 9999px;
     color: #1d1d1f;
-    --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25);
+    --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25) color-overlay(white,.3) contrast(1.25);
     background-color: rgb(255 255 255 / 0.5);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -271,7 +270,7 @@ body {
   }
 
   .dark .ref-icon-btn-liquid {
-    --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25);
+    --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25) color-overlay(black,.3) contrast(1.25);
     background-color: transparent;
     border: 1px solid rgb(255 255 255 / 0.12);
     box-shadow: 0 1px 4px rgb(0 0 0 / 0.42);
@@ -280,7 +279,7 @@ body {
 
   @media (prefers-color-scheme: dark) {
     :root:not(.light) .ref-icon-btn-liquid {
-      --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25);
+      --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25) color-overlay(black,.3) contrast(1.25);
       background-color: transparent;
       box-shadow: 0 1px 4px rgb(0 0 0 / 0.42);
     }

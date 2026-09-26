@@ -155,7 +155,7 @@ export function DesktopWindow({
     <div className="ref-shell hidden md:flex">
       {/* Sidebar kiri ala referensi */}
       <aside className="flex w-[212px] shrink-0 flex-col gap-1 overflow-y-auto py-2">
-        <Link href={isAdmin ? "/admin" : "/"} aria-label="LaporAja beranda" className="flex items-center gap-2 px-3 py-2">
+        <Link href={isAdmin ? "/admin" : "/"} aria-label="LaporAja beranda" className="flex items-center gap-2 py-2">
           <span aria-hidden="true" className="ref-logo">
             <span className="ref-logo-q ref-logo-tl" />
             <span className="ref-logo-q ref-logo-tr" />
@@ -193,7 +193,7 @@ export function DesktopWindow({
           })}
         </nav>
 
-        <div className="mt-auto flex flex-col items-start gap-2 px-3 pt-6">
+        <div className="mt-auto flex flex-col items-start gap-2 pt-6">
           <Link href={bellHref} aria-label="Pesan" className="ref-icon-btn">
             <MessageCircle aria-hidden="true" className="size-5" />
           </Link>
@@ -229,7 +229,7 @@ export function DesktopWindow({
               maskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
             }}
           />
-          <div className="relative flex items-center gap-3 px-6 pt-4 pb-4 lg:px-8">
+          <div className="relative flex items-center gap-3 pt-4 pb-4">
           <h1 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight">{title}</h1>
 
           <div className="ref-search-wrap relative w-56 shrink-0 lg:w-72">
@@ -296,7 +296,7 @@ export function DesktopWindow({
           </div>
         </header>
 
-        <main className="px-6 pb-6 lg:px-8">{children}</main>
+        <main className="pb-6">{children}</main>
       </div>
     </div>
   );
