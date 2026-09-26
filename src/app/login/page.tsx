@@ -4,6 +4,9 @@ import { LoginForm } from "@/components/auth/login-form";
 import { getCurrentProfile, HOME_BY_ROLE } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 
+// Butuh cookie sesi: render saat request, jangan di-prerender waktu build.
+export const dynamic = "force-dynamic";
+
 export default async function LoginPage({
   searchParams,
 }: {
