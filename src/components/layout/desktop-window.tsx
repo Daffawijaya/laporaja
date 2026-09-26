@@ -215,7 +215,7 @@ export function DesktopWindow({
 
       {/* Kolom kanan: topbar + konten */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center gap-3 px-6 pt-4 pb-4 lg:px-8">
+        <header className="flex shrink-0 items-center gap-3 px-6 pb-4 lg:px-8">
           <h1 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight">{title}</h1>
 
           <div className="relative w-56 shrink-0 lg:w-72">
