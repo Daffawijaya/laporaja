@@ -101,7 +101,6 @@ export function DesktopWindow({
 
   const isAdmin = role === "superadmin";
   const bellHref = isAdmin ? "/admin/laporan" : "/laporan/notifikasi";
-  const createHref = isAdmin ? "/admin/users" : "/laporan";
   const initial = (username.charAt(0) || "?").toUpperCase();
   const badge = badgeCount > 9 ? "9+" : String(badgeCount);
   const dark = mounted && resolvedTheme === "dark";
@@ -213,9 +212,14 @@ export function DesktopWindow({
         </div>
       </aside>
 
-      {/* Kolom kanan: topbar + konten */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center gap-3 px-6 pb-4 lg:px-8">
+      {/* Kolom kanan: topbar sticky + konten dalam satu scroll agar fade navbar terlihat */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+        <header className="ref-navbar shrink-0">
+          <div
+            aria-hidden="true"
+            className="ref-navbar-bg pointer-events-none absolute inset-0 backdrop-blur-xl backdrop-saturate-[1.8]"
+          />
+          <div className="relative flex items-center gap-3 px-6 pt-4 pb-4 lg:px-8">
           <h1 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight">{title}</h1>
 
           <div className="relative w-56 shrink-0 lg:w-72">
@@ -233,10 +237,6 @@ export function DesktopWindow({
               className="ref-search"
             />
           </div>
-
-          <Link href={createHref} className="ref-create">
-            Create
-          </Link>
 
           <Link
             href={bellHref}
@@ -272,9 +272,10 @@ export function DesktopWindow({
               {initial}
             </span>
           </Link>
+          </div>
         </header>
 
-        <main className="min-w-0 flex-1 overflow-y-auto px-6 pb-6 lg:px-8">{children}</main>
+        <main className="min-w-0 flex-1 px-6 pb-6 lg:px-8">{children}</main>
       </div>
     </div>
   );
