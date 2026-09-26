@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
-import { MessageCircle, Moon, Search, Sun } from "lucide-react";
+import { Moon, Search, Sun } from "lucide-react";
 import {
   HiBell,
   HiOutlineBell,
@@ -154,7 +154,7 @@ export function DesktopWindow({
   return (
     <div className="ref-shell hidden md:flex">
       {/* Sidebar kiri ala referensi */}
-      <aside className="flex w-[212px] shrink-0 flex-col gap-1 overflow-y-auto py-2">
+      <aside className="flex w-[260px] shrink-0 flex-col gap-1 overflow-y-auto px-4 py-2">
         <Link href={isAdmin ? "/admin" : "/"} aria-label="LaporAja beranda" className="flex items-center gap-2 py-2">
           <span aria-hidden="true" className="ref-logo">
             <span className="ref-logo-q ref-logo-tl" />
@@ -192,24 +192,6 @@ export function DesktopWindow({
             );
           })}
         </nav>
-
-        <div className="mt-auto flex flex-col items-start gap-2 pt-6">
-          <Link href={bellHref} aria-label="Pesan" className="ref-icon-btn">
-            <MessageCircle aria-hidden="true" className="size-5" />
-          </Link>
-          <button
-            type="button"
-            onClick={() => setTheme(dark ? "light" : "dark")}
-            aria-label={dark ? "Matikan mode gelap" : "Nyalakan mode gelap"}
-            className="ref-icon-btn"
-          >
-            {dark ? (
-              <Sun aria-hidden="true" className="size-5" />
-            ) : (
-              <Moon aria-hidden="true" className="size-5" />
-            )}
-          </button>
-        </div>
       </aside>
 
       {/* Kolom kanan: block (bukan flex-col) agar sticky header ter-render
@@ -229,7 +211,7 @@ export function DesktopWindow({
               maskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
             }}
           />
-          <div className="relative flex items-center gap-3 pt-4 pb-4">
+          <div className="relative flex items-center gap-3 px-4 pt-4 pb-4">
           <h1 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight">{title}</h1>
 
           <div className="ref-search-wrap relative w-56 shrink-0 lg:w-72">
@@ -296,7 +278,7 @@ export function DesktopWindow({
           </div>
         </header>
 
-        <main className="pb-6">{children}</main>
+        <main className="px-4 pb-6">{children}</main>
       </div>
     </div>
   );
