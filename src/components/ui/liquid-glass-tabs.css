@@ -106,13 +106,13 @@
   height: 34px;
   width: 120px;
   border-radius: 999px;
-  /* Di bawah teks (lgt-item z:2) agar teks hitam tetap kelihatan
-     saat settled #ececec. Saat drag/animasi naik ke atas via lgt-interacting. */
+  /* Di bawah teks (lgt-item z:2) agar teks hitam tetap kelihatan.
+     Hitam 7.5% di atas putih = 255 × 0.925 ≈ 236 (#ECECEC). */
   z-index: 1;
   pointer-events: none;
   transform-origin: center center;
   will-change: left, width, transform;
-  background: #ececec;
+  background: rgb(0 0 0 / 0.075);
   /* Shadow tab aktif dibuang (inset highlight + drop). */
   box-shadow: none;
   transition:
@@ -186,7 +186,7 @@
   /* Turun ke belakang teks (lgt-item z:2) → abu fade di belakang teks,
      teks tetap muncul. Efek kaca saat lewat (pre-settling) tidak berubah. */
   z-index: 1;
-  background: #ececec;
+  background: rgb(0 0 0 / 0.075);
   transition:
     left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
     width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
@@ -199,6 +199,14 @@
 .lgt-indicator.lgt-snapping.lgt-settling .lg-layer {
   opacity: 0;
   transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Dark: pill settled tetap abu solid (hitam transparan tak terlihat
+   di bg gelap + teks hitam butuh kontras). */
+.dark .lgt-indicator,
+.dark .lgt-indicator.lgt-landing.lgt-settling,
+.dark .lgt-indicator.lgt-snapping.lgt-settling {
+  background: #ececec;
 }
 
 .lgt-nav-inner.lgt-dragging .lgt-indicator {
