@@ -63,6 +63,34 @@ function placePanel(
   panel.style.top = `${top}px`;
   panel.style.left = `${left}px`;
   panel.style.transformOrigin = flip ? "bottom center" : "top center";
+
+  // Blob awal untuk animasi buka. .gsp-panel cuma menganimasikan
+  // translateY + scale, jadi dua nilai ini yang harus dihitung di sini:
+  //
+  //  1. --gsp-blob-s : skala terkecil. Dipakai rasio tinggi
+  //     trigger/panel (44px vs ~360px = 0.12) TAPI dibatasi 0.32–0.42.
+  //     Batas bawahnya penting: displacement map dibuat dalam user space
+  //     ukuran panel dan ikut mengecil bersama transform, jadi di skala
+  //     kecil refraksi ikut mengecil dan panel kelihatan flat. 0.32 masih
+  //     terbaca sebagai gumpalan tapi efek kacanya sudah terlihat.
+  //  2. --gsp-blob-y : geser sumbu Y supaya titik tengah panel yang sudah
+  //     di-scale jatuh persis di tengah trigger. Karena scale menyusutkan
+  //     ke arah transformOrigin, titik tengahnya ikut bergeser, jadi
+  //     harus dikalikan sk-nya — kalau tidak blob-nya meleset ke bawah.
+  const s = Math.min(0.42, Math.max(0.32, rect.height / (height || 1)));
+  const triggerMidY = rect.top + rect.height / 2;
+  // Jarak asal transform (top/bottom center) ke titik tengah panel.
+  const originToMid = flip ? -height / 2 : height / 2;
+  const anchorY = flip ? top + height : top;
+  panel.style.setProperty(
+    "--gsp-blob-s",
+    String(s)
+  );
+  panel.style.setProperty(
+    "--gsp-blob-y",
+    `${triggerMidY - anchorY - originToMid * s}px`
+  );
+
   // Baru dimunculkan setelah top/left selesai dihitung: panel fixed tanpa
   // top/left akan sempat nempel di pojok kiri viewport selama satu frame
   // (panel lebih dulu ter-render, baru effect menentukan posisinya).
@@ -107,6 +135,11 @@ export function GlassSelect({
 
   const [mounted, setMounted] = React.useState(false);
   const [open, setOpen] = React.useState(false);
+  // `open` = state logika (a11y, keyboard, klik luar). `shown` = gate kelas
+  // .gsp-open. Dipisah karena status blob harus sempat ter-paint dulu satu
+  // frame sebelum berubah ke scale(1); kalau classyatu commit yang sama,
+  // tidak ada nilai "sebelum" untuk dianimasikan dan blob-nya di-skip.
+  const [shown, setShown] = React.useState(false);
   const [cursor, setCursor] = React.useState(0);
 
   const selectedIndex = Math.max(
@@ -126,6 +159,26 @@ export function GlassSelect({
     const handle = applyLiquidGlass(panel, () => GLASS_CONFIG);
     return () => handle.destroy();
   }, [mounted]);
+
+  // Blob → panel: nyalakan .gsp-open setelah dua frame, supaya bentuk
+  // blob (scale kecil di atas trigger) sempat ter-paint dulu dan ada
+  // nilai "sebelum" untuk dianimasikan. Kalau classyatu commit yang sama,
+  // transisinya di-skip dan panel langsung muncul utuh.
+  //
+  // Bergantung ke `open`, bukan `mounted`, supaya buka-lagi saat animasi
+  // tutup masih jalan ikut_DELAY — tanpa ini `mounted` tidak berubah,
+  // effect mount tidak jalan lagi, dan panel diam di bentuk blob.
+  React.useEffect(() => {
+    if (!open) return;
+    let inner = 0;
+    const outer = window.requestAnimationFrame(() => {
+      inner = window.requestAnimationFrame(() => setShown(true));
+    });
+    return () => {
+      window.cancelAnimationFrame(outer);
+      window.cancelAnimationFrame(inner);
+    };
+  }, [open]);
 
   // Ikuti trigger saat halaman/scroll digeser.
   React.useEffect(() => {
@@ -154,8 +207,23 @@ export function GlassSelect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, cursor]);
 
+  // Scroll ulang setelah animasi buka selesai. Selama .gsp-list masih
+  // di-scale 0.94, posisi tiap opsi bergeser ~20px ke atas, jadi
+  // scrollIntoView pertama bisa cuma "hampir" — opsi terpilih (mis. bulan
+  // ke-9 dari 12) masih kepotong bawah. Satu kali lagi setelah scale
+  // kembali ke 1 sudah cukup.
+  React.useEffect(() => {
+    if (!shown) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById(optId(cursor))?.scrollIntoView({ block: "nearest" });
+    }, 420);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown]);
+
   function close() {
     setOpen(false);
+    setShown(false);
     window.clearTimeout(closeTimer.current);
     closeTimer.current = window.setTimeout(() => setMounted(false), EXIT_MS);
   }
@@ -297,7 +365,7 @@ export function GlassSelect({
         <div
           ref={panelRef}
           data-radius="24"
-          className={cn("gsp-panel", open && "gsp-open")}
+          className={cn("gsp-panel", shown && "gsp-open")}
         >
           <ul
             id={listId}

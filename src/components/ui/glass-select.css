@@ -18,12 +18,46 @@
   background: rgb(255 255 255 / 0.85);
   border: 1px solid rgb(255, 255, 255);
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.05);
+
+  /* Animasi buka/tutup: blob mulus ala pill tab LiquidGlassTabs.
+     Easing + ritme sengaja sama (cubic-bezier(0.22, 1, 0.36, 1)).
+
+     PENTING: yang dianimasikan transform, BUKAN width/height. Kalau
+     width/height yang digerakkan, ResizeObserver di dalam
+     applyLiquidGlass akan rebuild displacement map (2 canvas + loop
+     per-piksel) tiap frame dan animasinya jadi berat. Transform saja,
+     jadi nol biaya layout dan map kaca tetap valid. */
+  --gsp-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --gsp-open-ms: 380ms;
+  --gsp-close-ms: 240ms;
+  /* Nilai blob awal (ditulis placePanel): skala + offsetY supaya panel
+     mulai sebagai gumpalan tepat di atas trigger, lalu melebar jadi panel.
+
+     Skala tidak dibuat terlalu kecil (0.32) karena displacement map dibuat
+     dalam user space ukuran panel, lalu ikut ikut mengecil bersama
+     transform. Di skala 0.18 efek refraksinya tinggal 18% dan panel
+     kembali terlihat flat — persis yang tidak diinginkan. 0.32 masih
+     terbaca sebagai gumpalan tapi kacanya sudah kelihatan. */
+  --gsp-blob-s: 0.32;
+  --gsp-blob-y: -6px;
+
   transform-origin: top center;
+  /* PENTING: opacity TIDAK dianimasikan saat membuka.
+     Element dengan opacity < 1 itu secara spec jadi "backdrop root", jadi
+     backdrop-filter anak (.lg-layer) tidak lagi men-sampel isi halaman di
+     belakang panel — background panel sendiri tidak termasuk backdrop.
+     Efeknya: selama fade, kacanya kosong dan yang terlihat hanya
+     `background: white 85%` yang flat. Jadi di .gsp-open, opacity tidak
+     boleh ada di daftar transition supaya nilainya langsung snap ke 1
+     di frame pertama dan refraksi aktif sepanjang animasi.
+
+     Arah TUTUP tetap perlu fade (lihat transition di bawah) supaya
+     blob Melody tidak hilang mendadak sebelum menyusut. */
   opacity: 0;
-  transform: translateY(-6px) scale(0.96);
+  transform: translateY(var(--gsp-blob-y)) scale(var(--gsp-blob-s));
   transition:
-    opacity 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    transform var(--gsp-close-ms) var(--gsp-ease),
+    opacity 130ms var(--gsp-ease);
   pointer-events: none;
 }
 
@@ -36,7 +70,35 @@
 .gsp-panel.gsp-open {
   opacity: 1;
   transform: translateY(0) scale(1);
+  /* Sengaja TIDAK ada `opacity` di sini — lihat catatan di atas. */
+  transition: transform var(--gsp-open-ms) var(--gsp-ease);
   pointer-events: auto;
+}
+
+/* Isi menyusul snowball: baru fade + naik begitu panel sudah melebar,
+   jadi teks tidak kelihatan tertekan di frame-frame kecil. */
+.gsp-list {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.94);
+  transform-origin: top center;
+  transition:
+    opacity 200ms var(--gsp-ease),
+    transform 320ms var(--gsp-ease);
+}
+
+.gsp-panel.gsp-open .gsp-list {
+  opacity: 1;
+  transform: none;
+  transition-delay: 80ms, 80ms;
+}
+
+/* Tutup: isi's hilang lebih dulu (tanpa delay) supaya snowball selesai
+   dan panelnya yang kelihatan menyusut balik ke trigger. */
+.gsp-panel:not(.gsp-open) .gsp-list {
+  transition:
+    opacity 120ms var(--gsp-ease),
+    transform 160ms var(--gsp-ease);
+  transition-delay: 0ms, 0ms;
 }
 
 /* Dark: warna kartu konten (#1c1c1e, sama .dark .ref-card) di 85%, bukan
