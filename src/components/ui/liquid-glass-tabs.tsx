@@ -17,14 +17,15 @@ export interface LiquidGlassTab {
 
 const DRAG_THRESHOLD = 6;
 const OVERSHOOT = 22;
-// Acuan tunggal sinkronisasi (samakan dengan --lgt-slide-ms / 0.32s di CSS):
-// lepas (t=0): slide 0→320 + susut 0→160. Cleanup di 160 mulai fade
-// abu/kaca/teks (0.16s) → SEMUA kelar bareng pas 320ms.
-const SLIDE_MS = 320;
-const END_MS = 160;
+// Acuan tunggal sinkronisasi (samakan dengan --lgt-slide-ms / 0.48s di CSS):
+// lepas (t=0): slide + susut 0→480. Settle di 240 mulai fade abu/kaca/teks
+// (0.24s) → SEMUA (geser, susut, abu, kaca, teks, nav, glow) kelar pas 480ms.
+const SLIDE_MS = 480;
+const SETTLE_MS = 240;
+const END_MS = SLIDE_MS;
 const TRACK_MS = SLIDE_MS + 40;
 // Jeda cabut node kaca setelah fade-out selesai (jangan pop).
-const GLASS_FADE_MS = 200;
+const GLASS_FADE_MS = 250;
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -79,12 +80,13 @@ export function LiquidGlassTabs({
     let pressY = 0;
     let dragMode = false;
     let pressWidth = 0;
-    let finishTimer: number | undefined;
-    let snapTimer: number | undefined;
+    let settleTimer: number | undefined;
+    let endTimer: number | undefined;
     let teardownTimer: number | undefined;
     let raf = 0;
-    let glassRebuildQueued = false;
     let indicatorGlass: LiquidGlassHandle | null = null;
+    // Rect tombol di-cache saat lepas — tombol tidak bergerak selama slide,
+    // jadi loop per-frame cukup baca rect indikator (tanpa layout thrash).
 
     const containerGlass = applyLiquidGlass(
       nav,
@@ -119,22 +121,39 @@ export function LiquidGlassTabs({
       }
     }
 
+    let cachedRects: { left: number; right: number; top: number; bottom: number }[] = [];
+
+    function cacheItemRects() {
+      cachedRects = items.map((btn) => {
+        const r = btn.getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+      });
+    }
+
     // Refraksi beneran pada teks: label yang sedang tertutup ujung pill
     // (overlap > 4px) diberi filter displacement SVG, bukan blur palsu.
+    // Settling dikecualikan: teks mulai tajam saat fade abu berjalan.
     function updateTextRefraction() {
-      const interacting =
-        indicator!.classList.contains("lgt-interacting") ||
-        indicator!.classList.contains("lgt-landing") ||
-        indicator!.classList.contains("lgt-snapping");
-      if (!interacting) {
+      const glassOn =
+        (indicator!.classList.contains("lgt-interacting") ||
+          indicator!.classList.contains("lgt-landing") ||
+          indicator!.classList.contains("lgt-snapping")) &&
+        !indicator!.classList.contains("lgt-settling");
+      if (!glassOn) {
         clearTextRefraction();
         return;
       }
       const ind = indicator!.getBoundingClientRect();
+      const rects = cachedRects.length === items.length ? cachedRects : null;
       items.forEach((btn, i) => {
         const label = labelRefs.current[i];
         if (!label) return;
-        const r = btn.getBoundingClientRect();
+        const r = rects
+          ? rects[i]
+          : (() => {
+              const b = btn.getBoundingClientRect();
+              return { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+            })();
         const overlapX = Math.min(ind.right, r.right) - Math.max(ind.left, r.left);
         const overlapY =
           Math.min(ind.bottom, r.bottom) - Math.max(ind.top, r.top);
@@ -208,7 +227,6 @@ export function LiquidGlassTabs({
         // Jalur keyboard/state: tidak ada pointerdown, jadi hidupkan kaca
         // sementara agar teks yang dilewati ujung pill ikut terrefraksi.
         if (animate && pointerId === null && !indicator!.classList.contains("lgt-interacting")) {
-          window.clearTimeout(snapTimer);
           window.clearTimeout(teardownTimer);
           // Selipkan node kaca dulu saat masih opacity 0, kunci, baru
           // pasang kelas agar fade-in terlihat (bukan pop statis).
@@ -216,27 +234,14 @@ export function LiquidGlassTabs({
           void indicator!.offsetWidth;
           indicator!.classList.add("lgt-snapping");
           snapToIndex(active, true);
-          pumpGlass();
-          trackDuring(TRACK_MS);
-          snapTimer = window.setTimeout(() => {
-            // Tahap 1: lepas visual — bg + lapisan kaca fade-out via CSS.
-            indicator!.classList.remove("lgt-snapping");
-            indicator!.classList.remove("lgt-landing");
-            if (!indicator!.classList.contains("lgt-interacting")) {
-              window.cancelAnimationFrame(raf);
-              clearTextRefraction();
-              // Tahap 2: cabut node kaca setelah fade selesai.
-              window.clearTimeout(teardownTimer);
-              teardownTimer = window.setTimeout(() => {
-                indicatorGlass?.destroy();
-                indicatorGlass = null;
-              }, GLASS_FADE_MS);
-            }
-          }, END_MS);
+          // Filter dibangun SEKALI (kaca stabil selama slide → fade mulus).
+          indicatorGlass?.rebuild();
+          trackRefraction(TRACK_MS);
+          endInteraction();
           return;
         }
         snapToIndex(active, animate);
-        if (animate) pumpGlass();
+        if (animate) updateTextRefraction();
       },
     };
 
@@ -248,27 +253,16 @@ export function LiquidGlassTabs({
       inner!.style.setProperty("--ga", String(alpha));
     }
 
-    function queueGlassRebuild() {
-      if (glassRebuildQueued) return;
-      glassRebuildQueued = true;
-      requestAnimationFrame(() => {
-        glassRebuildQueued = false;
-        indicatorGlass?.rebuild();
-      });
-    }
-
-    function pumpGlass() {
-      queueGlassRebuild();
-      updateTextRefraction();
-    }
-
-    // Hidupkan rebuild + refraksi teks tiap frame selama animasi geser,
-    // karena backdrop-filter:url() tidak live-update saat left/width berubah.
-    function trackDuring(ms = 400) {
+    // Loop per-frame HANYA untuk kelas refraksi teks (murah). Filter kaca
+    // SENGAJA tidak di-rebuild di sini: tiap rebuild ganti ID filter +
+    // render ulang backdrop → flicker yang mematahkan fade opacity CSS.
+    // Backdrop-filter update live secara native saat elemen bergerak.
+    function trackRefraction(ms = TRACK_MS) {
       window.cancelAnimationFrame(raf);
+      cacheItemRects();
       const t0 = performance.now();
       const tick = (t: number) => {
-        pumpGlass();
+        updateTextRefraction();
         if (t - t0 < ms) {
           raf = window.requestAnimationFrame(tick);
         } else {
@@ -279,40 +273,60 @@ export function LiquidGlassTabs({
     }
 
     function beginInteraction(clientX: number, clientY: number) {
-      window.clearTimeout(finishTimer);
-      window.clearTimeout(snapTimer);
+      window.clearTimeout(settleTimer);
+      window.clearTimeout(endTimer);
       window.clearTimeout(teardownTimer);
       // Selipkan node kaca dulu saat masih opacity 0, kunci, baru pasang
       // kelas agar fade-in abu → kaca terlihat (bukan pop statis).
       ensureIndicatorGlass();
       void indicator!.offsetWidth;
       indicator!.classList.remove("lgt-landing");
+      indicator!.classList.remove("lgt-settling");
       indicator!.classList.add("lgt-interacting");
       nav!.classList.add("lgt-engaged");
       setGlow(clientX, clientY, 0.24);
-      pumpGlass();
-      trackDuring(600);
+      cacheItemRects();
+      updateTextRefraction();
+    }
+
+    // Mulai fase settling: fade abu/kaca/teks (0.24s) TANPA menyentuh
+    // transform/left/width — susut + geser jalan terus sampai 480ms.
+    function beginSettle() {
+      if (
+        indicator!.classList.contains("lgt-landing") ||
+        indicator!.classList.contains("lgt-snapping")
+      ) {
+        indicator!.classList.add("lgt-settling");
+        clearTextRefraction();
+        updateTextRefraction();
+      }
+    }
+
+    function finalize() {
+      // Semua nilai sudah di target (no-op visual) — hanya lepas kelas
+      // lalu cabut node kaca setelah fade selesai (jangan pop).
+      indicator!.classList.remove("lgt-interacting");
+      indicator!.classList.remove("lgt-landing");
+      indicator!.classList.remove("lgt-snapping");
+      indicator!.classList.remove("lgt-settling");
+      inner!.classList.remove("lgt-dragging");
+      nav!.classList.remove("lgt-engaged");
+      inner!.style.setProperty("--ga", "0");
+      window.cancelAnimationFrame(raf);
+      clearTextRefraction();
+      window.clearTimeout(teardownTimer);
+      teardownTimer = window.setTimeout(() => {
+        indicatorGlass?.destroy();
+        indicatorGlass = null;
+      }, GLASS_FADE_MS);
     }
 
     function endInteraction() {
-      window.clearTimeout(finishTimer);
+      window.clearTimeout(settleTimer);
+      window.clearTimeout(endTimer);
       window.clearTimeout(teardownTimer);
-      finishTimer = window.setTimeout(() => {
-        // Tahap 1: lepas visual — bg + lapisan kaca fade-out via transisi CSS.
-        indicator!.classList.remove("lgt-interacting");
-        indicator!.classList.remove("lgt-landing");
-        indicator!.classList.remove("lgt-snapping");
-        inner!.classList.remove("lgt-dragging");
-        nav!.classList.remove("lgt-engaged");
-        inner!.style.setProperty("--ga", "0");
-        window.cancelAnimationFrame(raf);
-        clearTextRefraction();
-        // Tahap 2: cabut node kaca setelah fade selesai (jangan pop).
-        teardownTimer = window.setTimeout(() => {
-          indicatorGlass?.destroy();
-          indicatorGlass = null;
-        }, GLASS_FADE_MS);
-      }, END_MS);
+      settleTimer = window.setTimeout(beginSettle, SETTLE_MS);
+      endTimer = window.setTimeout(finalize, END_MS);
     }
 
     function dragMove(clientX: number) {
@@ -323,7 +337,7 @@ export function LiquidGlassTabs({
       indicator!.style.left = `${left}px`;
       indicator!.style.width = `${w}px`;
       targetIndex = nearestIndex(localX);
-      pumpGlass();
+      updateTextRefraction();
     }
 
     function clearPointerHandlers() {
@@ -339,7 +353,7 @@ export function LiquidGlassTabs({
       // Indikator ikut animasi ke tab target walau state React belum update.
       active = targetIndex;
       snapToIndex(targetIndex, true);
-      // Langsung landing saat lepas (t=0): susut 0→160ms + lepas nav/glow
+      // Langsung landing saat lepas (t=0): susut 0→480ms + lepas nav/glow
       // bareng awal slide — tanpa jeda, tanpa nunggu.
       if (indicator!.classList.contains("lgt-interacting")) {
         indicator!.classList.remove("lgt-interacting");
@@ -347,9 +361,10 @@ export function LiquidGlassTabs({
       }
       nav!.classList.remove("lgt-engaged");
       inner!.style.setProperty("--ga", "0");
-      pumpGlass();
-      trackDuring(TRACK_MS);
-      // Cleanup di 160ms mulai fade abu/kaca/teks (0.16s) → kelar pas 320ms.
+      // Filter dibangun SEKALI di posisi lepas (stabil selama slide → fade mulus).
+      indicatorGlass?.rebuild();
+      trackRefraction(TRACK_MS);
+      // Settling di 240ms mulai fade abu/kaca/teks (0.24s) → kelar pas 480ms.
       endInteraction();
     }
 
@@ -388,8 +403,8 @@ export function LiquidGlassTabs({
       }
       nav!.classList.remove("lgt-engaged");
       inner!.style.setProperty("--ga", "0");
-      pumpGlass();
-      trackDuring(TRACK_MS);
+      indicatorGlass?.rebuild();
+      trackRefraction(TRACK_MS);
       endInteraction();
       pointerId = null;
       dragMode = false;
@@ -420,6 +435,8 @@ export function LiquidGlassTabs({
         items.findIndex((el) => el.dataset.active === "true")
       );
       snapToIndex(active, false);
+      // Layout berubah → bangun ulang filter sekali (bukan per-frame).
+      indicatorGlass?.rebuild();
       clearTextRefraction();
     };
     window.addEventListener("resize", onResize);
@@ -427,8 +444,8 @@ export function LiquidGlassTabs({
     return () => {
       window.removeEventListener("resize", onResize);
       clearPointerHandlers();
-      window.clearTimeout(finishTimer);
-      window.clearTimeout(snapTimer);
+      window.clearTimeout(settleTimer);
+      window.clearTimeout(endTimer);
       window.clearTimeout(teardownTimer);
       window.cancelAnimationFrame(raf);
       clearTextRefraction();
@@ -452,7 +469,7 @@ export function LiquidGlassTabs({
         aria-label={ariaLabel}
         style={
           tabs.length !== 4
-            ? { gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }
+            ? { gridTemplateColumns: `repeat(${tabs.length}, auto)` }
             : undefined
         }
       >

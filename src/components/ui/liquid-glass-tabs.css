@@ -16,12 +16,14 @@
   --accent: #3b82f6;
   --nav-glow-rgb: 255, 255, 255;
   --nav-glow-neutral-rgb: 255, 255, 255;
-  /* Acuan waktu animasi pill: SLIDE_MS 320 — semua efek bg ikut ini. */
-  --lgt-slide-ms: 320;
+  /* Acuan waktu animasi pill: SLIDE_MS 480 — semua efek bg ikut ini. */
+  --lgt-slide-ms: 480;
 
   position: relative;
-  width: 100%;
-  max-width: 620px;
+  /* Menyusut mengikuti teks (bukan stretch full-width) agar jarak
+     teks ke samping sama dengan jarak teks ke atas. */
+  width: fit-content;
+  max-width: 100%;
   height: 44px;
   border-radius: 999px;
   /* Cangkang luar persis search/lonceng/toggle navbar (ref-search-wrap,
@@ -30,7 +32,7 @@
   border: 1px solid rgb(255 255 255 / 0.6);
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.05);
   z-index: 1;
-  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.48s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dark .lgt-nav {
@@ -68,7 +70,7 @@
   z-index: 1;
   height: 100%;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, auto);
   align-items: center;
   gap: 6px;
   padding: 4px;
@@ -90,7 +92,7 @@
   pointer-events: none;
   z-index: 0;
   background: radial-gradient(240px 150px at var(--gx) var(--gy), rgba(var(--nav-glow-rgb), var(--ga)) 0%, rgba(var(--nav-glow-rgb), 0) 74%);
-  transition: background 0.22s ease;
+  transition: background 0.48s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Saat tekan/geser: paksa glow netral putih agar tidak ada semburat biru. */
@@ -115,11 +117,11 @@
   /* Shadow tab aktif dibuang (inset highlight + drop). */
   box-shadow: none;
   transition:
-    left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.16s ease,
-    box-shadow 0.32s ease;
+    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.48s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .lgt-indicator.lgt-interacting {
@@ -129,25 +131,25 @@
   background: rgba(255, 255, 255, 0.16);
   /* Fade-in abu → transparan mengikuti durasi slide. */
   transition:
-    left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.32s ease;
+    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.48s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Fase landing: susut cepat di awal slide (0→160ms), kaca tetap di depan.
-   Cleanup di 160ms mulai fade abu/kaca/teks (0.16s) → semua kelar pas 320ms. */
+/* Fase landing: susut selebar slide penuh (0→480ms) agar ending susut
+   sama persis dengan ending geser — efek membesar terlihat penuh. */
 .lgt-indicator.lgt-landing {
   z-index: 999;
   transform: scale(1);
   background: rgba(255, 255, 255, 0.16);
   transition:
-    left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.32s ease;
+    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.48s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Jalur keyboard/state (tanpa pointer): tahan kaca di depan selama snap. */
@@ -155,33 +157,53 @@
   z-index: 999;
   background: rgba(255, 255, 255, 0.16);
   transition:
-    left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.32s ease;
+    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.48s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Lapisan kaca (refraksi) fade mengikuti kelas — scope indikator saja,
-   jangan sentuh .lg-layer milik nav. Base = fade-out cepat (0.16s) agar
-   kelar bareng akhir slide; per-state = fade-in lambat (0.32s). */
+   jangan sentuh .lg-layer milik nav. Base = fade-out cepat (0.24s) agar
+   kelar bareng akhir slide; per-state = fade-in lambat (0.48s). */
 .lgt-indicator .lg-layer {
   opacity: 0;
-  transition: opacity 0.16s ease;
+  transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .lgt-indicator.lgt-interacting .lg-layer,
 .lgt-indicator.lgt-landing .lg-layer,
 .lgt-indicator.lgt-snapping .lg-layer {
   opacity: 1;
-  transition: opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Fase settling (ditambah JS di tengah slide, ~240ms): mulai fade abu +
+   kaca (0.24s) TANPA menyentuh transform/left/width — susut + geser jalan
+   terus sampai 480ms. Semua kelar bareng pas slide mendarat. */
+.lgt-indicator.lgt-landing.lgt-settling,
+.lgt-indicator.lgt-snapping.lgt-settling {
+  background: #ececec;
+  transition:
+    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lgt-indicator.lgt-landing.lgt-settling .lg-layer,
+.lgt-indicator.lgt-snapping.lgt-settling .lg-layer {
+  opacity: 0;
+  transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .lgt-nav-inner.lgt-dragging .lgt-indicator {
   transition:
-    transform 0.24s ease,
-    background-color 0.16s ease,
-    box-shadow 0.24s ease;
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .lgt-item {
@@ -205,8 +227,9 @@
   font-weight: 600;
   font-size: 11px;
   letter-spacing: 0.01em;
-  padding: 0 6px;
-  transition: color 0.24s ease;
+  /* Padding horizontal = jarak vertikal teks (±10px) agar simetris. */
+  padding: 0 10px;
+  transition: color 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .lgt-item:hover {
@@ -230,7 +253,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: filter 0.16s ease;
+  transition: filter 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Label yang sedang dilewati ujung pill: refraksi beneran via SVG. */
