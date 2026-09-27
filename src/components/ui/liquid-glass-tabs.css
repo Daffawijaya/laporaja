@@ -1,0 +1,164 @@
+/* Liquid glass tab bar — salinan persis gaya navbar atas /lab-glass2
+   (.ios26-nav dkk. dari demo), prefix lgt- agar tidak bentrok CSS lain.
+   Variabel light = :root demo; dark mengikuti class .dark aplikasi. */
+
+.lgt-nav {
+  --bg: #e7ebf0;
+  --bg-grad-a: #edf1f6;
+  --bg-grad-b: #d7dde6;
+  --text: #1a1f29;
+  --muted: #3d434e;
+  --panel: #e3e8ee;
+  --panel-soft: #dce2eaab;
+  --shadow-light: rgba(255, 255, 255, 0.78);
+  --shadow-dark: rgba(148, 160, 181, 0.36);
+  --line-soft: rgba(123, 138, 161, 0.28);
+  --accent: #3b82f6;
+  --nav-glow-rgb: 205, 228, 255;
+
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  height: 76px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 1;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dark .lgt-nav {
+  --bg: #12151c;
+  --bg-grad-a: #1a1f29;
+  --bg-grad-b: #0f1218;
+  --text: #e8ecf5;
+  --muted: #eaedf1;
+  --panel: #191e28;
+  --panel-soft: #1b191f80;
+  --shadow-light: rgba(255, 255, 255, 0.04);
+  --shadow-dark: rgba(0, 0, 0, 0.52);
+  --line-soft: rgba(165, 177, 205, 0.2);
+  --accent: #4f8cff;
+  --nav-glow-rgb: 168, 201, 255;
+}
+
+.lgt-nav.lgt-engaged {
+  transform: scale(1.02);
+}
+
+.lgt-nav-inner {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: var(--panel-soft);
+  box-shadow:
+    14px 14px 36px var(--shadow-dark),
+    -14px -14px 36px var(--shadow-light);
+  --gx: 50%;
+  --gy: 50%;
+  --ga: 0;
+}
+
+.lgt-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  clip-path: inset(0 round 999px);
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(240px 150px at var(--gx) var(--gy), rgba(var(--nav-glow-rgb), var(--ga)) 0%, rgba(var(--nav-glow-rgb), 0) 74%);
+  transition: background 0.18s ease;
+}
+
+.lgt-indicator {
+  position: absolute;
+  left: 10px;
+  top: 8px;
+  height: 60px;
+  width: 120px;
+  border-radius: 999px;
+  z-index: 6;
+  pointer-events: none;
+  transform-origin: center center;
+  will-change: left, width, transform;
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.46),
+    10px 10px 24px var(--shadow-dark),
+    -8px -8px 20px var(--shadow-light);
+  transition:
+    left 0.24s cubic-bezier(0.2, 0.9, 0.22, 1),
+    width 0.24s cubic-bezier(0.2, 0.9, 0.22, 1),
+    transform 0.25s ease,
+    background-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.lgt-indicator.lgt-interacting {
+  z-index: 999;
+  transform: scale(1.5);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.lgt-nav-inner.lgt-dragging .lgt-indicator {
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.lgt-item {
+  position: relative;
+  z-index: 2;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  touch-action: none;
+  height: 60px;
+  min-width: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  text-shadow: 1px 1px 7px #0f121880;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 1px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  padding: 0 6px;
+  transition: color 0.2s ease;
+}
+
+.lgt-item:hover {
+  color: var(--accent);
+}
+
+.lgt-item.lgt-active {
+  color: var(--accent);
+}
+
+.lgt-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.lgt-label {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lgt-nav.lgt-dragging,
+.lgt-nav.lgt-dragging .lgt-item {
+  cursor: grabbing !important;
+}

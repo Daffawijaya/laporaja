@@ -158,3 +158,61 @@ export async function getRevisionList(
       catatan: catatanById.get(kegiatan.id) ?? null,
     }));
 }
+
+export interface MonthSummary {
+  bulan: number;
+  total: number;
+  disetujui: number;
+  revisi: number;
+  menunggu: number;
+}
+
+// Rekap satu tahun milik user: hitungan kegiatan + status review per bulan.
+// Dipakai arsip bulan-dulu di halaman laporan user (selalu 12 baris,
+// bulan kosong tetap muncul dengan nol agar bisa diklik).
+export async function getYearlySummary(
+  supabase: ServerClient,
+  userId: string,
+  tahun: number
+): Promise<MonthSummary[]> {
+  const { data: kegiatanList, error: kegiatanError } = await supabase
+    .from("kegiatan")
+    .select("id, tanggal")
+    .eq("user_id", userId)
+    .gte("tanggal", `${tahun}-01-01`)
+    .lte("tanggal", `${tahun}-12-31`);
+  if (kegiatanError) throw new Error("Gagal memuat rekap tahunan. Coba lagi.");
+  const list = kegiatanList ?? [];
+  const statusById = new Map<string, string>();
+  if (list.length > 0) {
+    const { data: reviewList, error: reviewError } = await supabase
+      .from("reviews")
+      .select("kegiatan_id, status")
+      .in(
+        "kegiatan_id",
+        list.map((kegiatan) => kegiatan.id)
+      );
+    if (reviewError) throw new Error("Gagal memuat rekap tahunan. Coba lagi.");
+    for (const review of reviewList ?? []) {
+      statusById.set(review.kegiatan_id, review.status);
+    }
+  }
+  const summary: MonthSummary[] = Array.from({ length: 12 }, (_, index) => ({
+    bulan: index + 1,
+    total: 0,
+    disetujui: 0,
+    revisi: 0,
+    menunggu: 0,
+  }));
+  for (const kegiatan of list) {
+    const bulan = parseInt(String(kegiatan.tanggal).slice(5, 7), 10);
+    if (!Number.isInteger(bulan) || bulan < 1 || bulan > 12) continue;
+    const row = summary[bulan - 1];
+    row.total += 1;
+    const status = statusById.get(kegiatan.id);
+    if (status === "approved") row.disetujui += 1;
+    else if (status === "revision") row.revisi += 1;
+    else row.menunggu += 1;
+  }
+  return summary;
+}

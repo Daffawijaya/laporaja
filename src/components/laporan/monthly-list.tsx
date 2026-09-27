@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -158,6 +158,13 @@ export function MonthlyList({
 
   return (
     <div className="w-full">
+      <Link
+        href="/laporan"
+        className="mb-3 inline-flex min-h-[44px] items-center gap-1 text-sm text-muted-foreground transition-soft hover:text-accent"
+      >
+        <ChevronLeft aria-hidden="true" className="size-4" />
+        Arsip laporan
+      </Link>
       <ContentGrid
         gapClassName="lg:gap-3"
         aside={
