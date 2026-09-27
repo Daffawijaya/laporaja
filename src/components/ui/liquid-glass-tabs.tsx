@@ -17,6 +17,12 @@ export interface LiquidGlassTab {
 
 const DRAG_THRESHOLD = 6;
 const OVERSHOOT = 22;
+// Acuan tunggal sinkronisasi (samakan dengan --lgt-slide-ms / 0.32s di CSS):
+// slide pill 320ms, susut mulai 150ms, semua efek bg selesai bareng ~360-430ms.
+const SLIDE_MS = 320;
+const LAND_DELAY = 150;
+const END_MS = SLIDE_MS + 40;
+const TRACK_MS = SLIDE_MS + 80;
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -39,6 +45,7 @@ export function LiquidGlassTabs({
   const innerRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const labelRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const onChangeRef = useRef(onChange);
   const apiRef = useRef<{ snap: (animate: boolean) => void } | null>(null);
 
@@ -71,6 +78,9 @@ export function LiquidGlassTabs({
     let dragMode = false;
     let pressWidth = 0;
     let finishTimer: number | undefined;
+    let snapTimer: number | undefined;
+    let landTimer: number | undefined;
+    let raf = 0;
     let glassRebuildQueued = false;
     let indicatorGlass: LiquidGlassHandle | null = null;
 
@@ -78,6 +88,60 @@ export function LiquidGlassTabs({
       nav,
       () => DEFAULT_LIQUID_GLASS_CONFIG
     );
+
+    function ensureIndicatorGlass() {
+      if (indicatorGlass) {
+        indicatorGlass.rebuild();
+        return;
+      }
+      indicatorGlass = applyLiquidGlass(
+        indicator!,
+        () => ({
+          ...DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
+          // Kaca netral saat geser: tanpa tint biru, specular lembut.
+          glassThickness: 24,
+          blur: 1,
+          specularOpacity: 0.35,
+          specularSat: 0,
+          tintColor: "255,255,255",
+          tintOpacity: 0,
+          balancedSpecular: true,
+        })
+      );
+    }
+
+    function clearTextRefraction() {
+      for (const label of labelRefs.current) {
+        label?.classList.remove("lgt-under-glass");
+      }
+    }
+
+    // Refraksi beneran pada teks: label yang sedang tertutup ujung pill
+    // (overlap > 4px) diberi filter displacement SVG, bukan blur palsu.
+    function updateTextRefraction() {
+      const interacting =
+        indicator!.classList.contains("lgt-interacting") ||
+        indicator!.classList.contains("lgt-landing") ||
+        indicator!.classList.contains("lgt-snapping");
+      if (!interacting) {
+        clearTextRefraction();
+        return;
+      }
+      const ind = indicator!.getBoundingClientRect();
+      items.forEach((btn, i) => {
+        const label = labelRefs.current[i];
+        if (!label) return;
+        const r = btn.getBoundingClientRect();
+        const overlapX = Math.min(ind.right, r.right) - Math.max(ind.left, r.left);
+        const overlapY =
+          Math.min(ind.bottom, r.bottom) - Math.max(ind.top, r.top);
+        if (overlapX > 4 && overlapY > 4) {
+          label.classList.add("lgt-under-glass");
+        } else {
+          label.classList.remove("lgt-under-glass");
+        }
+      });
+    }
 
     function innerRect() {
       return inner!.getBoundingClientRect();
@@ -138,7 +202,29 @@ export function LiquidGlassTabs({
           items.findIndex((el) => el.dataset.active === "true")
         );
         targetIndex = active;
+        // Jalur keyboard/state: tidak ada pointerdown, jadi hidupkan kaca
+        // sementara agar teks yang dilewati ujung pill ikut terrefraksi.
+        if (animate && pointerId === null && !indicator!.classList.contains("lgt-interacting")) {
+          window.clearTimeout(snapTimer);
+          indicator!.classList.add("lgt-snapping");
+          ensureIndicatorGlass();
+          snapToIndex(active, true);
+          pumpGlass();
+          trackDuring(TRACK_MS);
+          snapTimer = window.setTimeout(() => {
+            indicator!.classList.remove("lgt-snapping");
+            indicator!.classList.remove("lgt-landing");
+            if (!indicator!.classList.contains("lgt-interacting")) {
+              window.cancelAnimationFrame(raf);
+              indicatorGlass?.destroy();
+              indicatorGlass = null;
+              clearTextRefraction();
+            }
+          }, END_MS);
+          return;
+        }
         snapToIndex(active, animate);
+        if (animate) pumpGlass();
       },
     };
 
@@ -159,35 +245,71 @@ export function LiquidGlassTabs({
       });
     }
 
+    function pumpGlass() {
+      queueGlassRebuild();
+      updateTextRefraction();
+    }
+
+    // Hidupkan rebuild + refraksi teks tiap frame selama animasi geser,
+    // karena backdrop-filter:url() tidak live-update saat left/width berubah.
+    function trackDuring(ms = 400) {
+      window.cancelAnimationFrame(raf);
+      const t0 = performance.now();
+      const tick = (t: number) => {
+        pumpGlass();
+        if (t - t0 < ms) {
+          raf = window.requestAnimationFrame(tick);
+        } else {
+          updateTextRefraction();
+        }
+      };
+      raf = window.requestAnimationFrame(tick);
+    }
+
     function beginInteraction(clientX: number, clientY: number) {
       window.clearTimeout(finishTimer);
+      window.clearTimeout(snapTimer);
+      window.clearTimeout(landTimer);
+      indicator!.classList.remove("lgt-landing");
       indicator!.classList.add("lgt-interacting");
       nav!.classList.add("lgt-engaged");
       setGlow(clientX, clientY, 0.24);
-      if (!indicatorGlass) {
-        indicatorGlass = applyLiquidGlass(
-          indicator!,
-          () => ({
-            ...DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
-            balancedSpecular: true,
-          })
-        );
-      } else {
-        indicatorGlass.rebuild();
-      }
-      queueGlassRebuild();
+      ensureIndicatorGlass();
+      pumpGlass();
+      trackDuring(600);
+    }
+
+    // Susutkan pill saat mendekati target (overlap dengan sisa slide),
+    // bukan setelah slide selesai — hilangkan jeda diam. Glow + nav-scale
+    // ikut dipudarkan di titik yang sama agar selesai bareng dengan pill.
+    function startLanding(delay = LAND_DELAY) {
+      window.clearTimeout(landTimer);
+      landTimer = window.setTimeout(() => {
+        if (indicator!.classList.contains("lgt-interacting")) {
+          indicator!.classList.remove("lgt-interacting");
+          indicator!.classList.add("lgt-landing");
+          nav!.classList.remove("lgt-engaged");
+          inner!.style.setProperty("--ga", "0");
+          pumpGlass();
+        }
+      }, delay);
     }
 
     function endInteraction() {
       window.clearTimeout(finishTimer);
       finishTimer = window.setTimeout(() => {
         indicator!.classList.remove("lgt-interacting");
+        indicator!.classList.remove("lgt-landing");
+        indicator!.classList.remove("lgt-snapping");
         inner!.classList.remove("lgt-dragging");
         nav!.classList.remove("lgt-engaged");
         inner!.style.setProperty("--ga", "0");
+        window.cancelAnimationFrame(raf);
+        window.clearTimeout(landTimer);
         indicatorGlass?.destroy();
         indicatorGlass = null;
-      }, 500);
+        clearTextRefraction();
+      }, END_MS);
     }
 
     function dragMove(clientX: number) {
@@ -198,7 +320,7 @@ export function LiquidGlassTabs({
       indicator!.style.left = `${left}px`;
       indicator!.style.width = `${w}px`;
       targetIndex = nearestIndex(localX);
-      queueGlassRebuild();
+      pumpGlass();
     }
 
     function clearPointerHandlers() {
@@ -214,8 +336,10 @@ export function LiquidGlassTabs({
       // Indikator ikut animasi ke tab target walau state React belum update.
       active = targetIndex;
       snapToIndex(targetIndex, true);
-      queueGlassRebuild();
-      window.setTimeout(queueGlassRebuild, 120);
+      pumpGlass();
+      trackDuring(TRACK_MS);
+      // Mulai susut ±47% perjalanan slide (150/320ms) agar menyatu tanpa jeda.
+      startLanding(LAND_DELAY);
       endInteraction();
     }
 
@@ -248,6 +372,9 @@ export function LiquidGlassTabs({
       clearPointerHandlers();
       inner!.classList.remove("lgt-dragging");
       snapToIndex(active, true);
+      pumpGlass();
+      trackDuring(TRACK_MS);
+      startLanding(LAND_DELAY);
       endInteraction();
       pointerId = null;
       dragMode = false;
@@ -278,6 +405,7 @@ export function LiquidGlassTabs({
         items.findIndex((el) => el.dataset.active === "true")
       );
       snapToIndex(active, false);
+      clearTextRefraction();
     };
     window.addEventListener("resize", onResize);
 
@@ -285,6 +413,10 @@ export function LiquidGlassTabs({
       window.removeEventListener("resize", onResize);
       clearPointerHandlers();
       window.clearTimeout(finishTimer);
+      window.clearTimeout(snapTimer);
+      window.clearTimeout(landTimer);
+      window.cancelAnimationFrame(raf);
+      clearTextRefraction();
       indicatorGlass?.destroy();
       containerGlass.destroy();
       apiRef.current = null;
@@ -311,6 +443,34 @@ export function LiquidGlassTabs({
       >
         <div className="lgt-glow" aria-hidden="true" />
         <div ref={indicatorRef} className="lgt-indicator" aria-hidden="true" />
+        {/* Filter refraksi khusus teks: dipakai saat ujung pill melewati label. */}
+        <svg aria-hidden="true" width="0" height="0" style={{ position: "absolute" }}>
+          <defs>
+            <filter
+              id="lgt-text-refract"
+              x="-20%"
+              y="-20%"
+              width="140%"
+              height="140%"
+              colorInterpolationFilters="sRGB"
+            >
+              <feTurbulence
+                type="fractalNoise"
+                baseFrequency="0.02 0.09"
+                numOctaves="2"
+                seed="7"
+                result="n"
+              />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="n"
+                scale="7"
+                xChannelSelector="R"
+                yChannelSelector="G"
+              />
+            </filter>
+          </defs>
+        </svg>
         {tabs.map((tab, idx) => {
           const isActive = idx === activeIndex;
           return (
@@ -337,7 +497,14 @@ export function LiquidGlassTabs({
                 if (e.detail === 0) onChange(tab.key);
               }}
             >
-              <span className="lgt-label">{tab.label}</span>
+              <span
+                ref={(el) => {
+                  labelRefs.current[idx] = el;
+                }}
+                className="lgt-label"
+              >
+                {tab.label}
+              </span>
             </button>
           );
         })}
