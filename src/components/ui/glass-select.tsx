@@ -12,11 +12,12 @@ import "./glass-select.css";
 
 // Config kaca SALINAN pill LiquidGlassTabs (liquid-glass-tabs.tsx) supaya
 // panel dropdown optically sama: tanpa tint biru, tanpa kilau putih
-// (specular 0), tanpa blur — refraksi tepi yang jalan.
+// (specular 0), refraksi tepi + blur backdrop tipis.
 const GLASS_CONFIG = {
   ...DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
   glassThickness: 24,
-  blur: 0,
+  // stdDeviation tipis: 0 = tidak ada frost sama sekali, 1 = sudah noticeable.
+  blur: 0.6,
   specularOpacity: 0,
   specularSat: 0,
   tintColor: "255,255,255",
@@ -274,7 +275,7 @@ export function GlassSelect({
         onKeyDown={onKeyDown}
         className={cn(
           // Cangkang identik .lgt-nav: putih 50% + border putih + shadow.
-          "transition-soft flex h-11 w-full items-center justify-between gap-2 rounded-full border border-white bg-white/50 pl-3.5 pr-3 text-left text-sm text-foreground shadow-[0_1px_4px_rgb(0_0_0/0.05)]",
+          "transition-soft flex h-11 w-full items-center justify-between gap-2 rounded-full border border-white bg-white/85 pl-3.5 pr-3 text-left text-sm text-foreground shadow-[0_1px_4px_rgb(0_0_0/0.05)]",
           "hover:border-white focus-visible:border-accent focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/15",
           "disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60",
           "dark:border-white/12 dark:bg-white/5 dark:shadow-[0_1px_4px_rgb(0_0_0/0.42)]",

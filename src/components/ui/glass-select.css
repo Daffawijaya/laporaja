@@ -12,10 +12,10 @@
   display: flex;
   flex-direction: column;
   border-radius: 24px;
-  /* Cangkang sama .lgt-nav: putih 50% + border putih + shadow. Refraksi
-     tetap jalan di atasnya (sisi dalam), jadi panel tetap terasa kaca
-     tapi isinya tidak terlalu tembuslihat. */
-  background: rgb(255 255 255 / 0.5);
+  /* Cangkang putih dinaikkan dari 50% jadi 85% supaya teks opsi tidak
+     perlu bertarung dengan isi panel di belakang. Refraksi tepi tetap
+     jalan di atasnya, jadi tidak kehilangan kesan kaca. */
+  background: rgb(255 255 255 / 0.85);
   border: 1px solid rgb(255, 255, 255);
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.05);
   transform-origin: top center;
