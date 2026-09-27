@@ -29,6 +29,10 @@ const GLASS_FADE_MS = 250;
 const TEXT_SCALE_MAX = 7;
 // Kekuatan refraksi teks (feDisplacementMap scale) — dianimasikan 0↔MAX
 // karena filter url()↔none tidak bisa di-transition (selalu instant).
+// Lebar zona TEPI pill yang membiaskan teks: hanya pita di sekitar border
+// pill yang warp, tengah pill bersih (persis refraksi kaca asli).
+const EDGE_W = 14;
+const EDGE_FEATHER = 6;
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -52,6 +56,7 @@ export function LiquidGlassTabs({
   const indicatorRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const labelRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const glassRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const textDispRef = useRef<SVGFEDisplacementMapElement | null>(null);
   const onChangeRef = useRef(onChange);
   const apiRef = useRef<{ snap: (animate: boolean) => void } | null>(null);
@@ -116,52 +121,107 @@ export function LiquidGlassTabs({
       );
     }
 
+    // Sembunyikan semua salinan refraksi (teks normal selalu terlihat).
     function clearTextRefraction() {
-      for (const label of labelRefs.current) {
-        label?.classList.remove("lgt-under-glass");
+      for (const glass of glassRefs.current) {
+        if (glass) glass.style.visibility = "hidden";
       }
+      lastGlassClip = lastGlassClip.map(() => null);
     }
 
     let cachedRects: { left: number; right: number; top: number; bottom: number }[] = [];
+    let cachedLabelRects: { left: number; right: number; top: number; bottom: number; width: number; height: number }[] = [];
+    let lastGlassClip: (string | null)[] = [];
 
     function cacheItemRects() {
       cachedRects = items.map((btn) => {
         const r = btn.getBoundingClientRect();
         return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
       });
+      cachedLabelRects = labelRefs.current.map((el) => {
+        if (!el) return { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 };
+        const r = el.getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height };
+      });
     }
 
-    // Refraksi beneran pada teks: label yang sedang tertutup ujung pill
-    // (overlap > 4px) diberi filter displacement SVG. Selama settling
-    // DIBEKUKAN (tidak tambah/hapus) — warp memudar via animasi scale.
+    // Refraksi TEPI teks: salinan refraksi (lgt-label-glass) hanya
+    // ditampilkan via mask tepat di pita ±14px sekitar border pill —
+    // tengah pill bersih persis refraksi kaca asli. Kekuatan warp memudar
+    // via animasi scale global (bukan on/off class yang instant).
     function updateTextRefraction() {
-      if (indicator!.classList.contains("lgt-settling")) return;
       const glassOn =
         indicator!.classList.contains("lgt-interacting") ||
         indicator!.classList.contains("lgt-landing") ||
-        indicator!.classList.contains("lgt-snapping");
+        indicator!.classList.contains("lgt-snapping") ||
+        indicator!.classList.contains("lgt-settling");
       if (!glassOn) {
         clearTextRefraction();
         return;
       }
       const ind = indicator!.getBoundingClientRect();
-      const rects = cachedRects.length === items.length ? cachedRects : null;
+      const useCache =
+        cachedRects.length === items.length && cachedLabelRects.length === items.length;
+      const f = EDGE_FEATHER;
+      const hideGlass = (i: number, glass: HTMLSpanElement) => {
+        if (lastGlassClip[i] !== null) {
+          glass.style.visibility = "hidden";
+          lastGlassClip[i] = null;
+        }
+      };
       items.forEach((btn, i) => {
-        const label = labelRefs.current[i];
-        if (!label) return;
-        const r = rects
-          ? rects[i]
+        const glass = glassRefs.current[i];
+        if (!glass) return;
+        const lr = useCache
+          ? cachedLabelRects[i]
           : (() => {
-              const b = btn.getBoundingClientRect();
-              return { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+              const b = (labelRefs.current[i] ?? btn).getBoundingClientRect();
+              return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, width: b.width, height: b.height };
             })();
-        const overlapX = Math.min(ind.right, r.right) - Math.max(ind.left, r.left);
-        const overlapY =
-          Math.min(ind.bottom, r.bottom) - Math.max(ind.top, r.top);
-        if (overlapX > 4 && overlapY > 4) {
-          label.classList.add("lgt-under-glass");
-        } else {
-          label.classList.remove("lgt-under-glass");
+        if (lr.width <= 0 || lr.height <= 0) {
+          hideGlass(i, glass);
+          return;
+        }
+        // Tepi pill dalam koordinat lokal label.
+        const xL = ind.left - lr.left;
+        const xR = ind.right - lr.left;
+        const parts: string[] = [];
+        // Pita kiri: [xL, xL+EDGE] ∩ label.
+        const a = Math.max(0, xL);
+        const b = Math.min(lr.width, xL + EDGE_W);
+        if (b - a > 1) {
+          parts.push(
+            `transparent ${a.toFixed(1)}px`,
+            `black ${Math.min(a + f, b).toFixed(1)}px`,
+            `black ${Math.max(b - f, a).toFixed(1)}px`,
+            `transparent ${b.toFixed(1)}px`
+          );
+        }
+        // Pita kanan: [xR-EDGE, xR] ∩ label.
+        const c = Math.max(0, xR - EDGE_W);
+        const d = Math.min(lr.width, xR);
+        if (d - c > 1) {
+          parts.push(
+            `transparent ${c.toFixed(1)}px`,
+            `black ${Math.min(c + f, d).toFixed(1)}px`,
+            `black ${Math.max(d - f, c).toFixed(1)}px`,
+            `transparent ${d.toFixed(1)}px`
+          );
+        }
+        if (parts.length === 0) {
+          hideGlass(i, glass);
+          return;
+        }
+        const mask = `linear-gradient(90deg, ${parts.join(", ")})`;
+        if (lastGlassClip[i] !== mask) {
+          // Bersihkan sisa clip versi lama (HMR) — sekarang murni mask.
+          glass.style.clipPath = "none";
+          glass.style.setProperty("mask-image", mask);
+          glass.style.setProperty("-webkit-mask-image", mask);
+          glass.style.visibility = "visible";
+          lastGlassClip[i] = mask;
+        } else if (glass.style.visibility !== "visible") {
+          glass.style.visibility = "visible";
         }
       });
     }
@@ -575,6 +635,17 @@ export function LiquidGlassTabs({
                     labelRefs.current[idx] = el;
                   }}
                   className="lgt-label"
+                >
+                  {tab.label}
+                </span>
+                {/* Salinan refraksi: hanya terlihat (clip-path) di bagian
+                    teks yang tepat ketutup pill transparan. */}
+                <span
+                  ref={(el) => {
+                    glassRefs.current[idx] = el;
+                  }}
+                  className="lgt-label lgt-label-glass"
+                  aria-hidden="true"
                 >
                   {tab.label}
                 </span>

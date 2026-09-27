@@ -256,12 +256,17 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: filter 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Label yang sedang dilewati ujung pill: refraksi beneran via SVG. */
-.lgt-label.lgt-under-glass {
+/* Salinan refraksi teks: menumpuk persis di atas teks normal (inset 0),
+   selalu ber-filter (kekuatan via animasi scale global). JS mengatur
+   mask-image per-frame: hanya pita tepi pill yang terlihat. */
+.lgt-label-glass {
+  position: absolute;
+  inset: 0;
   filter: url(#lgt-text-refract);
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Wrapper teks agar badge menempel tepat di kanan atas teks. */
