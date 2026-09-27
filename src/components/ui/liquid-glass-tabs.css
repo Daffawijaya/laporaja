@@ -14,8 +14,17 @@
   --shadow-dark: rgba(148, 160, 181, 0.36);
   --line-soft: rgba(123, 138, 161, 0.28);
   --accent: #3b82f6;
-  /* Acuan waktu animasi pill: SLIDE_MS 480 — semua efek bg ikut ini. */
-  --lgt-slide-ms: 480;
+  /* Durasi dasar efek pill (detik). Ubah nilai ini untuk memperlambat/
+     mempercepat seluruh efek — samakan dengan SLIDE_MS & SETTLE_MS di
+     liquid-glass-tabs.tsx.
+     --lgt-slide : geser, susut/membesar, box-shadow, fade-in kaca.
+     --lgt-settle: fallback fade (kaca keluar, teks).
+     --lgt-fade  : fade transparan → abu saat settling. Di-override JS
+                   (setFadeMs) dengan sisa waktu ke akhir slide, jadi abu
+                   sudah final pas di frame terakhir animasi. */
+  --lgt-slide: 0.72s;
+  --lgt-settle: 0.36s;
+  --lgt-fade: 0.36s;
 
   position: relative;
   /* Menyusut mengikuti teks (bukan stretch full-width) agar jarak
@@ -30,7 +39,9 @@
   border: 1px solid rgb(255 255 255);
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.05);
   z-index: 1;
-  transition: transform 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+  /* Durasi grow/shrink cangkang diatur JS (--lgt-land-ms) agar pengecilan
+     bisa dipotong supaya selesai bareng akhir geser. Fallback --lgt-slide. */
+  transition: transform var(--lgt-land-ms, var(--lgt-slide)) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dark .lgt-nav {
@@ -93,11 +104,11 @@
   /* Shadow tab aktif dibuang (inset highlight + drop). */
   box-shadow: none;
   transition:
-    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+    left var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    width var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--lgt-land-ms, var(--lgt-slide)) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color var(--lgt-settle) cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .lgt-indicator.lgt-interacting {
@@ -107,25 +118,25 @@
   background: rgba(255, 255, 255, 0.16);
   /* Fade-in abu → transparan mengikuti durasi slide. */
   transition:
-    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+    left var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    width var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--lgt-land-ms, var(--lgt-slide)) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Fase landing: susut selebar slide penuh (0→480ms) agar ending susut
-   sama persis dengan ending geser — efek membesar terlihat penuh. */
+/* Fase landing: TIDAK lagi set transform — susut terjadi saat lgt-interacting
+   dilepas (base = scale 1), supaya pada klik cepat kelas lgt-interacting bisa
+   ditahan lebih lama (fase membesar selesai dulu) tanpa dilawan rule ini. */
 .lgt-indicator.lgt-landing {
   z-index: 999;
-  transform: scale(1);
   background: rgba(255, 255, 255, 0.16);
   transition:
-    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+    left var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    width var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--lgt-land-ms, var(--lgt-slide)) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Jalur keyboard/state (tanpa pointer): tahan kaca di depan selama snap. */
@@ -133,53 +144,59 @@
   z-index: 999;
   background: rgba(255, 255, 255, 0.16);
   transition:
-    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+    left var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    width var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--lgt-land-ms, var(--lgt-slide)) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Lapisan kaca (refraksi) fade mengikuti kelas — scope indikator saja,
-   jangan sentuh .lg-layer milik nav. Base = fade-out cepat (0.24s) agar
-   kelar bareng akhir slide; per-state = fade-in lambat (0.48s). */
+   jangan sentuh .lg-layer milik nav. Base = fade-out cepat (--lgt-settle)
+   agar kelar bareng akhir slide; per-state = fade-in lambat (--lgt-slide). */
 .lgt-indicator .lg-layer {
   opacity: 0;
-  transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity var(--lgt-settle) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .lgt-indicator.lgt-interacting .lg-layer,
 .lgt-indicator.lgt-landing .lg-layer,
 .lgt-indicator.lgt-snapping .lg-layer {
   opacity: 1;
-  transition: opacity 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Fase settling (ditambah JS di tengah slide, ~240ms): mulai fade abu +
-   kaca (0.24s) TANPA menyentuh transform/left/width — susut + geser jalan
-   terus sampai 480ms. Semua kelar bareng pas slide mendarat. */
+/* Fase settling (ditambah JS di tengah slide, ~SETTLE_MS): cross-fade
+   transparan → abu. Abu MULAI di sini, bareng susut + geser yang masih
+   jalan — bukan setelah animasi selesai. Durasi --lgt-fade diset JS =
+   selisih settle ↔ end, jadi abu tepat jadi di frame terakhir (tidak ada
+   fade susulan setelah finalize). Warna target = sama persis dengan base,
+   jadi saat kelas dilepas di finalize tidak ada lompatan.
+   z-index SENGAJA tidak diubah: pil tetap di depan teks selama kaca
+   memudar supaya tidak ada lompatan urutan gambar. */
 .lgt-indicator.lgt-landing.lgt-settling,
 .lgt-indicator.lgt-snapping.lgt-settling {
-  /* Turun ke belakang teks (lgt-item z:2) → abu fade di belakang teks,
-     teks tetap muncul. Efek kaca saat lewat (pre-settling) tidak berubah. */
-  z-index: 1;
   background: rgb(0 0 0 / 0.075);
   transition:
-    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+    left var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    width var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--lgt-land-ms, var(--lgt-slide)) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color var(--lgt-fade) cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .lgt-indicator.lgt-landing.lgt-settling .lg-layer,
 .lgt-indicator.lgt-snapping.lgt-settling .lg-layer {
   opacity: 0;
-  transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity var(--lgt-fade) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Dark = light dibalik: pil putih 5% (terang tipis di atas bg gelap). */
-.dark .lgt-indicator,
+.dark .lgt-indicator {
+  background: rgb(255 255 255 / 0.05);
+}
+
+/* Dark saat settling → pil putih 5% juga (cross-fade sama seperti light). */
 .dark .lgt-indicator.lgt-landing.lgt-settling,
 .dark .lgt-indicator.lgt-snapping.lgt-settling {
   background: rgb(255 255 255 / 0.05);
@@ -188,7 +205,7 @@
 .lgt-nav-inner.lgt-dragging .lgt-indicator {
   transition:
     transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color var(--lgt-settle) cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 

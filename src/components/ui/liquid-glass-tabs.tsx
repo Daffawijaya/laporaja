@@ -17,14 +17,19 @@ export interface LiquidGlassTab {
 
 const DRAG_THRESHOLD = 6;
 const OVERSHOOT = 22;
-// Acuan tunggal sinkronisasi (samakan dengan --lgt-slide-ms / 0.48s di CSS):
-// lepas (t=0): slide + susut 0→480. Settle di 240 mulai fade abu/kaca/teks
-// (0.24s) → SEMUA (geser, susut, abu, kaca, teks, nav, glow) kelar pas 480ms.
-const SLIDE_MS = 480;
-const SETTLE_MS = 240;
+// Acuan tunggal sinkronisasi (samakan --lgt-slide/--lgt-settle di CSS):
+// lepas (t=0): slide + susut 0→SLIDE_MS. Settle di SETTLE_MS mulai
+// cross-fade transparan→abu + kaca + teks → SEMUA (geser, susut, abu,
+// kaca, teks, nav) kelar pas SLIDE_MS. Durasi fade abu tidak tetap:
+// setFadeMs() = endDelay − settleDelay (lihat endInteraction).
+const SLIDE_MS = 720;
+const SETTLE_MS = 360;
 const END_MS = SLIDE_MS;
+// Durasi minimum pengecilan (transform) saat lepas, kalau sisa waktu geser
+// sudah hampir habis — supaya tidak terasa "patah" instan.
+const LAND_MIN_MS = 240;
 // Jeda cabut node kaca setelah fade-out selesai (jangan pop).
-const GLASS_FADE_MS = 250;
+const GLASS_FADE_MS = 400;
 const TEXT_SCALE_MAX = 7;
 // Kekuatan refraksi teks (feDisplacementMap scale) — dianimasikan 0↔MAX
 // karena filter url()↔none tidak bisa di-transition (selalu instant).
@@ -88,6 +93,11 @@ export function LiquidGlassTabs({
     let pressY = 0;
     let dragMode = false;
     let pressWidth = 0;
+    // Waktu pointerdown — acuan agar semua efek (geser, membesar, mengecil,
+    // fade) selesai bareng di klik+SLIDE_MS.
+    let pressTime = 0;
+    // Klik cepat: tahan fase membesar sampai fase settle baru mengecil.
+    let fastShrink = false;
     let settleTimer: number | undefined;
     let endTimer: number | undefined;
     let teardownTimer: number | undefined;
@@ -287,7 +297,14 @@ export function LiquidGlassTabs({
         targetIndex = active;
         // Jalur keyboard/state: tidak ada pointerdown, jadi hidupkan kaca
         // sementara agar teks yang dilewati ujung pill ikut terrefraksi.
-        if (animate && pointerId === null && !indicator!.classList.contains("lgt-interacting")) {
+        if (
+          animate &&
+          pointerId === null &&
+          !indicator!.classList.contains("lgt-interacting") &&
+          // Sesudah lepas pointer, urutan landing sudah dijadwalkan finishSelection
+          // (timing relatif klik) — jangan di-reset ke durasi default di sini.
+          !indicator!.classList.contains("lgt-landing")
+        ) {
           window.clearTimeout(teardownTimer);
           // Selipkan node kaca dulu saat masih opacity 0, kunci, baru
           // pasang kelas agar fade-in terlihat (bukan pop statis).
@@ -354,10 +371,29 @@ export function LiquidGlassTabs({
       textRaf = window.requestAnimationFrame(tick);
     }
 
-    function beginInteraction(clientX: number, clientY: number) {
+    // Set durasi transisi transform (grow/shrink) via CSS var. Dipakai untuk
+    // memotong pengecilan agar kelar bareng akhir geser.
+    function setLandMs(ms: number) {
+      nav!.style.setProperty("--lgt-land-ms", `${ms}ms`);
+    }
+
+    // Set durasi fade transparan → abu. Dipakai agar cross-fade ini
+    // berlangsung SAMBIL slide/susut jalan (bukan setelahnya) dan berhenti
+    // tepat di frame terakhir animasi.
+    let fadeMs = SETTLE_MS;
+    function setFadeMs(ms: number) {
+      fadeMs = Math.max(0, ms);
+      nav!.style.setProperty("--lgt-fade", `${fadeMs}ms`);
+    }
+
+    function beginInteraction() {
       window.clearTimeout(settleTimer);
       window.clearTimeout(endTimer);
       window.clearTimeout(teardownTimer);
+      // Reset ke durasi penuh: fase membesar (engage) selalu SLIDE_MS.
+      setLandMs(SLIDE_MS);
+      setFadeMs(SETTLE_MS);
+      fastShrink = false;
       // Selipkan node kaca dulu saat masih opacity 0, kunci, baru pasang
       // kelas agar fade-in abu → kaca terlihat (bukan pop statis).
       ensureIndicatorGlass();
@@ -381,8 +417,19 @@ export function LiquidGlassTabs({
         indicator!.classList.contains("lgt-landing") ||
         indicator!.classList.contains("lgt-snapping")
       ) {
+        if (fastShrink) {
+          // Klik cepat: cukup sekarang fase membesar ditahan — kunci durasi
+          // susut lalu lepas lgt-interacting (+ cangkang) supaya baru mengecil
+          // sekarang, sehingga selesai tepat di klik+SLIDE_MS.
+          fastShrink = false;
+          setLandMs(SLIDE_MS - SETTLE_MS);
+          indicator!.classList.remove("lgt-interacting");
+          nav!.classList.remove("lgt-engaged");
+        }
         indicator!.classList.add("lgt-settling");
-        animateTextScale(0, SETTLE_MS);
+        // Warp teks ikut durasi fade yang sama → semua efek mendarat
+        // di frame yang sama, tidak ada sisa animasi setelahnya.
+        animateTextScale(0, fadeMs);
         updateTextRefraction();
       }
     }
@@ -390,6 +437,7 @@ export function LiquidGlassTabs({
     function finalize() {
       // Scale warp sudah 0 (no-op visual) — lepas kelas lalu cabut node
       // kaca setelah fade selesai (jangan pop).
+      fastShrink = false;
       indicator!.classList.remove("lgt-interacting");
       indicator!.classList.remove("lgt-landing");
       indicator!.classList.remove("lgt-snapping");
@@ -407,12 +455,51 @@ export function LiquidGlassTabs({
       }, GLASS_FADE_MS);
     }
 
-    function endInteraction() {
+    function endInteraction(
+      settleDelay: number = SETTLE_MS,
+      endDelay: number = END_MS
+    ) {
       window.clearTimeout(settleTimer);
       window.clearTimeout(endTimer);
       window.clearTimeout(teardownTimer);
-      settleTimer = window.setTimeout(beginSettle, SETTLE_MS);
-      endTimer = window.setTimeout(finalize, END_MS);
+      // Fade transparan → abu mulai bareng settle dan harus selesai bareng
+      // akhir animasi → durasinya = selisih settle ↔ end (bukan --lgt-settle
+      // tetap, yang bisa berakhir melewati frame terakhir).
+      setFadeMs(endDelay - settleDelay);
+      settleTimer = window.setTimeout(beginSettle, settleDelay);
+      endTimer = window.setTimeout(finalize, endDelay);
+    }
+
+    // Timing pelepasan (klik): klik cepat → fase membesar DITAHAN sampai
+    // tengah slide, baru mengecil di fase settle agar selesai bareng akhir
+    // geser (klik+SLIDE_MS). Hold lebih lambat → mengecil mulai saat lepas.
+    // Drag: geser baru mulai saat lepas → durasi penuh.
+    function releaseTiming() {
+      if (dragMode) {
+        return {
+          fast: false,
+          shrinkMs: SLIDE_MS,
+          settleDelay: SETTLE_MS,
+          endDelay: END_MS,
+        };
+      }
+      const elapsed = Math.max(0, performance.now() - pressTime);
+      if (elapsed < SETTLE_MS) {
+        return {
+          fast: true,
+          shrinkMs: SLIDE_MS - SETTLE_MS,
+          settleDelay: SETTLE_MS - elapsed,
+          endDelay: SLIDE_MS - elapsed,
+        };
+      }
+      const remain = clamp(SLIDE_MS - elapsed, 0, SLIDE_MS);
+      const shrinkMs = Math.max(remain, LAND_MIN_MS);
+      return {
+        fast: false,
+        shrinkMs,
+        settleDelay: 0,
+        endDelay: shrinkMs,
+      };
     }
 
     function dragMove(clientX: number) {
@@ -434,23 +521,28 @@ export function LiquidGlassTabs({
 
     function finishSelection() {
       inner!.classList.remove("lgt-dragging");
+      const timing = releaseTiming();
+      fastShrink = timing.fast;
+      // Tetapkan durasi pengecilan DULU (sebelum kelas transform berubah)
+      // agar transisinya langsung memakai durasi yang dipotong.
+      if (!timing.fast) setLandMs(timing.shrinkMs);
       const key = items[targetIndex]?.dataset.key;
       if (key) onChangeRef.current(key);
       // Indikator ikut animasi ke tab target walau state React belum update.
       active = targetIndex;
       snapToIndex(targetIndex, true);
-      // Langsung landing saat lepas (t=0): susut 0→480ms + lepas nav
-      // bareng awal slide — tanpa jeda, tanpa nunggu.
+      // Landing saat lepas. Untuk klik cepat, lgt-interacting DITAHAN sampai
+      // fase settle agar fase membesar selesai dulu (mengikuti geser).
       if (indicator!.classList.contains("lgt-interacting")) {
-        indicator!.classList.remove("lgt-interacting");
         indicator!.classList.add("lgt-landing");
+        if (!timing.fast) indicator!.classList.remove("lgt-interacting");
       }
-      nav!.classList.remove("lgt-engaged");
+      if (!timing.fast) nav!.classList.remove("lgt-engaged");
       // Filter dibangun SEKALI di posisi lepas (stabil selama slide → fade mulus).
       indicatorGlass?.rebuild();
       trackRefraction();
-      // Settling di 240ms mulai fade abu/kaca/teks (0.24s) → kelar pas 480ms.
-      endInteraction();
+      // Settling + finalize dijadwalkan relatif klik agar semua kelar bareng.
+      endInteraction(timing.settleDelay, timing.endDelay);
     }
 
     function onPointerMove(e: PointerEvent) {
@@ -478,6 +570,10 @@ export function LiquidGlassTabs({
       if (e.pointerId !== pointerId) return;
       clearPointerHandlers();
       inner!.classList.remove("lgt-dragging");
+      // Cancel: geser balik ke posisi semula = transisi baru, jadi pakai
+      // durasi penuh (bukan sisa waktu).
+      fastShrink = false;
+      setLandMs(SLIDE_MS);
       snapToIndex(active, true);
       if (indicator!.classList.contains("lgt-interacting")) {
         indicator!.classList.remove("lgt-interacting");
@@ -500,7 +596,8 @@ export function LiquidGlassTabs({
       pressX = e.clientX;
       pressY = e.clientY;
       pressWidth = itemMetrics(idx).width;
-      beginInteraction(e.clientX, e.clientY);
+      pressTime = performance.now();
+      beginInteraction();
       // Langsung animasi geser sejak tekan pertama (tanpa tunggu lepas):
       // pill meluncur ke tab yang ditekan, tetap bisa di-hold/drag.
       snapToIndex(idx, true);
