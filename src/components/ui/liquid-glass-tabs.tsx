@@ -27,6 +27,9 @@ const END_MS = SLIDE_MS;
 const TRACK_MS = SLIDE_MS + 40;
 // Jeda cabut node kaca setelah fade-out selesai (jangan pop).
 const GLASS_FADE_MS = 250;
+const TEXT_SCALE_MAX = 7;
+// Kekuatan refraksi teks (feDisplacementMap scale) — dianimasikan 0↔MAX
+// karena filter url()↔none tidak bisa di-transition (selalu instant).
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -50,6 +53,7 @@ export function LiquidGlassTabs({
   const indicatorRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const labelRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const textDispRef = useRef<SVGFEDisplacementMapElement | null>(null);
   const onChangeRef = useRef(onChange);
   const apiRef = useRef<{ snap: (animate: boolean) => void } | null>(null);
 
@@ -132,14 +136,14 @@ export function LiquidGlassTabs({
     }
 
     // Refraksi beneran pada teks: label yang sedang tertutup ujung pill
-    // (overlap > 4px) diberi filter displacement SVG, bukan blur palsu.
-    // Settling dikecualikan: teks mulai tajam saat fade abu berjalan.
+    // (overlap > 4px) diberi filter displacement SVG. Selama settling
+    // DIBEKUKAN (tidak tambah/hapus) — warp memudar via animasi scale.
     function updateTextRefraction() {
+      if (indicator!.classList.contains("lgt-settling")) return;
       const glassOn =
-        (indicator!.classList.contains("lgt-interacting") ||
-          indicator!.classList.contains("lgt-landing") ||
-          indicator!.classList.contains("lgt-snapping")) &&
-        !indicator!.classList.contains("lgt-settling");
+        indicator!.classList.contains("lgt-interacting") ||
+        indicator!.classList.contains("lgt-landing") ||
+        indicator!.classList.contains("lgt-snapping");
       if (!glassOn) {
         clearTextRefraction();
         return;
@@ -237,6 +241,7 @@ export function LiquidGlassTabs({
           snapToIndex(active, true);
           // Filter dibangun SEKALI (kaca stabil selama slide → fade mulus).
           indicatorGlass?.rebuild();
+          animateTextScale(TEXT_SCALE_MAX, SLIDE_MS);
           trackRefraction(TRACK_MS);
           endInteraction();
           return;
@@ -273,6 +278,34 @@ export function LiquidGlassTabs({
       raf = window.requestAnimationFrame(tick);
     }
 
+    let textScale = 0;
+    let textRaf = 0;
+
+    function setTextScale(v: number) {
+      textScale = v;
+      textDispRef.current?.setAttribute("scale", String(v));
+    }
+
+    // Animasikan kekuatan warp teks 0↔MAX dengan smoothstep — fade kaca↔
+    // non-kaca yang semulus mungkin (fade opacity lapisan saja tidak cukup
+    // karena displacement on/off-nya sendiri instant).
+    function animateTextScale(target: number, ms: number) {
+      window.cancelAnimationFrame(textRaf);
+      const from = textScale;
+      if (Math.abs(target - from) < 0.01 || ms <= 0) {
+        setTextScale(target);
+        return;
+      }
+      const t0 = performance.now();
+      const tick = (t: number) => {
+        const p = Math.min(1, (t - t0) / ms);
+        const e = p * p * (3 - 2 * p);
+        setTextScale(from + (target - from) * e);
+        if (p < 1) textRaf = window.requestAnimationFrame(tick);
+      };
+      textRaf = window.requestAnimationFrame(tick);
+    }
+
     function beginInteraction(clientX: number, clientY: number) {
       window.clearTimeout(settleTimer);
       window.clearTimeout(endTimer);
@@ -288,24 +321,27 @@ export function LiquidGlassTabs({
       setGlow(clientX, clientY, 0.24);
       cacheItemRects();
       updateTextRefraction();
+      // Warp teks fade-in bareng kaca (bukan pop).
+      animateTextScale(TEXT_SCALE_MAX, SLIDE_MS);
     }
 
-    // Mulai fase settling: fade abu/kaca/teks (0.24s) TANPA menyentuh
-    // transform/left/width — susut + geser jalan terus sampai 480ms.
+    // Mulai fase settling: warp teks fade-out (scale→0) + fade abu/kaca,
+    // TANPA menyentuh transform/left/width — susut + geser jalan terus.
+    // Kelas teks dipertahankan sampai scale 0 agar tidak pop.
     function beginSettle() {
       if (
         indicator!.classList.contains("lgt-landing") ||
         indicator!.classList.contains("lgt-snapping")
       ) {
         indicator!.classList.add("lgt-settling");
-        clearTextRefraction();
+        animateTextScale(0, SETTLE_MS);
         updateTextRefraction();
       }
     }
 
     function finalize() {
-      // Semua nilai sudah di target (no-op visual) — hanya lepas kelas
-      // lalu cabut node kaca setelah fade selesai (jangan pop).
+      // Scale warp sudah 0 (no-op visual) — lepas kelas lalu cabut node
+      // kaca setelah fade selesai (jangan pop).
       indicator!.classList.remove("lgt-interacting");
       indicator!.classList.remove("lgt-landing");
       indicator!.classList.remove("lgt-snapping");
@@ -314,6 +350,8 @@ export function LiquidGlassTabs({
       nav!.classList.remove("lgt-engaged");
       inner!.style.setProperty("--ga", "0");
       window.cancelAnimationFrame(raf);
+      window.cancelAnimationFrame(textRaf);
+      setTextScale(0);
       clearTextRefraction();
       window.clearTimeout(teardownTimer);
       teardownTimer = window.setTimeout(() => {
@@ -449,6 +487,7 @@ export function LiquidGlassTabs({
       window.clearTimeout(endTimer);
       window.clearTimeout(teardownTimer);
       window.cancelAnimationFrame(raf);
+      window.cancelAnimationFrame(textRaf);
       clearTextRefraction();
       indicatorGlass?.destroy();
       containerGlass.destroy();
@@ -495,9 +534,10 @@ export function LiquidGlassTabs({
                 result="n"
               />
               <feDisplacementMap
+                ref={textDispRef}
                 in="SourceGraphic"
                 in2="n"
-                scale="7"
+                scale={0}
                 xChannelSelector="R"
                 yChannelSelector="G"
               />

@@ -235,8 +235,9 @@
   transition: color 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Hover: statis, tanpa perubahan visual. */
 .lgt-item:hover {
-  color: var(--accent);
+  color: inherit;
 }
 
 .lgt-item.lgt-active,
