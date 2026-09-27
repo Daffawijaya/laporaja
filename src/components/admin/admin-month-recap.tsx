@@ -116,7 +116,8 @@ export function AdminMonthRecap({
           onChange={(key) => setFilter(key as FilterKey)}
           tabs={FILTERS.map((item) => ({
             key: item.key,
-            label: `${item.label} (${count[item.key]})`,
+            label: item.label,
+            count: count[item.key],
           }))}
         />
       </div>

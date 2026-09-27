@@ -184,6 +184,9 @@
    terus sampai 480ms. Semua kelar bareng pas slide mendarat. */
 .lgt-indicator.lgt-landing.lgt-settling,
 .lgt-indicator.lgt-snapping.lgt-settling {
+  /* Turun ke belakang teks (lgt-item z:2) → abu fade di belakang teks,
+     teks tetap muncul. Efek kaca saat lewat (pre-settling) tidak berubah. */
+  z-index: 1;
   background: #ececec;
   transition:
     left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
@@ -259,6 +262,40 @@
 /* Label yang sedang dilewati ujung pill: refraksi beneran via SVG. */
 .lgt-label.lgt-under-glass {
   filter: url(#lgt-text-refract);
+}
+
+/* Wrapper teks agar badge menempel tepat di kanan atas teks. */
+.lgt-textwrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Badge angka: lingkaran biru full (sama dengan button aplikasi),
+   teks putih, di kanan atas teks. Absolute → tidak menambah lebar tab,
+   px tetap dihitung dari teks tab saja. */
+.lgt-badge {
+  position: absolute;
+  top: -8px;
+  left: 100%;
+  margin-left: -6px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #0071e3;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 400;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.dark .lgt-badge {
+  background: #0a84ff;
 }
 
 .lgt-nav.lgt-dragging,

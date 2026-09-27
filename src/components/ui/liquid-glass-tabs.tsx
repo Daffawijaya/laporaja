@@ -13,6 +13,7 @@ import "./liquid-glass-tabs.css";
 export interface LiquidGlassTab {
   key: string;
   label: string;
+  count?: number;
 }
 
 const DRAG_THRESHOLD = 6;
@@ -529,13 +530,20 @@ export function LiquidGlassTabs({
                 if (e.detail === 0) onChange(tab.key);
               }}
             >
-              <span
-                ref={(el) => {
-                  labelRefs.current[idx] = el;
-                }}
-                className="lgt-label"
-              >
-                {tab.label}
+              <span className="lgt-textwrap">
+                <span
+                  ref={(el) => {
+                    labelRefs.current[idx] = el;
+                  }}
+                  className="lgt-label"
+                >
+                  {tab.label}
+                </span>
+                {tab.count ? (
+                  <span className="lgt-badge" aria-label={`${tab.count}`}>
+                    {tab.count}
+                  </span>
+                ) : null}
               </span>
             </button>
           );
