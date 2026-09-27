@@ -28,8 +28,11 @@
      per-piksel) tiap frame dan animasinya jadi berat. Transform saja,
      jadi nol biaya layout dan map kaca tetap valid. */
   --gsp-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Buka dan tutup WAJIB durasi sama, dan diletakkan berdekatan supaya
+     tidak bisa melenceng lagi. Kalau tutup lebih lambat dari buka, panel
+     kelihatan "nempel" dan animasi overall terasa lambat. */
   --gsp-open-ms: 380ms;
-  --gsp-close-ms: 240ms;
+  --gsp-close-ms: 380ms;
   /* Nilai blob awal (ditulis placePanel): skala + offsetY supaya panel
      mulai sebagai gumpalan tepat di atas trigger, lalu melebar jadi panel.
 
@@ -51,8 +54,10 @@
      boleh ada di daftar transition supaya nilainya langsung snap ke 1
      di frame pertama dan refraksi aktif sepanjang animasi.
 
-     Arah TUTUP tetap perlu fade (lihat transition di bawah) supaya
-     blob Melody tidak hilang mendadak sebelum menyusut. */
+     Arah TUTUP tetap perlu fade supaya panel tidak hilang mendadak
+     sebelum menyusut, tapi fade-nya (130ms) jauh lebih pendek dari
+     morph (380ms) supaya tidak ada ekor hantu yang menggantung —
+     hilang tepat saat transform selesai, tidak lebih lambat dari buka. */
   opacity: 0;
   transform: translateY(var(--gsp-blob-y)) scale(var(--gsp-blob-s));
   transition:

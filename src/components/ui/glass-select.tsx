@@ -30,9 +30,11 @@ const GAP = 8;
 const EDGE = 8;
 const MIN_PANEL_W = 180;
 const MAX_PANEL_H = 360;
-// Panel tetap ter-mount selama animasi keluar supaya kaca tidak hilang
-// duluan (pop) — samakan dengan durasi transform .gsp-panel.
-const EXIT_MS = 240;
+// Panel tetap ter-mount selama animasi keluar supaya kacanya tidak hilang
+// duluan (pop). WAJIB >= --gsp-close-ms (380ms): kalau dipotong, panel
+// hilang di tengah morph dan animasi tutuhnya terasa terputus/lambat.
+// Kalau durasi tutup diubah di CSS, angka ini ikut naik.
+const EXIT_MS = 400;
 
 // Panel diposisikan fixed (bukan absolute) supaya lepas dari overflow
 // ancestor, jadi koordinatnya selalu relatif viewport dan harus dihitung
