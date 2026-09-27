@@ -57,8 +57,10 @@
   --line-soft: rgba(165, 177, 205, 0.2);
   --accent: #4f8cff;
 
-  /* Dark persis navbar: transparan + border putih 12% + shadow gelap. */
-  background-color: transparent;
+  /* Dark: warna kartu konten (#1c1c1e, sama .dark .ref-card) di 85% —
+     bukan transparan. Action surface ikut warna card, light mode juga
+     begitu (putih 85% = warna .ref-card). */
+  background-color: rgb(28 28 30 / 0.85);
   border: 1px solid rgb(255 255 255 / 0.12);
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.42);
 }

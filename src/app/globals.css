@@ -273,7 +273,8 @@ body {
 
   .dark .ref-icon-btn-liquid {
     --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25) color-overlay(black,.3) contrast(1.25);
-    background-color: transparent;
+    /* Warna kartu konten (#1c1c1e) di 85% — action surface ikut card. */
+    background-color: rgb(28 28 30 / 0.85);
     border: 1px solid rgb(255 255 255 / 0.12);
     box-shadow: 0 1px 4px rgb(0 0 0 / 0.42);
     color: #f5f5f7;
@@ -282,7 +283,7 @@ body {
   @media (prefers-color-scheme: dark) {
     :root:not(.light) .ref-icon-btn-liquid {
       --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25) color-overlay(black,.3) contrast(1.25);
-      background-color: transparent;
+      background-color: rgb(28 28 30 / 0.85);
       box-shadow: 0 1px 4px rgb(0 0 0 / 0.42);
     }
   }
@@ -343,7 +344,8 @@ body {
 
   .dark .ref-search-wrap {
     --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25) color-overlay(black,.3) contrast(1.25);
-    background-color: transparent;
+    /* Warna kartu konten (#1c1c1e) di 85% — action surface ikut card. */
+    background-color: rgb(28 28 30 / 0.85);
     border: 1px solid rgb(255 255 255 / 0.12);
     box-shadow: 0 1px 4px rgb(0 0 0 / 0.42);
   }
@@ -351,7 +353,7 @@ body {
   @media (prefers-color-scheme: dark) {
     :root:not(.light) .ref-search-wrap {
       --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25) color-overlay(black,.3) contrast(1.25);
-      background-color: transparent;
+      background-color: rgb(28 28 30 / 0.85);
       box-shadow: 0 1px 4px rgb(0 0 0 / 0.42);
     }
   }
