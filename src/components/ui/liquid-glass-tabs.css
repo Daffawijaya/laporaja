@@ -14,8 +14,6 @@
   --shadow-dark: rgba(148, 160, 181, 0.36);
   --line-soft: rgba(123, 138, 161, 0.28);
   --accent: #3b82f6;
-  --nav-glow-rgb: 255, 255, 255;
-  --nav-glow-neutral-rgb: 255, 255, 255;
   /* Acuan waktu animasi pill: SLIDE_MS 480 — semua efek bg ikut ini. */
   --lgt-slide-ms: 480;
 
@@ -47,8 +45,6 @@
   --shadow-dark: rgba(0, 0, 0, 0.52);
   --line-soft: rgba(165, 177, 205, 0.2);
   --accent: #4f8cff;
-  --nav-glow-rgb: 255, 255, 255;
-  --nav-glow-neutral-rgb: 255, 255, 255;
 
   /* Dark persis navbar: transparan + border putih 12% + shadow gelap. */
   background-color: transparent;
@@ -78,25 +74,6 @@
   /* Transparan: bg putih 50% hanya di cangkang luar (satu lapis persis navbar). */
   background-color: transparent;
   box-shadow: none;
-  --gx: 50%;
-  --gy: 50%;
-  --ga: 0;
-}
-
-.lgt-glow {
-  position: absolute;
-  inset: 0;
-  border-radius: 999px;
-  clip-path: inset(0 round 999px);
-  pointer-events: none;
-  z-index: 0;
-  background: radial-gradient(240px 150px at var(--gx) var(--gy), rgba(var(--nav-glow-rgb), var(--ga)) 0%, rgba(var(--nav-glow-rgb), 0) 74%);
-  transition: background 0.48s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Saat tekan/geser: paksa glow netral putih agar tidak ada semburat biru. */
-.lgt-nav.lgt-engaged .lgt-glow {
-  background: radial-gradient(240px 150px at var(--gx) var(--gy), rgba(var(--nav-glow-neutral-rgb), var(--ga)) 0%, rgba(var(--nav-glow-neutral-rgb), 0) 74%);
 }
 
 .lgt-indicator {
@@ -201,12 +178,11 @@
   transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Dark: pill settled tetap abu solid (hitam transparan tak terlihat
-   di bg gelap + teks hitam butuh kontras). */
+/* Dark = light dibalik: pil putih 5% (terang tipis di atas bg gelap). */
 .dark .lgt-indicator,
 .dark .lgt-indicator.lgt-landing.lgt-settling,
 .dark .lgt-indicator.lgt-snapping.lgt-settling {
-  background: #ececec;
+  background: rgb(255 255 255 / 0.05);
 }
 
 .lgt-nav-inner.lgt-dragging .lgt-indicator {
@@ -249,8 +225,14 @@
 
 .lgt-item.lgt-active,
 .lgt-item.lgt-active:hover {
-  /* Hitam pekat di light maupun dark agar kontras di atas #ececec. */
+  /* Hitam pekat di light agar kontras di atas pil abu muda. */
   color: #111;
+}
+
+/* Dark: teks selalu putih (aktif penuh, nonaktif muted terang #eaedf1). */
+.dark .lgt-item.lgt-active,
+.dark .lgt-item.lgt-active:hover {
+  color: #fff;
 }
 
 .lgt-item:focus-visible {

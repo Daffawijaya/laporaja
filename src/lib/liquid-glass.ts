@@ -228,8 +228,87 @@ function ensureGlassDefs(): SVGGElement | null {
   return sharedDefs;
 }
 
+// Referensi ke anak-anak filter yang berubah mengikuti ukuran pill.
+// Dipakai untuk update in-place: ID filter tetap → tidak ada render ulang
+// backdrop-filter yang bikin flicker saat lebar dianimasikan per frame.
+interface GlassFilterNodes {
+  filter: SVGElement;
+  blur: SVGElement;
+  dispImg: SVGElement;
+  dispMap: SVGElement;
+  spec: SVGElement;
+  funcA: SVGElement;
+}
+
+// Bikin kerangka filter + isi geometri untuk ukuran awal. Node dibuat sekali;
+// perubahan ukuran berikutnya lewat updateFilter (tanpa buat node baru).
 function buildFilter(
   id: string,
+  w: number,
+  h: number,
+  radius: number,
+  cfg: LiquidGlassConfig
+): GlassFilterNodes {
+  const filter = svgEl("filter", {
+    id,
+    filterUnits: "userSpaceOnUse",
+    primitiveUnits: "userSpaceOnUse",
+    "color-interpolation-filters": "sRGB",
+  });
+  const blur = svgEl("feGaussianBlur", {
+    in: "SourceGraphic",
+    stdDeviation: cfg.blur,
+    result: "blurred",
+  });
+  const dispImg = svgEl("feImage", { x: 0, y: 0, result: "disp_map" });
+  const dispMap = svgEl("feDisplacementMap", {
+    in: "blurred",
+    in2: "disp_map",
+    xChannelSelector: "R",
+    yChannelSelector: "G",
+    result: "displaced",
+  });
+  const sat = svgEl("feColorMatrix", {
+    in: "displaced",
+    type: "saturate",
+    values: cfg.specularSat,
+    result: "displaced_sat",
+  });
+  const spec = svgEl("feImage", { x: 0, y: 0, result: "spec_layer" });
+  const comp = svgEl("feComposite", {
+    in: "displaced_sat",
+    in2: "spec_layer",
+    operator: "in",
+    result: "spec_masked",
+  });
+  const tr = svgEl("feComponentTransfer", {
+    in: "spec_layer",
+    result: "spec_faded",
+  });
+  const funcA = svgEl("feFuncA", { type: "linear" });
+  tr.appendChild(funcA);
+  const b1 = svgEl("feBlend", {
+    in: "spec_masked",
+    in2: "displaced",
+    mode: "normal",
+    result: "with_sat",
+  });
+  const b2 = svgEl("feBlend", {
+    in: "spec_faded",
+    in2: "with_sat",
+    mode: "normal",
+  });
+  filter.append(blur, dispImg, dispMap, sat, spec, comp, tr, b1, b2);
+  const nodes: GlassFilterNodes = { filter, blur, dispImg, dispMap, spec, funcA };
+  updateFilter(nodes, w, h, radius, cfg);
+  return nodes;
+}
+
+// Hitung ulang geometri refraksi (map + region) untuk ukuran pill saat ini
+// dan tulis ke node yang sudah ada. Semua koordinat userSpaceOnUse mengikuti
+// w/h terbaru → kaca melebar/menyempit mengikuti kotak elemen.
+function updateFilter(
+  nodes: GlassFilterNodes,
   w: number,
   h: number,
   radius: number,
@@ -258,77 +337,19 @@ function buildFilter(
   const fw = Math.round(w * (1 + pad * 2));
   const fh = Math.round(h * (1 + pad * 2));
 
-  const filter = svgEl("filter", {
-    id,
-    x: String(fx),
-    y: String(fy),
-    width: String(fw),
-    height: String(fh),
-    filterUnits: "userSpaceOnUse",
-    primitiveUnits: "userSpaceOnUse",
-    "color-interpolation-filters": "sRGB",
-  });
-  const blur = svgEl("feGaussianBlur", {
-    in: "SourceGraphic",
-    stdDeviation: cfg.blur,
-    result: "blurred",
-  });
-  const dispImg = svgEl("feImage", {
-    href: dispUrl,
-    x: 0,
-    y: 0,
-    width: w,
-    height: h,
-    result: "disp_map",
-  });
-  const dispMap = svgEl("feDisplacementMap", {
-    in: "blurred",
-    in2: "disp_map",
-    scale,
-    xChannelSelector: "R",
-    yChannelSelector: "G",
-    result: "displaced",
-  });
-  const sat = svgEl("feColorMatrix", {
-    in: "displaced",
-    type: "saturate",
-    values: cfg.specularSat,
-    result: "displaced_sat",
-  });
-  const spec = svgEl("feImage", {
-    href: specUrl,
-    x: 0,
-    y: 0,
-    width: w,
-    height: h,
-    result: "spec_layer",
-  });
-  const comp = svgEl("feComposite", {
-    in: "displaced_sat",
-    in2: "spec_layer",
-    operator: "in",
-    result: "spec_masked",
-  });
-  const tr = svgEl("feComponentTransfer", {
-    in: "spec_layer",
-    result: "spec_faded",
-  });
-  tr.appendChild(
-    svgEl("feFuncA", { type: "linear", slope: cfg.specularOpacity })
-  );
-  const b1 = svgEl("feBlend", {
-    in: "spec_masked",
-    in2: "displaced",
-    mode: "normal",
-    result: "with_sat",
-  });
-  const b2 = svgEl("feBlend", {
-    in: "spec_faded",
-    in2: "with_sat",
-    mode: "normal",
-  });
-  filter.append(blur, dispImg, dispMap, sat, spec, comp, tr, b1, b2);
-  return filter;
+  nodes.filter.setAttribute("x", String(fx));
+  nodes.filter.setAttribute("y", String(fy));
+  nodes.filter.setAttribute("width", String(fw));
+  nodes.filter.setAttribute("height", String(fh));
+  nodes.blur.setAttribute("stdDeviation", String(cfg.blur));
+  nodes.dispImg.setAttribute("href", dispUrl);
+  nodes.dispImg.setAttribute("width", String(w));
+  nodes.dispImg.setAttribute("height", String(h));
+  nodes.dispMap.setAttribute("scale", String(scale));
+  nodes.spec.setAttribute("href", specUrl);
+  nodes.spec.setAttribute("width", String(w));
+  nodes.spec.setAttribute("height", String(h));
+  nodes.funcA.setAttribute("slope", String(cfg.specularOpacity));
 }
 
 export interface LiquidGlassHandle {
@@ -359,7 +380,12 @@ export function applyLiquidGlass(
   el.insertBefore(tint, el.firstChild);
   el.insertBefore(refr, el.firstChild);
 
-  let filterNode: Element | null = null;
+  let filterNodes: GlassFilterNodes | null = null;
+  // Ukuran terakhir yang sudah dirender — dipakai untuk skip kerja saat
+  // ukuran tidak berubah (rebuild sering dipanggil per frame).
+  let lastW = 0;
+  let lastH = 0;
+  let lastR = 0;
   let timer: number | undefined;
 
   function elevate() {
@@ -383,19 +409,33 @@ export function applyLiquidGlass(
     const dataR = parseFloat(el.getAttribute("data-radius") || "0");
     const cssR = parseFloat(getComputedStyle(el).borderTopLeftRadius || "0");
     const r = Math.max(2, Math.min(dataR || cssR || 24, w / 2, h / 2));
-    if (filterNode) filterNode.remove();
     const cfg = getConfig();
-    const id = "lg-" + Math.random().toString(36).slice(2, 10);
-    filterNode = buildFilter(id, w, h, r, cfg);
-    defs.appendChild(filterNode);
+
+    // Ukuran sama seperti render terakhir → tidak ada yang perlu dihitung.
+    if (filterNodes && w === lastW && h === lastH && r === lastR) return;
+
+    if (!filterNodes) {
+      // Sekali saja: bikin node filter + tempel backdrop-filter ke lapisan.
+      const id = "lg-" + Math.random().toString(36).slice(2, 10);
+      filterNodes = buildFilter(id, w, h, r, cfg);
+      defs.appendChild(filterNodes.filter);
+      refr.style.backdropFilter = `url(#${id})`;
+      (refr.style as CSSStyleDeclaration & { webkitBackdropFilter?: string })
+        .webkitBackdropFilter = `url(#${id})`;
+      tint.style.backgroundColor = `rgba(${cfg.tintColor},${cfg.tintOpacity})`;
+      tint.style.boxShadow = `inset 0 0 ${cfg.innerShadowBlur}px ${cfg.innerShadowSpread}px ${cfg.innerShadow}`;
+      elevate();
+    } else {
+      // Reuse node + ID yang sama → update geometri in-place. Backdrop-filter
+      // tidak di-render ulang dari nol, jadi lebar pill bisa diikuti tiap frame
+      // tanpa flicker (kaca melebar bareng pil abu).
+      updateFilter(filterNodes, w, h, r, cfg);
+    }
     refr.style.borderRadius = `${r}px`;
-    refr.style.backdropFilter = `url(#${id})`;
-    (refr.style as CSSStyleDeclaration & { webkitBackdropFilter?: string })
-      .webkitBackdropFilter = `url(#${id})`;
     tint.style.borderRadius = `${r}px`;
-    tint.style.backgroundColor = `rgba(${cfg.tintColor},${cfg.tintOpacity})`;
-    tint.style.boxShadow = `inset 0 0 ${cfg.innerShadowBlur}px ${cfg.innerShadowSpread}px ${cfg.innerShadow}`;
-    elevate();
+    lastW = w;
+    lastH = h;
+    lastR = r;
   }
 
   function schedule() {
@@ -412,7 +452,8 @@ export function applyLiquidGlass(
     destroy() {
       window.clearTimeout(timer);
       ro.disconnect();
-      if (filterNode) filterNode.remove();
+      if (filterNodes) filterNodes.filter.remove();
+      filterNodes = null;
       refr.remove();
       tint.remove();
     },
