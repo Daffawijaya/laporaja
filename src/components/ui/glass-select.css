@@ -1,0 +1,88 @@
+/* Panel dropdown liquid glass (src/components/ui/glass-select.tsx).
+   Lapisan refraksi (.lg-layer) disuntik oleh applyLiquidGlass — file ini
+   hanya cangkang panel + daftar opsi. Prefix gsp- (glass select panel)
+   agar tidak bentrok CSS lain. */
+
+.gsp-panel {
+  /* Fixed, bukan absolute: lepas dari overflow-y-auto kolom konten
+     (desktop-window.tsx) dan overflow:hidden .ref-shell (globals.css)
+     supaya panel tidak terklip. */
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  /* Cangkang sama .lgt-nav, isi sama .lgt-indicator saat interacting:
+     putih 16% transparan + refraksi tepi (bukan kotak putih solid). */
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgb(255, 255, 255);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.05);
+  transform-origin: top center;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.96);
+  transition:
+    opacity 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+/* Sembunyi sampai placePanel() selesai menentukan top/left — kalau tidak,
+   panel fixed sempat nempel di pojok kiri viewport satu frame. */
+.gsp-panel:not([data-ready]) {
+  visibility: hidden;
+}
+
+.gsp-panel.gsp-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* Dark = light dibalik, sama seperti .lgt-nav dark. */
+.dark .gsp-panel {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgb(255 255 255 / 0.12);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.42);
+}
+
+/* Opsi scroll di dalam panel. Lapisan kaca adalah sibling absolute
+   (z-index:0) jadi tidak ikut ter-scroll. min-height:0 wajib agar flex
+   child bisa menyusut di bawah tinggi konten. */
+.gsp-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gsp-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--foreground);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Kursor keyboard/hover = pil abu yang sama persis .lgt-indicator. */
+.gsp-item[data-active="true"] {
+  background: rgb(0 0 0 / 0.075);
+  color: #111;
+}
+
+.dark .gsp-item[data-active="true"] {
+  background: rgb(255 255 255 / 0.05);
+  color: #fff;
+}

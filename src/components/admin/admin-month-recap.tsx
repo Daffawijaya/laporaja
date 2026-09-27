@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { RefListCard } from "@/components/ui/ref-list-card";
 import { LiquidGlassTabs } from "@/components/ui/liquid-glass-tabs";
-import { Select } from "@/components/ui/select";
+import { GlassSelect } from "@/components/ui/glass-select";
 import { NAMA_BULAN } from "@/components/laporan/types";
 
 export interface UserMonthStat {
@@ -82,31 +82,24 @@ export function AdminMonthRecap({
   return (
     <div className="w-full">
       <div className="flex flex-wrap items-center gap-2">
-        <Select
-          aria-label="Pilih bulan"
-          value={bulan}
-          onChange={(event) => goMonth(Number(event.target.value), tahun)}
+        <GlassSelect
+          ariaLabel="Pilih bulan"
+          value={String(bulan)}
+          onChange={(next) => goMonth(Number(next), tahun)}
+          options={NAMA_BULAN.map((nama, index) => ({
+            value: String(index + 1),
+            label: nama,
+          }))}
           className="w-auto"
-        >
-          {NAMA_BULAN.map((nama, index) => (
-            <option key={nama} value={index + 1}>
-              {nama}
-            </option>
-          ))}
-        </Select>
+        />
 
-        <Select
-          aria-label="Pilih tahun"
-          value={tahun}
-          onChange={(event) => goMonth(bulan, Number(event.target.value))}
+        <GlassSelect
+          ariaLabel="Pilih tahun"
+          value={String(tahun)}
+          onChange={(next) => goMonth(bulan, Number(next))}
+          options={tahunList.map((y) => ({ value: String(y), label: String(y) }))}
           className="w-auto"
-        >
-          {tahunList.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </Select>
+        />
       </div>
 
       <div className="mt-3">
