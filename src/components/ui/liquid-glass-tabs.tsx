@@ -18,11 +18,13 @@ export interface LiquidGlassTab {
 const DRAG_THRESHOLD = 6;
 const OVERSHOOT = 22;
 // Acuan tunggal sinkronisasi (samakan dengan --lgt-slide-ms / 0.32s di CSS):
-// slide pill 320ms, susut mulai 150ms, semua efek bg selesai bareng ~360-430ms.
+// lepas (t=0): slide 0→320 + susut 0→160. Cleanup di 160 mulai fade
+// abu/kaca/teks (0.16s) → SEMUA kelar bareng pas 320ms.
 const SLIDE_MS = 320;
-const LAND_DELAY = 150;
-const END_MS = SLIDE_MS + 40;
-const TRACK_MS = SLIDE_MS + 80;
+const END_MS = 160;
+const TRACK_MS = SLIDE_MS + 40;
+// Jeda cabut node kaca setelah fade-out selesai (jangan pop).
+const GLASS_FADE_MS = 200;
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -79,7 +81,7 @@ export function LiquidGlassTabs({
     let pressWidth = 0;
     let finishTimer: number | undefined;
     let snapTimer: number | undefined;
-    let landTimer: number | undefined;
+    let teardownTimer: number | undefined;
     let raf = 0;
     let glassRebuildQueued = false;
     let indicatorGlass: LiquidGlassHandle | null = null;
@@ -207,19 +209,28 @@ export function LiquidGlassTabs({
         // sementara agar teks yang dilewati ujung pill ikut terrefraksi.
         if (animate && pointerId === null && !indicator!.classList.contains("lgt-interacting")) {
           window.clearTimeout(snapTimer);
-          indicator!.classList.add("lgt-snapping");
+          window.clearTimeout(teardownTimer);
+          // Selipkan node kaca dulu saat masih opacity 0, kunci, baru
+          // pasang kelas agar fade-in terlihat (bukan pop statis).
           ensureIndicatorGlass();
+          void indicator!.offsetWidth;
+          indicator!.classList.add("lgt-snapping");
           snapToIndex(active, true);
           pumpGlass();
           trackDuring(TRACK_MS);
           snapTimer = window.setTimeout(() => {
+            // Tahap 1: lepas visual — bg + lapisan kaca fade-out via CSS.
             indicator!.classList.remove("lgt-snapping");
             indicator!.classList.remove("lgt-landing");
             if (!indicator!.classList.contains("lgt-interacting")) {
               window.cancelAnimationFrame(raf);
-              indicatorGlass?.destroy();
-              indicatorGlass = null;
               clearTextRefraction();
+              // Tahap 2: cabut node kaca setelah fade selesai.
+              window.clearTimeout(teardownTimer);
+              teardownTimer = window.setTimeout(() => {
+                indicatorGlass?.destroy();
+                indicatorGlass = null;
+              }, GLASS_FADE_MS);
             }
           }, END_MS);
           return;
@@ -270,35 +281,24 @@ export function LiquidGlassTabs({
     function beginInteraction(clientX: number, clientY: number) {
       window.clearTimeout(finishTimer);
       window.clearTimeout(snapTimer);
-      window.clearTimeout(landTimer);
+      window.clearTimeout(teardownTimer);
+      // Selipkan node kaca dulu saat masih opacity 0, kunci, baru pasang
+      // kelas agar fade-in abu → kaca terlihat (bukan pop statis).
+      ensureIndicatorGlass();
+      void indicator!.offsetWidth;
       indicator!.classList.remove("lgt-landing");
       indicator!.classList.add("lgt-interacting");
       nav!.classList.add("lgt-engaged");
       setGlow(clientX, clientY, 0.24);
-      ensureIndicatorGlass();
       pumpGlass();
       trackDuring(600);
     }
 
-    // Susutkan pill saat mendekati target (overlap dengan sisa slide),
-    // bukan setelah slide selesai — hilangkan jeda diam. Glow + nav-scale
-    // ikut dipudarkan di titik yang sama agar selesai bareng dengan pill.
-    function startLanding(delay = LAND_DELAY) {
-      window.clearTimeout(landTimer);
-      landTimer = window.setTimeout(() => {
-        if (indicator!.classList.contains("lgt-interacting")) {
-          indicator!.classList.remove("lgt-interacting");
-          indicator!.classList.add("lgt-landing");
-          nav!.classList.remove("lgt-engaged");
-          inner!.style.setProperty("--ga", "0");
-          pumpGlass();
-        }
-      }, delay);
-    }
-
     function endInteraction() {
       window.clearTimeout(finishTimer);
+      window.clearTimeout(teardownTimer);
       finishTimer = window.setTimeout(() => {
+        // Tahap 1: lepas visual — bg + lapisan kaca fade-out via transisi CSS.
         indicator!.classList.remove("lgt-interacting");
         indicator!.classList.remove("lgt-landing");
         indicator!.classList.remove("lgt-snapping");
@@ -306,10 +306,12 @@ export function LiquidGlassTabs({
         nav!.classList.remove("lgt-engaged");
         inner!.style.setProperty("--ga", "0");
         window.cancelAnimationFrame(raf);
-        window.clearTimeout(landTimer);
-        indicatorGlass?.destroy();
-        indicatorGlass = null;
         clearTextRefraction();
+        // Tahap 2: cabut node kaca setelah fade selesai (jangan pop).
+        teardownTimer = window.setTimeout(() => {
+          indicatorGlass?.destroy();
+          indicatorGlass = null;
+        }, GLASS_FADE_MS);
       }, END_MS);
     }
 
@@ -337,10 +339,17 @@ export function LiquidGlassTabs({
       // Indikator ikut animasi ke tab target walau state React belum update.
       active = targetIndex;
       snapToIndex(targetIndex, true);
+      // Langsung landing saat lepas (t=0): susut 0→160ms + lepas nav/glow
+      // bareng awal slide — tanpa jeda, tanpa nunggu.
+      if (indicator!.classList.contains("lgt-interacting")) {
+        indicator!.classList.remove("lgt-interacting");
+        indicator!.classList.add("lgt-landing");
+      }
+      nav!.classList.remove("lgt-engaged");
+      inner!.style.setProperty("--ga", "0");
       pumpGlass();
       trackDuring(TRACK_MS);
-      // Mulai susut ±47% perjalanan slide (150/320ms) agar menyatu tanpa jeda.
-      startLanding(LAND_DELAY);
+      // Cleanup di 160ms mulai fade abu/kaca/teks (0.16s) → kelar pas 320ms.
       endInteraction();
     }
 
@@ -373,9 +382,14 @@ export function LiquidGlassTabs({
       clearPointerHandlers();
       inner!.classList.remove("lgt-dragging");
       snapToIndex(active, true);
+      if (indicator!.classList.contains("lgt-interacting")) {
+        indicator!.classList.remove("lgt-interacting");
+        indicator!.classList.add("lgt-landing");
+      }
+      nav!.classList.remove("lgt-engaged");
+      inner!.style.setProperty("--ga", "0");
       pumpGlass();
       trackDuring(TRACK_MS);
-      startLanding(LAND_DELAY);
       endInteraction();
       pointerId = null;
       dragMode = false;
@@ -415,7 +429,7 @@ export function LiquidGlassTabs({
       clearPointerHandlers();
       window.clearTimeout(finishTimer);
       window.clearTimeout(snapTimer);
-      window.clearTimeout(landTimer);
+      window.clearTimeout(teardownTimer);
       window.cancelAnimationFrame(raf);
       clearTextRefraction();
       indicatorGlass?.destroy();

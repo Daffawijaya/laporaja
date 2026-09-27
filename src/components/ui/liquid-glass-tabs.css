@@ -127,20 +127,54 @@
   transform: scale(1.5);
   /* Saat animasi/drag: kembali transparan liquid glass seperti semula. */
   background: rgba(255, 255, 255, 0.16);
+  /* Fade-in abu → transparan mengikuti durasi slide. */
+  transition:
+    left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.32s ease;
 }
 
-/* Fase landing: susut ke scale 1 BERSAMAAN dengan sisa slide (tanpa jeda),
-   kaca tetap di depan sampai settle. */
+/* Fase landing: susut cepat di awal slide (0→160ms), kaca tetap di depan.
+   Cleanup di 160ms mulai fade abu/kaca/teks (0.16s) → semua kelar pas 320ms. */
 .lgt-indicator.lgt-landing {
   z-index: 999;
   transform: scale(1);
   background: rgba(255, 255, 255, 0.16);
+  transition:
+    left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.32s ease;
 }
 
 /* Jalur keyboard/state (tanpa pointer): tahan kaca di depan selama snap. */
 .lgt-indicator.lgt-snapping {
   z-index: 999;
   background: rgba(255, 255, 255, 0.16);
+  transition:
+    left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.32s ease;
+}
+
+/* Lapisan kaca (refraksi) fade mengikuti kelas — scope indikator saja,
+   jangan sentuh .lg-layer milik nav. Base = fade-out cepat (0.16s) agar
+   kelar bareng akhir slide; per-state = fade-in lambat (0.32s). */
+.lgt-indicator .lg-layer {
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.lgt-indicator.lgt-interacting .lg-layer,
+.lgt-indicator.lgt-landing .lg-layer,
+.lgt-indicator.lgt-snapping .lg-layer {
+  opacity: 1;
+  transition: opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .lgt-nav-inner.lgt-dragging .lgt-indicator {
