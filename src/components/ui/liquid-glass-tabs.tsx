@@ -98,9 +98,10 @@ export function LiquidGlassTabs({
         indicator!,
         () => ({
           ...DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
-          // Kaca netral saat geser: tanpa tint biru, specular lembut.
+          // Kaca netral saat geser: tanpa tint biru, specular lembut,
+          // tanpa blur (refraksi + specular tetap jalan).
           glassThickness: 24,
-          blur: 1,
+          blur: 0,
           specularOpacity: 0.35,
           specularSat: 0,
           tintColor: "255,255,255",
