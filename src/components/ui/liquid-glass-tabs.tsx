@@ -390,8 +390,12 @@ export function LiquidGlassTabs({
       window.clearTimeout(settleTimer);
       window.clearTimeout(endTimer);
       window.clearTimeout(teardownTimer);
-      // Reset ke durasi penuh: fase membesar (engage) selalu SLIDE_MS.
-      setLandMs(SLIDE_MS);
+      // Grow & shrink dikunci SAMA = SETTLE_MS (50% dari SLIDE_MS):
+      // grow 0→360ms, shrink 360→720ms. Sebelumnya grow memakai SLIDE_MS
+      // penuh sementara shrink cuma SLIDE_MS − SETTLE_MS, jadi susut
+      // terasa jauh lebih cepat dari membesar. Nilai ini juga sama dengan
+      // setLandMs() di beginSettle (shrink klik cepat) → balance 50/50.
+      setLandMs(SETTLE_MS);
       setFadeMs(SETTLE_MS);
       fastShrink = false;
       // Selipkan node kaca dulu saat masih opacity 0, kunci, baru pasang
