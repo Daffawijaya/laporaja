@@ -459,6 +459,10 @@ export function LiquidGlassTabs({
       pressY = e.clientY;
       pressWidth = itemMetrics(idx).width;
       beginInteraction(e.clientX, e.clientY);
+      // Langsung animasi geser sejak tekan pertama (tanpa tunggu lepas):
+      // pill meluncur ke tab yang ditekan, tetap bisa di-hold/drag.
+      snapToIndex(idx, true);
+      trackRefraction(TRACK_MS);
       window.addEventListener("pointermove", onPointerMove);
       window.addEventListener("pointerup", onPointerUp);
       window.addEventListener("pointercancel", onPointerCancel);
