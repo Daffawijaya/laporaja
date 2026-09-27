@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 
 import {
-  DEFAULT_LIQUID_GLASS_CONFIG,
   DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
   applyLiquidGlass,
   type LiquidGlassHandle,
@@ -92,11 +91,8 @@ export function LiquidGlassTabs({
     let indicatorGlass: LiquidGlassHandle | null = null;
     // Rect tombol di-cache saat lepas — tombol tidak bergerak selama slide,
     // jadi loop per-frame cukup baca rect indikator (tanpa layout thrash).
-
-    const containerGlass = applyLiquidGlass(
-      nav,
-      () => DEFAULT_LIQUID_GLASS_CONFIG
-    );
+    // NOTE: pembungkus (nav) SENGAJA tanpa efek kaca — flat putih 50% saja
+    // agar tidak ada gelap di dalam border; kaca hanya di pill indikator.
 
     function ensureIndicatorGlass() {
       if (indicatorGlass) {
@@ -494,7 +490,6 @@ export function LiquidGlassTabs({
       window.cancelAnimationFrame(textRaf);
       clearTextRefraction();
       indicatorGlass?.destroy();
-      containerGlass.destroy();
       apiRef.current = null;
     };
   }, []);
