@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -155,14 +156,27 @@ export function DesktopWindow({
     <div className="ref-shell hidden md:flex">
       {/* Sidebar kiri ala referensi */}
       <aside className="flex w-[260px] shrink-0 flex-col gap-1 overflow-y-auto px-4 py-2">
-        <Link href={isAdmin ? "/admin" : "/"} aria-label="LaporAja beranda" className="flex items-center gap-2 py-2">
-          <span aria-hidden="true" className="ref-logo">
-            <span className="ref-logo-q ref-logo-tl" />
-            <span className="ref-logo-q ref-logo-tr" />
-            <span className="ref-logo-q ref-logo-bl" />
-            <span className="ref-logo-q ref-logo-br" />
-          </span>
-          <span className="text-[17px] font-semibold tracking-tight">LaporAja</span>
+        <Link href={isAdmin ? "/admin" : "/"} aria-label="LaporAja beranda" className="flex items-center py-2">
+          {/* Wordmark punya dua berkas: terang untuk mode terang, gelap untuk
+              mode gelap. Ditukar lewat kelas dark, bukan state JS, supaya tidak
+              ada kedipan sesudah hidrasi. */}
+          <Image
+            src="/logolight.png"
+            alt="LaporAja"
+            width={1697}
+            height={372}
+            priority
+            className="h-8 w-auto dark:hidden"
+          />
+          <Image
+            src="/logodark.png"
+            alt=""
+            aria-hidden="true"
+            width={1697}
+            height={372}
+            priority
+            className="hidden h-8 w-auto dark:block"
+          />
         </Link>
 
         <nav aria-label={isAdmin ? "Navigasi admin" : "Navigasi utama"} className="mt-2 flex flex-col gap-1">

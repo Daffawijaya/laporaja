@@ -66,6 +66,27 @@ const CATATAN_REVISI = [
   "Tanggal kegiatan tidak sesuai jadwal, periksa kembali.",
 ];
 
+// Foto contoh untuk baris keterangan bertipe "image". URL-nya diisi utuh
+// http(s) supaya aplikasi memakainya langsung tanpa perlu upload ke Storage
+// (lihat getSignedImageUrl di src/lib/supabase/storage.ts). Foto dari Pexels
+// (bebas dipakai), semata-mata agar tampilan preview punya gambar.
+const GAMBAR_CONTOH = [
+  "https://images.pexels.com/photos/7888985/pexels-photo-7888985.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/12969403/pexels-photo-12969403.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/590016/pexels-photo-590016.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/7688173/pexels-photo-7688173.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/7640830/pexels-photo-7640830.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/7709268/pexels-photo-7709268.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  "https://images.pexels.com/photos/3184328/pexels-photo-3184328.jpeg?auto=compress&cs=tinysrgb&w=1200",
+];
+
+// Urutan tetap: nama kegiatan ke-i memakai foto ke-i, jadi gambar tiap
+// kegiatan konsisten walau seeder dijalankan ulang.
+const GAMBAR_PER_KEGIATAN = new Map(
+  KEGIATAN_POOL.map((nama, i) => [nama, GAMBAR_CONTOH[i % GAMBAR_CONTOH.length]])
+);
+
 async function main() {
   loadEnvFile(".env.local");
 
@@ -178,16 +199,28 @@ async function main() {
   if (kegiatanError) fail(`Gagal menambah kegiatan: ${kegiatanError.message}`);
   console.log(`${kegiatanInserted.length} kegiatan dummy dibuat.`);
 
-  // 6. Keterangan teks + review bervariasi (approved / revision / menunggu).
+  // 6. Keterangan teks + gambar + review bervariasi (approved / revision / menunggu).
   let n = 0;
   for (const k of kegiatanInserted ?? []) {
+    // urutan 1: gambar dulu (constraint tabel: tipe 'image' wajib image_url),
+    // supaya tampilannya "foto di atas, keterangannya di bawah".
+    const { error: gambarError } = await supabase.from("keterangan_kegiatan").insert({
+      kegiatan_id: k.id,
+      tipe: "image",
+      urutan: 1,
+      image_url: GAMBAR_PER_KEGIATAN.get(k.nama_kegiatan) ?? GAMBAR_CONTOH[n % GAMBAR_CONTOH.length],
+    });
+    if (gambarError) fail(`Gagal menambah gambar: ${gambarError.message}`);
+
+    // urutan 2: keterangan teks kegiatan yang duduk di bawah gambarnya.
     const { error: ketError } = await supabase.from("keterangan_kegiatan").insert({
       kegiatan_id: k.id,
       tipe: "text",
-      urutan: 1,
+      urutan: 2,
       isi_text: `Pelaksanaan ${k.nama_kegiatan.toLowerCase()} berjalan lancar sesuai rencana pada ${k.tanggal}.`,
     });
     if (ketError) fail(`Gagal menambah keterangan: ${ketError.message}`);
+
     const mode = n % 3;
     if (mode === 0) {
       const { error } = await supabase.from("reviews").insert({ kegiatan_id: k.id, status: "approved" });

@@ -229,7 +229,10 @@
   justify-content: center;
   flex-direction: column;
   gap: 1px;
-  font-weight: 600;
+  /* 11px / 400: satu ukuran DAN satu berat dengan trigger GlassSelect
+     (bulan/tahun) supaya seluruh baris filter rata. Tanpa bold — status
+     aktif sudah dibedakan oleh warna teks + pil abu di belakangnya. */
+  font-weight: 400;
   font-size: 11px;
   letter-spacing: 0.01em;
   /* Padding horizontal = jarak vertikal teks (±10px) agar simetris. */
@@ -299,7 +302,9 @@
   border-radius: 999px;
   background: #0071e3;
   color: #fff;
-  font-size: 8px;
+  /* Satu tingkat di bawah label (11px): angka tetap terbaca tapi tidak
+     mendominasi teks tab. */
+  font-size: 9px;
   font-weight: 400;
   line-height: 1;
   display: inline-flex;

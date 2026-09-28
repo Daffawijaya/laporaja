@@ -345,7 +345,8 @@ export function GlassSelect({
         onKeyDown={onKeyDown}
         className={cn(
           // Cangkang identik .lgt-nav: putih 50% + border putih + shadow.
-          "transition-soft flex h-11 w-full items-center justify-between gap-2 rounded-full border border-white bg-white/85 pl-3.5 pr-3 text-left text-sm text-foreground shadow-[0_1px_4px_rgb(0_0_0/0.05)]",
+          // 11px = ukuran & berat label tab (--lgt) supaya satu baris filter rata.
+          "transition-soft flex h-11 w-full items-center justify-between gap-2 rounded-full border border-white bg-white/85 pl-3.5 pr-3 text-left text-[11px] text-foreground shadow-[0_1px_4px_rgb(0_0_0/0.05)]",
           "hover:border-white focus-visible:border-accent focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/15",
           "disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60",
           "dark:border-white/12 dark:bg-[rgb(28_28_30/0.85)] dark:shadow-[0_1px_4px_rgb(0_0_0/0.42)]",

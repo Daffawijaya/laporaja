@@ -73,28 +73,30 @@ export default async function AdminLaporanPage({
               </section>
             }
           >
-            <div className="ref-card p-4 pb-6">
-              <h2 className="text-sm font-semibold">{selected.nama}</h2>
-              <div className="mt-2">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{selected.nama}</p>
-                    <p className="text-xs text-neutral-500">{selected.username}</p>
-                  </div>
-                  <Button asChild variant="secondary" className="w-full sm:w-auto">
-                    <Link
-                      href={`/admin/laporan/export?user=${selected.id}&bulan=${bulan}&tahun=${tahun}`}
-                    >
-                      <Download aria-hidden="true" />
-                      Export PDF
-                    </Link>
-                  </Button>
-                </div>
-                <div className="mt-5">
-                  <AdminMonthlyList items={items} />
-                </div>
+            {/* Bahasa visual yang sama dengan /laporan dan dashboard admin:
+                RefListCard (judul di luar kartu, isi rata dengan header). */}
+            <RefListCard
+              ariaLabel={`Kegiatan ${selected.nama} ${labelBulan}`}
+              title={selected.nama}
+              className="mt-2 md:mt-0"
+            >
+              {/* Baris header kartu, sama seperti baris tombol di /laporan. */}
+              <div className="flex flex-wrap items-center justify-between gap-3 px-1 pb-3">
+                <p className="min-w-0 text-sm text-neutral-500">
+                  {selected.username} · {labelBulan}
+                </p>
+                <Button asChild variant="ghost" className="w-full sm:w-auto">
+                  <Link
+                    href={`/admin/laporan/export?user=${selected.id}&bulan=${bulan}&tahun=${tahun}`}
+                  >
+                    <Download aria-hidden="true" />
+                    Export PDF
+                  </Link>
+                </Button>
               </div>
-            </div>
+
+              <AdminMonthlyList items={items} />
+            </RefListCard>
           </ContentGrid>
         </div>
       </div>
@@ -168,7 +170,10 @@ export default async function AdminLaporanPage({
         <ContentGrid
           gapClassName="lg:gap-3"
           aside={
-            <RefListCard ariaLabel="Ringkasan bulan ini" title="Ringkasan">
+            // Tanpa judul: kartu ini sudah jelas dari isinya, dan judulnya
+            // bikin kartu terlihat lebih tinggi dari isi yang cuma 4 baris.
+            // aria-label tetap dipertahankan untuk pembaca layar.
+            <RefListCard ariaLabel="Ringkasan bulan ini">
               <ul className="divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
                 <li className="flex items-center justify-between gap-3 px-1 pb-3">
                   <span className="text-sm font-medium">Total user</span>

@@ -19,6 +19,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "LaporAja",
   description: "Aplikasi pelaporan yang bersih dan mudah dipakai.",
+  // Ikon tab browser mengambil berkas statis di public/icons.png.
+  icons: { icon: "/icons.png" },
 };
 
 export default function RootLayout({

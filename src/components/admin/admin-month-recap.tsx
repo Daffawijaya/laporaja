@@ -81,28 +81,10 @@ export function AdminMonthRecap({
 
   return (
     <div className="w-full">
-      <div className="flex flex-wrap items-center gap-2">
-        <GlassSelect
-          ariaLabel="Pilih bulan"
-          value={String(bulan)}
-          onChange={(next) => goMonth(Number(next), tahun)}
-          options={NAMA_BULAN.map((nama, index) => ({
-            value: String(index + 1),
-            label: nama,
-          }))}
-          className="w-auto"
-        />
-
-        <GlassSelect
-          ariaLabel="Pilih tahun"
-          value={String(tahun)}
-          onChange={(next) => goMonth(bulan, Number(next))}
-          options={tahunList.map((y) => ({ value: String(y), label: String(y) }))}
-          className="w-auto"
-        />
-      </div>
-
-      <div className="mt-3">
+      {/* Satu baris: tab status di kiri, pilih bulan/tahun terdorong ke ujung
+          kanan (justify-between). flex-wrap agar di layar sempit pilihan
+          bulan/tahun turun ke baris sendiri, bukan terpotong. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <LiquidGlassTabs
           ariaLabel="Filter status"
           value={filter}
@@ -113,6 +95,27 @@ export function AdminMonthRecap({
             count: count[item.key],
           }))}
         />
+
+        <div className="ml-auto flex items-center gap-2">
+          <GlassSelect
+            ariaLabel="Pilih bulan"
+            value={String(bulan)}
+            onChange={(next) => goMonth(Number(next), tahun)}
+            options={NAMA_BULAN.map((nama, index) => ({
+              value: String(index + 1),
+              label: nama,
+            }))}
+            className="w-auto"
+          />
+
+          <GlassSelect
+            ariaLabel="Pilih tahun"
+            value={String(tahun)}
+            onChange={(next) => goMonth(bulan, Number(next))}
+            options={tahunList.map((y) => ({ value: String(y), label: String(y) }))}
+            className="w-auto"
+          />
+        </div>
       </div>
 
       <RefListCard

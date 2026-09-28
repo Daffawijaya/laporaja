@@ -1,5 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
-import { HiBell, HiPlay } from "react-icons/hi2";
+import { HiBell } from "react-icons/hi2";
 
 // Topbar mobile ala YouTube: logo kiri, bel badge dan avatar kanan.
 // Hanya tampil di mobile, desktop memakai sidebar kaca kiri.
@@ -17,14 +18,26 @@ export function MobileTopbar({
   return (
     <header className="mchrome-bar sticky top-0 z-30 border-b md:hidden">
       <div className="flex min-h-14 items-center justify-between gap-3 px-4">
-        <Link href="/" aria-label="LaporAja beranda" className="flex min-h-[44px] items-center gap-1.5">
-          <span
+        <Link href="/" aria-label="LaporAja beranda" className="flex min-h-[44px] items-center">
+          {/* Versi terang/gelap ditukar lewat kelas dark supaya konsisten dengan
+              sidebar desktop dan bebas kedipan hidrasi. */}
+          <Image
+            src="/logolight.png"
+            alt="LaporAja"
+            width={1697}
+            height={372}
+            priority
+            className="h-7 w-auto dark:hidden"
+          />
+          <Image
+            src="/logodark.png"
+            alt=""
             aria-hidden="true"
-            className="flex items-center rounded-md bg-[#ff0033] px-1.5 py-1"
-          >
-            <HiPlay className="size-4 text-white" />
-          </span>
-          <span className="text-[17px] font-semibold tracking-tight">LaporAja</span>
+            width={1697}
+            height={372}
+            priority
+            className="hidden h-7 w-auto dark:block"
+          />
         </Link>
 
         <div className="flex items-center gap-1">
