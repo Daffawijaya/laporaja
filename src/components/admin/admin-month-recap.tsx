@@ -129,9 +129,7 @@ export function AdminMonthRecap({
           key: stat.id,
           title: stat.nama,
           subtitle:
-            stat.total === 0
-              ? "Belum ada laporan bulan ini"
-              : `${stat.total} kegiatan · ${STATUS_LABEL[stat.status]}`,
+            stat.total === 0 ? "Belum ada laporan bulan ini" : `${stat.total} kegiatan`,
           desc: stat.total === 0 ? "Belum lapor" : STATUS_LABEL[stat.status],
           href: `/admin/laporan?user=${stat.id}&bulan=${bulan}&tahun=${tahun}`,
         }))}
