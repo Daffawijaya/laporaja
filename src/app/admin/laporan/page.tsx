@@ -81,7 +81,8 @@ export default async function AdminLaporanPage({
           <ContentGrid
             gapClassName="lg:gap-3"
             aside={
-              <div className="flex flex-col gap-6">
+              // Jarak antar kartu disamakan dengan kolom utama (mt-4).
+              <div className="flex flex-col gap-4">
                 {/* Info penilai (hardcode dulu): gaya list sama seperti kartu lain. */}
                 <RefListCard ariaLabel="Info evaluasi">
                   <ul className="divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
