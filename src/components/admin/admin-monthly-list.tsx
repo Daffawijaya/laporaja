@@ -248,7 +248,9 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                       }
                       className="overflow-hidden"
                     >
-                      <ul className="mt-2 divide-y divide-neutral-200/70 pb-1 dark:divide-white/10">
+                      {/* Grid kegiatan max 3 kolom, selalu rata tengah:
+                          1 data = 1 kartu center, 2 data = 2 kartu center. */}
+                      <div className="mt-2 flex flex-wrap justify-center gap-3">
                   {daftar.map((item) => {
                     const revisi = item.review?.status === "revision";
                     // Semua gambar dan teks ditampilkan utuh (tanpa dipotong):
@@ -261,27 +263,34 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                       (row) => row.tipe === "text" && row.isi_text
                     );
                     return (
-                      <li key={item.id} className="px-1 py-3">
+                      <article
+                        key={item.id}
+                        className="ref-inner flex w-full max-w-md min-w-0 flex-col p-4 sm:w-[calc(50%-0.375rem)] lg:w-[calc(33.333%-0.5rem)]"
+                      >
                         <p className="text-sm font-medium">{item.nama}</p>
 
                         {imageRows.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-2">
+                          <div className="mt-2 flex flex-col gap-2">
                             {imageRows.map((row, index) => (
                               <KeteranganImage
                                 key={row.id}
                                 path={row.image_url as string}
                                 alt={`Gambar ${index + 1} kegiatan ${item.nama}`}
-                                className="size-20 rounded-md border border-border object-cover"
+                                className="h-40 w-full rounded-lg border border-border object-cover"
                               />
                             ))}
                           </div>
                         )}
 
-                        {textRows.map((row) => (
-                          <p key={row.id} className="mt-2 text-sm text-neutral-500">
-                            {row.isi_text}
-                          </p>
-                        ))}
+                        {textRows.length > 0 && (
+                          <div className="mt-2 space-y-2">
+                            {textRows.map((row) => (
+                              <p key={row.id} className="text-sm text-neutral-500">
+                                {row.isi_text}
+                              </p>
+                            ))}
+                          </div>
+                        )}
 
                         {revisi && item.review?.catatan && (
                           <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
@@ -289,7 +298,7 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                           </p>
                         )}
 
-                        <div className="mt-2 flex items-center justify-end gap-1">
+                        <div className="mt-auto flex items-center justify-end gap-1 pt-3">
                           {revisi ? (
                             <Button
                               variant="ghost"
@@ -315,10 +324,10 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                             </Button>
                           )}
                         </div>
-                      </li>
+                      </article>
                     );
                       })}
-                      </ul>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
