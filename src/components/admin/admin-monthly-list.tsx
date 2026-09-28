@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ChevronDown, PencilLine, Undo2 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -248,9 +248,8 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                       }
                       className="overflow-hidden"
                     >
-                      {/* Grid kegiatan max 3 kolom, selalu rata tengah:
-                          1 data = 1 kartu center, 2 data = 2 kartu center. */}
-                      <div className="mt-2 flex flex-wrap justify-center gap-3">
+                      {/* Nama kegiatan di luar; tiap gambar/teks jadi kartu kecil. */}
+                      <div className="mt-2 flex flex-col gap-6">
                   {daftar.map((item) => {
                     const revisi = item.review?.status === "revision";
                     // Semua gambar dan teks ditampilkan utuh (tanpa dipotong):
@@ -262,43 +261,11 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                     const textRows = item.keterangan.filter(
                       (row) => row.tipe === "text" && row.isi_text
                     );
+                    // Nama di luar kartu; tiap gambar & tiap teks jadi kartu kecil.
                     return (
-                      <article
-                        key={item.id}
-                        className="ref-inner flex w-full max-w-md min-w-0 flex-col p-4 sm:w-[calc(50%-0.375rem)] lg:w-[calc(33.333%-0.5rem)]"
-                      >
-                        <p className="text-sm font-medium">{item.nama}</p>
-
-                        {imageRows.length > 0 && (
-                          <div className="mt-2 flex flex-col gap-2">
-                            {imageRows.map((row, index) => (
-                              <KeteranganImage
-                                key={row.id}
-                                path={row.image_url as string}
-                                alt={`Gambar ${index + 1} kegiatan ${item.nama}`}
-                                className="h-40 w-full rounded-lg border border-border object-cover"
-                              />
-                            ))}
-                          </div>
-                        )}
-
-                        {textRows.length > 0 && (
-                          <div className="mt-2 space-y-2">
-                            {textRows.map((row) => (
-                              <p key={row.id} className="text-sm text-neutral-500">
-                                {row.isi_text}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-
-                        {revisi && item.review?.catatan && (
-                          <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-                            {item.review.catatan}
-                          </p>
-                        )}
-
-                        <div className="mt-auto flex items-center justify-end gap-1 pt-3">
+                      <div key={item.id} className="min-w-0">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-[17px] font-semibold tracking-tight">{item.nama}</p>
                           {revisi ? (
                             <Button
                               variant="ghost"
@@ -307,24 +274,58 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                                 setCancelTarget(item);
                               }}
                               aria-label={`Batalkan revisi ${item.nama}`}
-                              className="rounded-full bg-black/10 text-black hover:bg-black/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
+                              className="min-h-[36px] rounded-full bg-black/[0.075] px-3 text-xs text-accent hover:bg-black/15 hover:text-accent-hover dark:bg-white/10 dark:hover:bg-white/15"
                             >
-                              <Undo2 aria-hidden="true" />
-                              <span className="hidden sm:inline">Batalkan revisi</span>
+                              Batalkan revisi
                             </Button>
                           ) : (
                             <Button
                               variant="ghost"
                               onClick={() => openRevise(item)}
                               aria-label={`Revisi ${item.nama}`}
-                              className="rounded-full bg-black/10 text-black hover:bg-black/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
+                              className="min-h-[36px] rounded-full bg-black/[0.075] px-3 text-xs text-accent hover:bg-black/15 hover:text-accent-hover dark:bg-white/10 dark:hover:bg-white/15"
                             >
-                              <PencilLine aria-hidden="true" />
-                              <span className="hidden sm:inline">Revisi</span>
+                              Revisi
                             </Button>
                           )}
                         </div>
-                      </article>
+
+                        {revisi && item.review?.catatan && (
+                          <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                            {item.review.catatan}
+                          </p>
+                        )}
+
+                        {(imageRows.length > 0 || textRows.length > 0) && (
+                          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {imageRows.map((row, index) => (
+                              <figure
+                                key={row.id}
+                                className="min-w-0 overflow-hidden rounded-xl bg-[#eeeeee] dark:bg-white/5"
+                              >
+                                <KeteranganImage
+                                  path={row.image_url as string}
+                                  alt={`Gambar ${index + 1} kegiatan ${item.nama}`}
+                                  className="h-40 w-full object-cover"
+                                />
+                                {row.isi_text && (
+                                  <figcaption className="px-3 py-2 text-sm text-neutral-500">
+                                    {row.isi_text}
+                                  </figcaption>
+                                )}
+                              </figure>
+                            ))}
+                            {textRows.map((row) => (
+                              <div
+                                key={row.id}
+                                className="min-w-0 rounded-xl bg-[#eeeeee] p-3 dark:bg-white/5"
+                              >
+                                <p className="text-sm text-neutral-500">{row.isi_text}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     );
                       })}
                       </div>

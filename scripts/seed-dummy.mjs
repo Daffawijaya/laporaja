@@ -81,12 +81,6 @@ const GAMBAR_CONTOH = [
   "https://images.pexels.com/photos/3184328/pexels-photo-3184328.jpeg?auto=compress&cs=tinysrgb&w=1200",
 ];
 
-// Urutan tetap: nama kegiatan ke-i memakai foto ke-i, jadi gambar tiap
-// kegiatan konsisten walau seeder dijalankan ulang.
-const GAMBAR_PER_KEGIATAN = new Map(
-  KEGIATAN_POOL.map((nama, i) => [nama, GAMBAR_CONTOH[i % GAMBAR_CONTOH.length]])
-);
-
 async function main() {
   loadEnvFile(".env.local");
 
@@ -172,13 +166,34 @@ async function main() {
   // 5. Kegiatan bulan berjalan. Sebaran status bulanan yang ditarget:
   // andi=Selesai, budi=Revisi (kegiatan), citra=Menunggu,
   // dewi=Revisi (rekomendasi), eko=Belum lapor (tanpa kegiatan).
-  // Beberapa hari sengaja diisi lebih dari 1 kegiatan.
+  // Andi jadi contoh data sempurna: sehari bisa banyak kegiatan, sekegiatan
+  // bisa banyak gambar, dan gambar boleh tidak ada (opsional).
+  const ANDI_KEGIATAN = [
+    { day: 1, nama: "Apel pagi dan briefing tim", images: 2, texts: 1 },
+    { day: 1, nama: "Koordinasi lintas bidang", images: 1, texts: 2 },
+    { day: 1, nama: "Penyusunan laporan harian", images: 0, texts: 1 },
+    { day: 2, nama: "Monitoring progres mingguan", images: 3, texts: 1 },
+    { day: 2, nama: "Kunjungan lapangan", images: 0, texts: 2 },
+    { day: 3, nama: "Rapat evaluasi bulanan", images: 1, texts: 1 },
+    { day: 5, nama: "Pendataan arsip dokumen", images: 1, texts: 1 },
+    { day: 5, nama: "Sosialisasi program kerja", images: 0, texts: 1 },
+  ];
   const HARI_PER_USER = [
-    [1, 1, 2, 3, 5], // andi
+    null, // andi: pakai ANDI_KEGIATAN di atas
     [2, 2, 3, 5], // budi
     [3, 5, 7], // citra
     [1, 3, 3, 5], // dewi
     [], // eko
+  ];
+  // Caption tiap gambar (1 gambar wajib 1 alt text).
+  function captionGambar(namaKegiatan, nomor) {
+    return `Dokumentasi ${namaKegiatan.toLowerCase()} bagian ${nomor}.`;
+  }
+  // Kalimat kedua untuk kegiatan yang punya >1 teks (depannya kapital).
+  const TEKS_TAMBAHAN = [
+    "Hasilnya ditindaklanjuti bersama tim terkait pada hari yang sama.",
+    "Dokumentasi lengkap tersimpan sebagai bahan evaluasi berikutnya.",
+    "Kendala yang muncul langsung dikoordinasikan agar tidak menghambat jadwal.",
   ];
   const now = new Date();
   const tahun = now.getFullYear();
@@ -187,21 +202,33 @@ async function main() {
   const pad = (n) => String(n).padStart(2, "0");
 
   const kegiatanRows = [];
+  const kegiatanSpecs = []; // { images, texts } sejajar kegiatanRows
   DUMMY_USERS.forEach((dummy, ui) => {
+    if (ui === 0) {
+      ANDI_KEGIATAN.forEach((spec) => {
+        if (spec.day < 1 || spec.day > lastDate) return;
+        kegiatanRows.push({
+          user_id: userIds[ui],
+          tanggal: `${tahun}-${pad(bulan)}-${pad(spec.day)}`,
+          nama_kegiatan: spec.nama,
+        });
+        kegiatanSpecs.push({ images: spec.images, texts: spec.texts });
+      });
+      return;
+    }
     HARI_PER_USER[ui].forEach((day, k) => {
       if (day < 1 || day > lastDate) return;
       kegiatanRows.push({
         user_id: userIds[ui],
         tanggal: `${tahun}-${pad(bulan)}-${pad(day)}`,
         nama_kegiatan: KEGIATAN_POOL[(ui * 3 + k) % KEGIATAN_POOL.length],
-        _ui: ui,
-        _k: k,
       });
+      kegiatanSpecs.push({ images: 1, texts: 1 });
     });
   });
   const { data: kegiatanInserted, error: kegiatanError } = await supabase
     .from("kegiatan")
-    .insert(kegiatanRows.map(({ _ui, _k, ...row }) => row))
+    .insert(kegiatanRows)
     .select("id, user_id, tanggal, nama_kegiatan");
   if (kegiatanError) fail(`Gagal menambah kegiatan: ${kegiatanError.message}`);
   console.log(`${kegiatanInserted.length} kegiatan dummy dibuat.`);
@@ -218,30 +245,41 @@ async function main() {
   // 6. Keterangan teks + gambar + review per user:
   // andi semua approved; budi kegiatan pertama revision sisanya approved;
   // citra tanpa review; dewi kegiatan pertama revision sisanya tanpa review.
+  // Gambar dulu baru teks (constraint tabel: tipe 'image' wajib image_url).
+  const insertedWithSpec = (kegiatanInserted ?? []).map((k, i) => ({ ...k, ...kegiatanSpecs[i] }));
   const perUser = DUMMY_USERS.map((dummy, ui) =>
-    (kegiatanInserted ?? []).filter((k) => k.user_id === userIds[ui])
+    insertedWithSpec.filter((k) => k.user_id === userIds[ui])
   );
   let n = 0;
+  let imgCounter = 0;
   for (let ui = 0; ui < perUser.length; ui++) {
     for (const [kIdx, k] of perUser[ui].entries()) {
-      // urutan 1: gambar dulu (constraint tabel: tipe 'image' wajib image_url),
-      // supaya tampilannya "foto di atas, keterangannya di bawah".
-      const { error: gambarError } = await supabase.from("keterangan_kegiatan").insert({
-        kegiatan_id: k.id,
-        tipe: "image",
-        urutan: 1,
-        image_url: GAMBAR_PER_KEGIATAN.get(k.nama_kegiatan) ?? GAMBAR_CONTOH[n % GAMBAR_CONTOH.length],
-      });
-      if (gambarError) fail(`Gagal menambah gambar: ${gambarError.message}`);
+      const imageCount = k.images ?? 1;
+      const textCount = k.texts ?? 1;
+      for (let im = 0; im < imageCount; im++) {
+        const { error: gambarError } = await supabase.from("keterangan_kegiatan").insert({
+          kegiatan_id: k.id,
+          tipe: "image",
+          urutan: im + 1,
+          image_url: GAMBAR_CONTOH[imgCounter++ % GAMBAR_CONTOH.length],
+          isi_text: captionGambar(k.nama_kegiatan, im + 1),
+        });
+        if (gambarError) fail(`Gagal menambah gambar: ${gambarError.message}`);
+      }
 
-      // urutan 2: keterangan teks kegiatan yang duduk di bawah gambarnya.
-      const { error: ketError } = await supabase.from("keterangan_kegiatan").insert({
-        kegiatan_id: k.id,
-        tipe: "text",
-        urutan: 2,
-        isi_text: `Pelaksanaan ${k.nama_kegiatan.toLowerCase()} berjalan lancar sesuai rencana pada ${k.tanggal}.`,
-      });
-      if (ketError) fail(`Gagal menambah keterangan: ${ketError.message}`);
+      for (let t = 0; t < textCount; t++) {
+        const isi =
+          t === 0
+            ? `Pelaksanaan ${k.nama_kegiatan.toLowerCase()} berjalan lancar sesuai rencana pada ${k.tanggal}.`
+            : TEKS_TAMBAHAN[(n + t) % TEKS_TAMBAHAN.length];
+        const { error: ketError } = await supabase.from("keterangan_kegiatan").insert({
+          kegiatan_id: k.id,
+          tipe: "text",
+          urutan: imageCount + t + 1,
+          isi_text: isi,
+        });
+        if (ketError) fail(`Gagal menambah keterangan: ${ketError.message}`);
+      }
 
       if (ui === 0) {
         const { error } = await supabase.from("reviews").insert({ kegiatan_id: k.id, status: "approved" });

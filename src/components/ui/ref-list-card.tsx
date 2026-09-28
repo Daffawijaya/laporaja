@@ -61,8 +61,16 @@ export function RefListCard({
         ) : (
           <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
             {items.map((item, i) => {
+              // Satu-satunya baris: tanpa padding vertikal tambahan supaya
+              // atas-bawah simetris mengikuti padding kartu.
               const pad =
-                i === 0 ? " pb-3" : i === items.length - 1 ? " pt-3" : " py-3";
+                items.length === 1
+                  ? ""
+                  : i === 0
+                    ? " pb-3"
+                    : i === items.length - 1
+                      ? " pt-3"
+                      : " py-3";
               const stacked = item.meta != null;
               const linkable = item.href != null && item.actionHref == null;
 
