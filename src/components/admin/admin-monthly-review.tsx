@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, PencilLine, Undo2 } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -173,10 +173,7 @@ export function AdminMonthlyReview({
               aria-label="Batalkan revisi rekomendasi"
               className="min-h-[36px] rounded-full bg-black/[0.075] px-3 text-xs text-accent hover:bg-black/15 hover:text-accent-hover dark:bg-white/10 dark:hover:bg-white/15"
             >
-              <Undo2 aria-hidden="true" />
-              <span className="hidden sm:inline">
-                {cancelling ? "Membatalkan..." : "Batalkan revisi"}
-              </span>
+              {cancelling ? "Membatalkan..." : "Batalkan revisi"}
             </Button>
           ) : (
             <Button
@@ -189,14 +186,13 @@ export function AdminMonthlyReview({
               aria-label="Revisi rekomendasi"
               className="min-h-[36px] rounded-full bg-black/[0.075] px-3 text-xs text-accent hover:bg-black/15 hover:text-accent-hover dark:bg-white/10 dark:hover:bg-white/15"
             >
-              <PencilLine aria-hidden="true" />
-              <span className="hidden sm:inline">Revisi</span>
+              Revisi
             </Button>
           )}
         </div>
       </RefListCard>
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-col items-end">
         <Button
           variant="default"
           onClick={() => {
@@ -205,13 +201,13 @@ export function AdminMonthlyReview({
           }}
           disabled={terkunci || disetujui || approving}
           aria-label={`Setujui laporan ${userNama} ${labelBulan}`}
-          className="w-full rounded-full"
+          className="w-full rounded-full sm:w-auto"
         >
           <Check aria-hidden="true" />
           {disetujui ? "Sudah disetujui" : approving ? "Menyetujui..." : "Setujui laporan"}
         </Button>
         {terkunci && !disetujui && (
-          <p className="mt-2 text-center text-xs text-neutral-500">
+          <p className="mt-2 text-right text-xs text-neutral-500">
             Selesaikan {totalRevisi} revisi dulu sebelum menyetujui
             {revisiKegiatan > 0 && revisiBulanan
               ? ` (${revisiKegiatan} kegiatan + rekomendasi).`
