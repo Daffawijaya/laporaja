@@ -98,9 +98,9 @@ export default async function AdminLaporanPage({
                     </li>
                     <li className="flex items-center justify-between gap-3 px-1 py-3">
                       <span className="text-sm font-medium">Nama</span>
-                      <span className="max-w-[65%] text-right text-xs text-neutral-500">
-                        Dafa Yan Wijaya, S.Kom
-                      </span>
+                    <span className="max-w-[65%] text-right text-xs text-neutral-500">
+                      {selected.nama}
+                    </span>
                     </li>
                     <li className="flex items-center justify-between gap-3 px-1 py-3">
                       <span className="text-sm font-medium">Jabatan</span>
