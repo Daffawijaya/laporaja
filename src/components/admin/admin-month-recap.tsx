@@ -7,25 +7,25 @@ import { RefListCard } from "@/components/ui/ref-list-card";
 import { LiquidGlassTabs } from "@/components/ui/liquid-glass-tabs";
 import { GlassSelect } from "@/components/ui/glass-select";
 import { NAMA_BULAN } from "@/components/laporan/types";
+import type { MonthStatus, UserMonthStat } from "@/lib/laporan/queries";
 
-export interface UserMonthStat {
-  id: string;
-  nama: string;
-  username: string;
-  total: number;
-  disetujui: number;
-  revisi: number;
-  menunggu: number;
-}
+export type { UserMonthStat };
 
-type FilterKey = "semua" | "lapor" | "belum" | "review";
+type FilterKey = "semua" | "belum" | "menunggu" | "revisi" | "selesai";
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "semua", label: "Semua" },
-  { key: "lapor", label: "Sudah lapor" },
   { key: "belum", label: "Belum lapor" },
-  { key: "review", label: "Perlu review" },
+  { key: "menunggu", label: "Menunggu" },
+  { key: "revisi", label: "Revisi" },
+  { key: "selesai", label: "Selesai" },
 ];
+
+const STATUS_LABEL: Record<MonthStatus, string> = {
+  menunggu: "Menunggu review",
+  revision: "Revisi",
+  approved: "Selesai",
+};
 
 // Rekap bulan-dulu untuk superadmin: pilih bulan/tahun dulu, baru daftar
 // SEMUA user bulan itu (termasuk yang belum ada laporan). Klik baris masuk
@@ -66,17 +66,19 @@ export function AdminMonthRecap({
     ) {
       return false;
     }
-    if (filter === "lapor") return stat.total > 0;
     if (filter === "belum") return stat.total === 0;
-    if (filter === "review") return stat.menunggu > 0;
+    if (filter === "menunggu") return stat.total > 0 && stat.status === "menunggu";
+    if (filter === "revisi") return stat.total > 0 && stat.status === "revision";
+    if (filter === "selesai") return stat.total > 0 && stat.status === "approved";
     return true;
   });
 
   const count = {
     semua: stats.length,
-    lapor: stats.filter((stat) => stat.total > 0).length,
     belum: stats.filter((stat) => stat.total === 0).length,
-    review: stats.filter((stat) => stat.menunggu > 0).length,
+    menunggu: stats.filter((stat) => stat.total > 0 && stat.status === "menunggu").length,
+    revisi: stats.filter((stat) => stat.total > 0 && stat.status === "revision").length,
+    selesai: stats.filter((stat) => stat.total > 0 && stat.status === "approved").length,
   };
 
   return (
@@ -129,13 +131,8 @@ export function AdminMonthRecap({
           subtitle:
             stat.total === 0
               ? "Belum ada laporan bulan ini"
-              : `${stat.total} kegiatan · ${stat.disetujui} disetujui · ${stat.revisi} revisi · ${stat.menunggu} menunggu review`,
-          desc:
-            stat.total === 0
-              ? "Belum lapor"
-              : stat.menunggu > 0
-                ? `${stat.menunggu} menunggu`
-                : "Selesai",
+              : `${stat.total} kegiatan · ${STATUS_LABEL[stat.status]}`,
+          desc: stat.total === 0 ? "Belum lapor" : STATUS_LABEL[stat.status],
           href: `/admin/laporan?user=${stat.id}&bulan=${bulan}&tahun=${tahun}`,
         }))}
       />

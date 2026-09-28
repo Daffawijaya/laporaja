@@ -56,6 +56,20 @@ export type ReviewRow = {
   updated_at: string;
 };
 
+export type MonthlyReviewStatus = "menunggu" | "revision" | "approved";
+
+export type MonthlyReviewRow = {
+  id: string;
+  user_id: string;
+  tahun: number;
+  bulan: number;
+  rekomendasi: string | null;
+  status: MonthlyReviewStatus;
+  catatan: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type IndikatorRow = {
   id: string;
   nama: string;
@@ -114,6 +128,18 @@ export type Database = {
         Insert: Pick<ReviewRow, "kegiatan_id" | "status"> &
           Partial<Pick<ReviewRow, "id" | "catatan" | "created_at" | "updated_at">>;
         Update: Partial<Pick<ReviewRow, "status" | "catatan">>;
+        Relationships: [];
+      };
+      monthly_reviews: {
+        Row: MonthlyReviewRow;
+        Insert: Pick<MonthlyReviewRow, "user_id" | "tahun" | "bulan"> &
+          Partial<
+            Pick<
+              MonthlyReviewRow,
+              "id" | "rekomendasi" | "status" | "catatan" | "created_at" | "updated_at"
+            >
+          >;
+        Update: Partial<Pick<MonthlyReviewRow, "rekomendasi" | "status" | "catatan">>;
         Relationships: [];
       };
       indikator: {

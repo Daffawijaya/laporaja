@@ -2,7 +2,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getSignedImageUrl } from "@/lib/supabase/storage";
-import { clampBulan, clampTahun, getMonthlyLaporan } from "@/lib/laporan/queries";
+import { clampBulan, clampTahun, deriveMonthStatus, getMonthlyLaporan, getMonthlyReview } from "@/lib/laporan/queries";
 import { LaporanDocument, type PdfDay } from "@/components/admin/laporan-document";
 import { NAMA_BULAN, pad2 } from "@/components/laporan/types";
 
@@ -46,14 +46,20 @@ export async function GET(request: Request) {
   }
 
   let items: Awaited<ReturnType<typeof getMonthlyLaporan>>;
+  let monthly: Awaited<ReturnType<typeof getMonthlyReview>>;
   try {
-    items = await getMonthlyLaporan(supabase, userId, tahun, bulan);
+    [items, monthly] = await Promise.all([
+      getMonthlyLaporan(supabase, userId, tahun, bulan),
+      getMonthlyReview(supabase, userId, tahun, bulan),
+    ]);
   } catch {
     return Response.json(
       { message: "Gagal menyiapkan laporan. Coba lagi." },
       { status: 500 }
     );
   }
+  const revisiKegiatan = items.filter((item) => item.review?.status === "revision").length;
+  const statusBulanan = deriveMonthStatus(monthly, revisiKegiatan);
 
   // Ubah path Storage menjadi URL sementara agar renderer dapat mengunduhnya.
   // Gambar yang tidak dapat dijangkau dilewati agar export tidak gagal total.
@@ -115,6 +121,13 @@ export async function GET(request: Request) {
         bidangNama,
         subBidang: (subs ?? []).map((sub) => sub.nama),
         periode: `${NAMA_BULAN[bulan - 1]} ${tahun}`,
+        statusBulanan:
+          statusBulanan === "approved"
+            ? "Disetujui"
+            : statusBulanan === "revision"
+              ? "Revisi"
+              : "Menunggu Review",
+        rekomendasi: monthly.rekomendasi,
         days,
       }}
     />

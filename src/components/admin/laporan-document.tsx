@@ -18,11 +18,15 @@ export interface PdfDay {
   kegiatan: PdfKegiatan[];
 }
 
+export type StatusBulananPdf = "Menunggu Review" | "Revisi" | "Disetujui";
+
 export interface LaporanPdfData {
   ownerNama: string;
   bidangNama: string | null;
   subBidang: string[];
   periode: string;
+  statusBulanan: StatusBulananPdf;
+  rekomendasi: string | null;
   days: PdfDay[];
 }
 
@@ -117,6 +121,20 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
           <Text style={styles.metaLabel}>Periode</Text>
           <Text style={styles.metaValue}>{data.periode}</Text>
         </View>
+        <View style={styles.metaRow}>
+          <Text style={styles.metaLabel}>Status</Text>
+          <Text
+            style={
+              data.statusBulanan === "Disetujui"
+                ? styles.statusApproved
+                : data.statusBulanan === "Revisi"
+                  ? styles.statusRevision
+                  : styles.statusPending
+            }
+          >
+            {data.statusBulanan}
+          </Text>
+        </View>
 
         <View style={styles.divider} />
 
@@ -154,6 +172,13 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
             ))}
           </View>
         ))}
+
+        <Text style={styles.dateHeading}>REKOMENDASI DAN TINDAK LANJUT</Text>
+        {data.rekomendasi ? (
+          <Text style={styles.paragraph}>{data.rekomendasi}</Text>
+        ) : (
+          <Text style={styles.empty}>Belum ada rekomendasi.</Text>
+        )}
 
         <Text
           style={styles.footer}

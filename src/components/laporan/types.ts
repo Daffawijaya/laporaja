@@ -42,10 +42,10 @@ export function formatTanggalPanjang(iso: string): string {
   return `${hari}, ${pad2(d)} ${NAMA_BULAN[m - 1]} ${y}`;
 }
 
-// Versi ringkas untuk judul kelompok tanggal: "Senin, 1 September".
+// Versi ringkas untuk judul kelompok tanggal: "Senin, 1 September 2026".
 export function formatHariTanggal(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   const tanggal = new Date(y, m - 1, d);
   const hari = tanggal.toLocaleDateString("id-ID", { weekday: "long" });
-  return `${hari}, ${d} ${NAMA_BULAN[m - 1]}`;
+  return `${hari}, ${d} ${NAMA_BULAN[m - 1]} ${y}`;
 }

@@ -1,13 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { getRevisionList } from "@/lib/laporan/queries";
-import { formatHariTanggal } from "@/components/laporan/types";
+import { NAMA_BULAN } from "@/components/laporan/types";
 import { ContentGrid } from "@/components/layout/content-grid";
 import { RefListCard } from "@/components/ui/ref-list-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { redirect } from "next/navigation";
 
-// Notifikasi user: kegiatan yang perlu perbaikan. Ditautkan dari bel mobile.
+// Notifikasi user: laporan bulanan yang perlu perhatian (ikut status
+// bulanan). Ditautkan dari bel mobile.
 export default async function NotifikasiPage() {
   const { user } = await getCurrentProfile();
   if (!user) redirect("/login");
@@ -22,7 +23,7 @@ export default async function NotifikasiPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           {items.length === 0
             ? "Tidak ada yang perlu perhatian."
-            : `${items.length} kegiatan perlu diperbaiki.`}
+            : `${items.length} laporan perlu diperbaiki.`}
         </p>
       </div>
 
@@ -59,13 +60,19 @@ export default async function NotifikasiPage() {
             <RefListCard
               ariaLabel="Notifikasi"
               title="Notifikasi"
-              items={items.map((item) => ({
-                key: item.id,
-                title: item.nama,
-                subtitle: formatHariTanggal(item.tanggal),
-                note: item.catatan ?? undefined,
-                href: `/laporan/${item.id}`,
-              }))}
+              items={items.map((item) => {
+                const label = `${NAMA_BULAN[item.bulan - 1]} ${item.tahun}`;
+                return {
+                  key: `${item.tahun}-${item.bulan}`,
+                  title: `Laporan ${label}`,
+                  subtitle:
+                    item.revisiKegiatan > 0
+                      ? `${item.revisiKegiatan} kegiatan perlu diperbaiki`
+                      : "Rekomendasi perlu diperbaiki",
+                  note: item.catatan ?? undefined,
+                  href: `/laporan?bulan=${item.bulan}&tahun=${item.tahun}`,
+                };
+              })}
             />
           )}
         </ContentGrid>

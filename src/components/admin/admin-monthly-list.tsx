@@ -180,7 +180,7 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
           }
         />
       ) : (
-        <ul className="mt-4 divide-y divide-neutral-200/70 dark:divide-white/10">
+        <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
           {days.map((tanggal, i) => {
             const daftar = grouped.get(tanggal) ?? [];
             // Ritme padding baris persis RefListCard (Laporan September 2026):
@@ -202,14 +202,14 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                     <span className="block truncate text-sm font-medium">
                       {formatHariTanggal(tanggal)}
                     </span>
-                    <span className="mt-0.5 block truncate text-xs text-neutral-500">
-                      {daftar.length} kegiatan
-                    </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-1">
                     {tanggal === todayISO && (
                       <span className="text-xs text-accent">Hari ini</span>
                     )}
+                    <span className="text-xs text-neutral-500">
+                      {daftar.length} kegiatan
+                    </span>
                     <motion.span
                       aria-hidden="true"
                       className="flex shrink-0 text-neutral-400"

@@ -241,7 +241,8 @@ body {
     border-radius: 9999px;
     color: #1d1d1f;
     --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25) color-overlay(white,.3) contrast(1.25);
-    background-color: rgb(255 255 255 / 0);
+    /* Light: putih 85% — pola yang sama dengan dark (kartu 85%). */
+    background-color: rgb(255 255 255 / 0.85);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     border: 1px solid rgb(255 255 255 / 1);
@@ -311,8 +312,8 @@ body {
     position: relative;
     border-radius: 9999px;
     --fx-filter: blur(4px) liquid-glass(2, 10) saturate(1.25) color-overlay(white,.3) contrast(1.25);
-    /* Light: putih 85% (sama .lgt-nav & panel dropdown). Dark ditimpa transparan. */
-    background-color: rgb(255 255 255 / 0);
+    /* Light: putih 85% (sama .lgt-nav & panel dropdown). Dark: kartu 85%. */
+    background-color: rgb(255 255 255 / 0.85);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     border: 1px solid rgb(255 255 255 / 1);

@@ -6,11 +6,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { RefListCard } from "@/components/ui/ref-list-card";
 import { assertOk } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
-import { clampBulan, clampTahun, getMonthlyLaporan } from "@/lib/laporan/queries";
+import { clampBulan, clampTahun, getMonthlyLaporan, getMonthlyReview, getUserMonthStats } from "@/lib/laporan/queries";
 import { NAMA_BULAN } from "@/components/laporan/types";
 import { AdminLaporanFilter } from "@/components/admin/admin-laporan-filter";
-import { AdminMonthRecap, type UserMonthStat } from "@/components/admin/admin-month-recap";
+import { AdminMonthRecap } from "@/components/admin/admin-month-recap";
 import { AdminMonthlyList } from "@/components/admin/admin-monthly-list";
+import { AdminMonthlyReview } from "@/components/admin/admin-monthly-review";
 import { ContentGrid } from "@/components/layout/content-grid";
 
 // Alur bulan-dulu: tanpa ?user= tampil rekap sebulan semua user (termasuk
@@ -39,7 +40,11 @@ export default async function AdminLaporanPage({
 
   // Lapis 2: detail bulanan satu user (tampilan lama + tombol kembali).
   if (selected) {
-    const items = await getMonthlyLaporan(supabase, selected.id, tahun, bulan);
+    const [items, monthly] = await Promise.all([
+      getMonthlyLaporan(supabase, selected.id, tahun, bulan),
+      getMonthlyReview(supabase, selected.id, tahun, bulan),
+    ]);
+    const revisiKegiatan = items.filter((item) => item.review?.status === "revision").length;
     return (
       <div className="w-full">
         <div className="md:hidden">
@@ -78,88 +83,49 @@ export default async function AdminLaporanPage({
               </section>
             }
           >
-            {/* Nama user sudah pindah ke baris tombol kembali di atas,
-                jadi card ini tanpa judul luar. */}
+            {/* Judul + Export di luar kartu: judul kiri, tombol kanan. */}
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-3 md:mt-0">
+              <h2 className="text-[17px] font-semibold tracking-tight">
+                Evaluasi Kegiatan Bulan {labelBulan}
+              </h2>
+              <Button asChild variant="default" className="w-full rounded-full sm:w-auto">
+                <Link
+                  href={`/admin/laporan/export?user=${selected.id}&bulan=${bulan}&tahun=${tahun}`}
+                >
+                  <Download aria-hidden="true" />
+                  Export PDF
+                </Link>
+              </Button>
+            </div>
             <RefListCard
               ariaLabel={`Kegiatan ${selected.nama} ${labelBulan}`}
-              className="mt-2 md:mt-0"
+              className="mt-2"
             >
-              {/* Baris header kartu, sama seperti baris tombol di /laporan. */}
-              <div className="flex flex-wrap items-center justify-between gap-3 px-1 pb-3">
-                <p className="min-w-0 text-sm text-neutral-500">
-                  {selected.username} · {labelBulan}
-                </p>
-                <Button asChild variant="default" className="w-full rounded-full sm:w-auto">
-                  <Link
-                    href={`/admin/laporan/export?user=${selected.id}&bulan=${bulan}&tahun=${tahun}`}
-                  >
-                    <Download aria-hidden="true" />
-                    Export PDF
-                  </Link>
-                </Button>
-              </div>
-
               <AdminMonthlyList items={items} />
             </RefListCard>
+            <AdminMonthlyReview
+              userId={selected.id}
+              userNama={selected.nama}
+              tahun={tahun}
+              bulan={bulan}
+              labelBulan={labelBulan}
+              initial={monthly}
+              revisiKegiatan={revisiKegiatan}
+            />
           </ContentGrid>
         </div>
       </div>
     );
   }
 
-  // Lapis 1: rekap sebulan semua user.
-  let stats: UserMonthStat[] = [];
-  if (userList.length > 0) {
-    const userIds = userList.map((user) => user.id);
-    const firstDay = `${tahun}-${String(bulan).padStart(2, "0")}-01`;
-    const lastDate = new Date(tahun, bulan, 0).getDate();
-    const lastDay = `${tahun}-${String(bulan).padStart(2, "0")}-${String(lastDate).padStart(2, "0")}`;
-    const kegiatanResult = await supabase
-      .from("kegiatan")
-      .select("id, user_id")
-      .in("user_id", userIds)
-      .gte("tanggal", firstDay)
-      .lte("tanggal", lastDay);
-    assertOk(kegiatanResult.error, "Gagal memuat rekap bulanan. Coba lagi.");
-    const kegiatanBulanIni = kegiatanResult.data ?? [];
-    const idsBulanIni = kegiatanBulanIni.map((kegiatan) => kegiatan.id);
-    let statusByKegiatan = new Map<string, string>();
-    if (idsBulanIni.length > 0) {
-      const reviewsResult = await supabase
-        .from("reviews")
-        .select("kegiatan_id, status")
-        .in("kegiatan_id", idsBulanIni);
-      assertOk(reviewsResult.error, "Gagal memuat rekap bulanan. Coba lagi.");
-      statusByKegiatan = new Map(
-        (reviewsResult.data ?? []).map((review) => [review.kegiatan_id, review.status])
-      );
-    }
-    const agregat = new Map<string, { total: number; disetujui: number; revisi: number }>();
-    for (const kegiatan of kegiatanBulanIni) {
-      const row = agregat.get(kegiatan.user_id) ?? { total: 0, disetujui: 0, revisi: 0 };
-      row.total += 1;
-      const status = statusByKegiatan.get(kegiatan.id);
-      if (status === "approved") row.disetujui += 1;
-      else if (status === "revision") row.revisi += 1;
-      agregat.set(kegiatan.user_id, row);
-    }
-    stats = userList.map((user) => {
-      const row = agregat.get(user.id) ?? { total: 0, disetujui: 0, revisi: 0 };
-      return {
-        id: user.id,
-        nama: user.nama,
-        username: user.username,
-        total: row.total,
-        disetujui: row.disetujui,
-        revisi: row.revisi,
-        menunggu: row.total - row.disetujui - row.revisi,
-      };
-    });
-  }
+  // Lapis 1: rekap sebulan semua user (ikut status bulanan).
+  const stats = await getUserMonthStats(supabase, userList, tahun, bulan);
 
   const sudahLapor = stats.filter((stat) => stat.total > 0).length;
   const belumLapor = stats.filter((stat) => stat.total === 0).length;
-  const perluReview = stats.filter((stat) => stat.menunggu > 0).length;
+  const perluReview = stats.filter(
+    (stat) => stat.total > 0 && stat.status !== "approved"
+  ).length;
 
   return (
     <div className="w-full">

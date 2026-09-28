@@ -3,7 +3,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { RefListCard } from "@/components/ui/ref-list-card";
 import { NAMA_BULAN } from "@/components/laporan/types";
-import type { MonthSummary } from "@/lib/laporan/queries";
+import type { MonthSummary, MonthStatus } from "@/lib/laporan/queries";
+
+const STATUS_LABEL: Record<MonthStatus, string> = {
+  menunggu: "Menunggu review",
+  revision: "Revisi",
+  approved: "Disetujui",
+};
 
 // Arsip bulan-dulu untuk user: pilih tahun, daftar 12 bulan beserta
 // ringkasannya, klik baris masuk ke detail bulan itu (?bulan=&tahun=).
@@ -59,9 +65,13 @@ export function YearArchive({
           subtitle:
             row.total === 0
               ? "Belum ada kegiatan"
-              : `${row.total} kegiatan · ${row.disetujui} disetujui · ${row.revisi} revisi · ${row.menunggu} menunggu review`,
+              : `${row.total} kegiatan · ${STATUS_LABEL[row.status]}`,
           desc:
-            row.bulan === bulanBerjalan && tahun === tahunBerjalan ? "Bulan ini" : undefined,
+            row.bulan === bulanBerjalan && tahun === tahunBerjalan
+              ? "Bulan ini"
+              : row.total === 0
+                ? undefined
+                : STATUS_LABEL[row.status],
           href: `/laporan?bulan=${row.bulan}&tahun=${tahun}`,
         }))}
       />

@@ -2,19 +2,24 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Label } from "@/components/ui/label";
 import { RefListCard } from "@/components/ui/ref-list-card";
+import { Textarea } from "@/components/ui/textarea";
 import { ContentGrid } from "@/components/layout/content-grid";
 import { useModalKey } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { MonthPicker } from "@/components/laporan/month-picker";
 import { KeteranganImage } from "@/components/laporan/keterangan-image";
 import { ReviewBadge } from "@/components/laporan/review-badge";
+import { createClient } from "@/lib/supabase/client";
+import { SessionExpiredError, isSessionError } from "@/lib/errors";
+import { deriveMonthStatus, type MonthlyReviewState } from "@/lib/laporan/queries";
 import {
   KegiatanFormDialog,
   type KegiatanFormInitial,
@@ -28,6 +33,12 @@ import {
   type KegiatanItem,
 } from "@/components/laporan/types";
 import type { IndikatorProgress } from "@/lib/indikator/queries";
+
+// Kapital depan tiap kalimat rekomendasi: huruf pertama tiap kalimat
+// (awal teks atau sesudah . ! ?) jadi kapital, sisanya dibiarkan.
+function kapitalisasiKalimat(teks: string): string {
+  return teks.replace(/(^|[.!?]\s+)([a-zA-Z])/g, (_, pembuka: string, huruf: string) => pembuka + huruf.toUpperCase());
+}
 
 function initialBlocks(item: KegiatanItem) {
   return item.keterangan.map((row) => ({
@@ -49,6 +60,7 @@ export function MonthlyList({
   bulan,
   items,
   indikators,
+  initialReview,
 }: {
   userId: string;
   nama: string;
@@ -56,8 +68,10 @@ export function MonthlyList({
   bulan: number;
   items: KegiatanItem[];
   indikators: IndikatorProgress[];
+  initialReview: MonthlyReviewState;
 }) {
   const toast = useToast();
+  const router = useRouter();
   const { saving, deleting, error, setError, progress, saveAdd, saveEdit, remove } =
     useKegiatanMutations(userId);
   const [dialog, setDialog] = useState<
@@ -99,18 +113,47 @@ export function MonthlyList({
 
   const days = useMemo(() => [...grouped.keys()].sort(), [grouped]);
 
-  let disetujui = 0;
-  let revisi = 0;
-  for (const item of visibleItems) {
-    if (item.review?.status === "approved") disetujui += 1;
-    else if (item.review?.status === "revision") revisi += 1;
+  // Status bulanan turunan (boolean menunggu per laporan orang).
+  const revisiCount = visibleItems.filter((item) => item.review?.status === "revision").length;
+  const monthStatus = deriveMonthStatus(initialReview, revisiCount);
+
+  // Rekomendasi ditulis user di sini, dinilai admin per bulan.
+  const [rekomendasi, setRekomendasi] = useState(initialReview.rekomendasi ?? "");
+  const [recSaving, setRecSaving] = useState(false);
+  const [recError, setRecError] = useState<string | null>(null);
+
+  async function handleSaveRekomendasi() {
+    if (recSaving) return;
+    setRecSaving(true);
+    setRecError(null);
+    try {
+      const supabase = createClient();
+      const cleaned = kapitalisasiKalimat(rekomendasi.trim());
+      const { error } = await supabase
+        .from("monthly_reviews")
+        .upsert(
+          {
+            user_id: userId,
+            tahun,
+            bulan,
+            rekomendasi: cleaned.length > 0 ? cleaned : null,
+          },
+          { onConflict: "user_id,tahun,bulan" }
+        );
+      if (error) throw error;
+      toast.success("Rekomendasi disimpan.");
+      router.refresh();
+    } catch (err) {
+      if (err instanceof SessionExpiredError || isSessionError(err)) {
+        setRecError("Sesi Anda berakhir. Silakan masuk lagi.");
+        router.replace("/login?expired=1");
+        return;
+      }
+      setRecError("Gagal menyimpan rekomendasi. Coba lagi.");
+    } finally {
+      setRecSaving(false);
+    }
   }
-  const menunggu = visibleItems.length - disetujui - revisi;
-  const ringkasan = [
-    { key: "approved", label: "Disetujui", value: disetujui, dot: "bg-emerald-500" },
-    { key: "revision", label: "Revisi", value: revisi, dot: "bg-amber-500" },
-    { key: "pending", label: "Menunggu Review", value: menunggu, dot: "bg-muted-foreground/60" },
-  ];
 
   const namaIndikator = new Map(indikators.map((indikator) => [indikator.id, indikator.nama]));
 
@@ -184,25 +227,10 @@ export function MonthlyList({
                       {visibleItems.length}
                     </span>
                   </li>
-                  {ringkasan.map((row, idx) => (
-                    <li
-                      key={row.key}
-                      className={
-                        idx === ringkasan.length - 1
-                          ? "flex items-center justify-between gap-3 px-1 pt-3"
-                          : "flex items-center justify-between gap-3 px-1 py-3"
-                      }
-                    >
-                      <span className="flex items-center gap-1.5 text-sm font-medium">
-                        <span
-                          aria-hidden="true"
-                          className={`size-1.5 rounded-full ${row.dot}`}
-                        />
-                        {row.label}
-                      </span>
-                      <span className="shrink-0 text-xs text-neutral-500">{row.value}</span>
-                    </li>
-                  ))}
+                  <li className="flex items-center justify-between gap-3 px-1 pt-3">
+                    <span className="text-sm font-medium">Status laporan</span>
+                    <ReviewBadge status={monthStatus === "menunggu" ? null : monthStatus} />
+                  </li>
                 </ul>
               </RefListCard>
             )}
@@ -410,6 +438,56 @@ export function MonthlyList({
           })}
           </div>
           )}
+        </RefListCard>
+
+        <RefListCard
+          ariaLabel="Rekomendasi dan tindak lanjut"
+          title="Rekomendasi dan tindak lanjut"
+          className="mt-4"
+        >
+          <div className="flex items-center justify-between gap-3 px-1 pb-3">
+            <span className="text-xs text-neutral-500">
+              Dinilai admin bersama laporan bulan ini
+            </span>
+            <ReviewBadge status={monthStatus === "menunggu" ? null : monthStatus} />
+          </div>
+
+          {initialReview.status === "revision" && initialReview.catatan && (
+            <p className="mx-1 mb-3 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+              {initialReview.catatan}
+            </p>
+          )}
+
+          <div className="flex flex-col gap-2 px-1">
+            <Label htmlFor="rekomendasi">Tulis rekomendasi dan tindak lanjut</Label>
+            <Textarea
+              id="rekomendasi"
+              value={rekomendasi}
+              onChange={(event) => {
+                setRekomendasi(event.target.value);
+                setRecError(null);
+              }}
+              rows={4}
+              placeholder="Contoh: Perlu percepatan input data harian agar rekap mingguan tepat waktu."
+              disabled={recSaving}
+            />
+          </div>
+
+          {recError && (
+            <p role="alert" className="mt-2 px-1 text-sm text-danger">
+              {recError}
+            </p>
+          )}
+
+          <div className="mt-3 flex justify-end px-1">
+            <Button
+              onClick={handleSaveRekomendasi}
+              disabled={recSaving}
+              className="w-full sm:w-auto"
+            >
+              {recSaving ? "Menyimpan..." : "Simpan rekomendasi"}
+            </Button>
+          </div>
         </RefListCard>
       </ContentGrid>
 
