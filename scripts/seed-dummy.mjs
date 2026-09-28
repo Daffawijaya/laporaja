@@ -156,6 +156,7 @@ async function main() {
     await supabase.from("keterangan_kegiatan").delete().in("kegiatan_id", oldIds);
     await supabase.from("kegiatan").delete().in("id", oldIds);
   }
+  await supabase.from("monthly_reviews").delete().in("user_id", userIds);
   for (const userId of userIds) {
     await supabase.from("user_sub_bidang").delete().eq("user_id", userId);
   }
@@ -168,21 +169,27 @@ async function main() {
     }
   }
 
-  // 5. Kegiatan bulan berjalan (tanggal 1-7 + hari ini).
+  // 5. Kegiatan bulan berjalan. Sebaran status bulanan yang ditarget:
+  // andi=Selesai, budi=Revisi (kegiatan), citra=Menunggu,
+  // dewi=Revisi (rekomendasi), eko=Belum lapor (tanpa kegiatan).
+  // Beberapa hari sengaja diisi lebih dari 1 kegiatan.
+  const HARI_PER_USER = [
+    [1, 1, 2, 3, 5], // andi
+    [2, 2, 3, 5], // budi
+    [3, 5, 7], // citra
+    [1, 3, 3, 5], // dewi
+    [], // eko
+  ];
   const now = new Date();
   const tahun = now.getFullYear();
   const bulan = now.getMonth() + 1;
   const lastDate = new Date(tahun, bulan, 0).getDate();
   const pad = (n) => String(n).padStart(2, "0");
-  const daySet = [...new Set([1, 2, 3, 5, 7, now.getDate()].filter((d) => d >= 1 && d <= lastDate))].sort(
-    (a, b) => a - b
-  );
 
   const kegiatanRows = [];
   DUMMY_USERS.forEach((dummy, ui) => {
-    const count = ui === 4 ? 1 : 4; // eko hanya 1 kegiatan
-    for (let k = 0; k < count; k++) {
-      const day = daySet[(ui + k) % daySet.length];
+    HARI_PER_USER[ui].forEach((day, k) => {
+      if (day < 1 || day > lastDate) return;
       kegiatanRows.push({
         user_id: userIds[ui],
         tanggal: `${tahun}-${pad(bulan)}-${pad(day)}`,
@@ -190,7 +197,7 @@ async function main() {
         _ui: ui,
         _k: k,
       });
-    }
+    });
   });
   const { data: kegiatanInserted, error: kegiatanError } = await supabase
     .from("kegiatan")
@@ -199,40 +206,89 @@ async function main() {
   if (kegiatanError) fail(`Gagal menambah kegiatan: ${kegiatanError.message}`);
   console.log(`${kegiatanInserted.length} kegiatan dummy dibuat.`);
 
-  // 6. Keterangan teks + gambar + review bervariasi (approved / revision / menunggu).
+  // Rekomendasi tiap user (kalimat depannya kapital). eko tanpa baris
+  // (belum lapor); dewi direvisi agar tombol Setujui-nya terkunci.
+  const REKOMENDASI = [
+    "Kegiatan bulan ini berjalan lancar sesuai rencana. Perlu percepatan input data harian agar rekap mingguan tepat waktu.",
+    "Monitoring progres perlu ditindaklanjuti lewat rapat koordinasi. Hasil lapangan dilaporkan setiap Jumat.",
+    "Sosialisasi program kerja butuh materi tambahan. Evaluasi event dibahas bersama tim pemasaran.",
+    "Arsip dokumen perlu digitalisasi bertahap.",
+  ];
+
+  // 6. Keterangan teks + gambar + review per user:
+  // andi semua approved; budi kegiatan pertama revision sisanya approved;
+  // citra tanpa review; dewi kegiatan pertama revision sisanya tanpa review.
+  const perUser = DUMMY_USERS.map((dummy, ui) =>
+    (kegiatanInserted ?? []).filter((k) => k.user_id === userIds[ui])
+  );
   let n = 0;
-  for (const k of kegiatanInserted ?? []) {
-    // urutan 1: gambar dulu (constraint tabel: tipe 'image' wajib image_url),
-    // supaya tampilannya "foto di atas, keterangannya di bawah".
-    const { error: gambarError } = await supabase.from("keterangan_kegiatan").insert({
-      kegiatan_id: k.id,
-      tipe: "image",
-      urutan: 1,
-      image_url: GAMBAR_PER_KEGIATAN.get(k.nama_kegiatan) ?? GAMBAR_CONTOH[n % GAMBAR_CONTOH.length],
-    });
-    if (gambarError) fail(`Gagal menambah gambar: ${gambarError.message}`);
+  for (let ui = 0; ui < perUser.length; ui++) {
+    for (const [kIdx, k] of perUser[ui].entries()) {
+      // urutan 1: gambar dulu (constraint tabel: tipe 'image' wajib image_url),
+      // supaya tampilannya "foto di atas, keterangannya di bawah".
+      const { error: gambarError } = await supabase.from("keterangan_kegiatan").insert({
+        kegiatan_id: k.id,
+        tipe: "image",
+        urutan: 1,
+        image_url: GAMBAR_PER_KEGIATAN.get(k.nama_kegiatan) ?? GAMBAR_CONTOH[n % GAMBAR_CONTOH.length],
+      });
+      if (gambarError) fail(`Gagal menambah gambar: ${gambarError.message}`);
 
-    // urutan 2: keterangan teks kegiatan yang duduk di bawah gambarnya.
-    const { error: ketError } = await supabase.from("keterangan_kegiatan").insert({
-      kegiatan_id: k.id,
-      tipe: "text",
-      urutan: 2,
-      isi_text: `Pelaksanaan ${k.nama_kegiatan.toLowerCase()} berjalan lancar sesuai rencana pada ${k.tanggal}.`,
-    });
-    if (ketError) fail(`Gagal menambah keterangan: ${ketError.message}`);
+      // urutan 2: keterangan teks kegiatan yang duduk di bawah gambarnya.
+      const { error: ketError } = await supabase.from("keterangan_kegiatan").insert({
+        kegiatan_id: k.id,
+        tipe: "text",
+        urutan: 2,
+        isi_text: `Pelaksanaan ${k.nama_kegiatan.toLowerCase()} berjalan lancar sesuai rencana pada ${k.tanggal}.`,
+      });
+      if (ketError) fail(`Gagal menambah keterangan: ${ketError.message}`);
 
-    const mode = n % 3;
-    if (mode === 0) {
-      const { error } = await supabase.from("reviews").insert({ kegiatan_id: k.id, status: "approved" });
-      if (error) fail(`Gagal menyimpan review: ${error.message}`);
-    } else if (mode === 1) {
-      const { error } = await supabase
-        .from("reviews")
-        .insert({ kegiatan_id: k.id, status: "revision", catatan: CATATAN_REVISI[n % CATATAN_REVISI.length] });
-      if (error) fail(`Gagal menyimpan review: ${error.message}`);
+      if (ui === 0) {
+        const { error } = await supabase.from("reviews").insert({ kegiatan_id: k.id, status: "approved" });
+        if (error) fail(`Gagal menyimpan review: ${error.message}`);
+      } else if (ui === 1) {
+        if (kIdx === 0) {
+          const { error } = await supabase
+            .from("reviews")
+            .insert({ kegiatan_id: k.id, status: "revision", catatan: CATATAN_REVISI[1] });
+          if (error) fail(`Gagal menyimpan review: ${error.message}`);
+        } else {
+          const { error } = await supabase.from("reviews").insert({ kegiatan_id: k.id, status: "approved" });
+          if (error) fail(`Gagal menyimpan review: ${error.message}`);
+        }
+      } else if (ui === 3 && kIdx === 0) {
+        const { error } = await supabase
+          .from("reviews")
+          .insert({ kegiatan_id: k.id, status: "revision", catatan: CATATAN_REVISI[0] });
+        if (error) fail(`Gagal menyimpan review: ${error.message}`);
+      }
+      n += 1;
     }
-    n += 1;
   }
+
+  // 6b. Baris review bulanan: andi disetujui; budi & citra menunggu;
+  // dewi direvisi (rekomendasinya) agar Setujui terkunci.
+  const monthlyRows = [
+    { ui: 0, status: "approved", catatan: null },
+    { ui: 1, status: "menunggu", catatan: null },
+    { ui: 2, status: "menunggu", catatan: null },
+    { ui: 3, status: "revision", catatan: "Rekomendasi belum memuat hasil kegiatan, lengkapi dulu." },
+  ];
+  for (const row of monthlyRows) {
+    const { error } = await supabase.from("monthly_reviews").upsert(
+      {
+        user_id: userIds[row.ui],
+        tahun,
+        bulan,
+        rekomendasi: REKOMENDASI[row.ui],
+        status: row.status,
+        catatan: row.catatan,
+      },
+      { onConflict: "user_id,tahun,bulan" }
+    );
+    if (error) fail(`Gagal menyimpan review bulanan: ${error.message}`);
+  }
+  console.log("Review bulanan dummy siap (1 selesai, 1 menunggu, 2 revisi, 1 belum lapor).");
 
   // 7. Indikator dummy (2 global + 1 milik bidang pertama).
   const { data: indExisting } = await supabase.from("indikator").select("id, nama");

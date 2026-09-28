@@ -27,6 +27,11 @@ security definer
 set search_path = public
 as $$
 begin
+  -- service_role (seed/migrasi) selalu lolos.
+  if auth.role() = 'service_role' then
+    NEW.updated_at = now();
+    return NEW;
+  end if;
   if not public.is_superadmin() then
     if TG_OP = 'UPDATE'
       and (NEW.status is distinct from OLD.status
