@@ -7,8 +7,8 @@ import { RefListCard } from "@/components/ui/ref-list-card";
 import { assertOk } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import { clampBulan, clampTahun, getMonthlyLaporan, getMonthlyReview, getUserMonthStats } from "@/lib/laporan/queries";
+import { getIndikatorProgress } from "@/lib/indikator/queries";
 import { NAMA_BULAN } from "@/components/laporan/types";
-import { AdminLaporanFilter } from "@/components/admin/admin-laporan-filter";
 import { AdminMonthRecap } from "@/components/admin/admin-month-recap";
 import { AdminMonthlyList } from "@/components/admin/admin-monthly-list";
 import { AdminMonthlyReview } from "@/components/admin/admin-monthly-review";
@@ -29,7 +29,7 @@ export default async function AdminLaporanPage({
   const supabase = await createClient();
   const { data: users, error: profilesError } = await supabase
     .from("profiles")
-    .select("id, username, nama")
+    .select("id, username, nama, bidang_id")
     .eq("role", "user")
     .order("nama");
   assertOk(profilesError, "Gagal memuat data pengguna. Coba lagi.");
@@ -40,10 +40,21 @@ export default async function AdminLaporanPage({
 
   // Lapis 2: detail bulanan satu user (tampilan lama + tombol kembali).
   if (selected) {
-    const [items, monthly] = await Promise.all([
+    const [items, monthly, indikators] = await Promise.all([
       getMonthlyLaporan(supabase, selected.id, tahun, bulan),
       getMonthlyReview(supabase, selected.id, tahun, bulan),
+      getIndikatorProgress(supabase, selected.id, tahun, bulan),
     ]);
+    // Nama bidang untuk jabatan penilai (tidak lagi hardcode).
+    let bidangNama: string | null = null;
+    if (selected.bidang_id) {
+      const { data: bidang } = await supabase
+        .from("bidang")
+        .select("nama")
+        .eq("id", selected.bidang_id)
+        .maybeSingle();
+      bidangNama = bidang?.nama ?? null;
+    }
     const revisiKegiatan = items.filter((item) => item.review?.status === "revision").length;
     return (
       <div className="w-full">
@@ -70,17 +81,97 @@ export default async function AdminLaporanPage({
           <ContentGrid
             gapClassName="lg:gap-3"
             aside={
-              <section aria-label="Filter laporan" className="ref-card p-4 pb-6">
-                <h2 className="text-sm font-semibold">Filter</h2>
-                <div className="mt-2 rounded-2xl bg-neutral-50 p-3 dark:bg-white/5">
-                  <AdminLaporanFilter
-                    users={userList.map((user) => ({ id: user.id, nama: user.nama, username: user.username }))}
-                    selectedUserId={selected.id}
-                    bulan={bulan}
-                    tahun={tahun}
-                  />
-                </div>
-              </section>
+              <div className="flex flex-col gap-6">
+                {/* Info penilai (hardcode dulu): gaya list sama seperti kartu lain. */}
+                <RefListCard ariaLabel="Info evaluasi">
+                  <ul className="divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
+                    <li className="flex items-center justify-between gap-3 px-1 pb-3">
+                      <span className="text-sm font-medium">Bulan</span>
+                      <span className="shrink-0 text-xs text-neutral-500">
+                        {NAMA_BULAN[bulan - 1]}
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between gap-3 px-1 py-3">
+                      <span className="text-sm font-medium">Tahun</span>
+                      <span className="shrink-0 text-xs text-neutral-500">{tahun}</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-3 px-1 py-3">
+                      <span className="text-sm font-medium">Nama</span>
+                      <span className="max-w-[65%] text-right text-xs text-neutral-500">
+                        Dafa Yan Wijaya, S.Kom
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between gap-3 px-1 py-3">
+                      <span className="text-sm font-medium">Jabatan</span>
+                    <span className="max-w-[65%] text-right text-xs text-neutral-500">
+                      {bidangNama ? `Tenaga Ahli Pendamping ${bidangNama}` : "Tenaga Ahli Pendamping"}
+                    </span>
+                    </li>
+                    <li className="flex items-center justify-between gap-3 px-1 pt-3">
+                      <span className="text-sm font-medium">Unit Kerja</span>
+                      <span className="max-w-[65%] text-right text-xs text-neutral-500">
+                        Diskop UKM Kutai Kartanegara - Bidang Pemberdayaan Usaha Mikro (PUM)
+                      </span>
+                    </li>
+                  </ul>
+                </RefListCard>
+
+                {/* Capaian indikator: jumlah kegiatan bulan ini per indikator. */}
+                {indikators.length > 0 && (
+                  <RefListCard ariaLabel="Indikator" title="Indikator">
+                    <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
+                      {indikators.map((indikator, idx) => {
+                        const persen =
+                          indikator.target == null
+                            ? 0
+                            : Math.min(100, Math.round((indikator.bulanIni / indikator.target) * 100));
+                        const pad =
+                          idx === 0
+                            ? "px-1 pb-3"
+                            : idx === indikators.length - 1
+                              ? "px-1 pt-3"
+                              : "px-1 py-3";
+                        return (
+                          <li key={indikator.id} className={pad}>
+                            <div className="flex items-baseline justify-between gap-3">
+                              <p className="min-w-0 truncate text-sm font-medium">
+                                {indikator.nama}
+                              </p>
+                              <p className="shrink-0 text-sm text-neutral-500">
+                                {indikator.target == null
+                                  ? `${indikator.bulanIni}`
+                                  : `${indikator.bulanIni} dari ${indikator.target}`}
+                              </p>
+                            </div>
+                            {indikator.target != null && (
+                              <div
+                                role="progressbar"
+                                aria-valuenow={indikator.bulanIni}
+                                aria-valuemin={0}
+                                aria-valuemax={indikator.target}
+                                aria-label={`Capaian ${indikator.nama}`}
+                                className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
+                              >
+                                <div
+                                  className="h-full rounded-full bg-accent"
+                                  style={{ width: `${persen}%` }}
+                                />
+                              </div>
+                            )}
+                            <p className="mt-1.5 text-xs text-neutral-500">
+                              {indikator.target == null
+                                ? "Target belum diatur"
+                                : `Target ${indikator.target} per bulan`}
+                              {" · "}
+                              total {indikator.total}
+                            </p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </RefListCard>
+                )}
+              </div>
             }
           >
             {/* Judul + Export di luar kartu: judul kiri, tombol kanan. */}
