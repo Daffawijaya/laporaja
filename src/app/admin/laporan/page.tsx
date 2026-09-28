@@ -49,7 +49,7 @@ export default async function AdminLaporanPage({
 
         <div className="mt-5 md:mt-1">
           <div className="mb-3 flex items-center gap-3">
-            <div className="ref-icon-btn-liquid shrink-0 bg-white/50! dark:bg-[rgb(28_28_30/0.85)]!">
+            <div className="ref-icon-btn-liquid shrink-0 bg-white/85! dark:bg-[rgb(28_28_30/0.85)]!">
               <Link
                 href={`/admin/laporan?bulan=${bulan}&tahun=${tahun}`}
                 aria-label={`Kembali ke rekap ${labelBulan}`}

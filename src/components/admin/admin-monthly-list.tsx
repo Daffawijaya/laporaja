@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PencilLine, Undo2 } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ChevronDown, PencilLine, Undo2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -39,8 +40,8 @@ async function saveReview(
 // Isi kartu daftar harian superadmin. Sengaja HANYA mengisi bagian dalam
 // RefListCard (judul + header kartu ada di halaman) dan memakai bahasa visual
 // yang sama dengan /laporan (monthly-list.tsx) serta dashboard admin:
-// judul hari di luar baris, isi baris dipisah divide-y, aksi ghost di kanan
-// bawah, catatan revisi kotak amber.
+// tiap tanggal berupa akordeon (tanggal kiri, jumlah kegiatan + chevron kanan),
+// isi baris dipisah divide-y, aksi pill di kanan bawah, catatan revisi kotak amber.
 export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
   const router = useRouter();
   const toast = useToast();
@@ -59,6 +60,24 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
   const [cancelTarget, setCancelTarget] = useState<KegiatanItem | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+
+  // Akordeon per tanggal: tampil ringkas dulu (tanggal + jumlah kegiatan),
+  // detail dibuka lewat chevron. Saat search aktif (?q=) semua otomatis
+  // terbuka supaya hasil filter langsung kelihatan.
+  const [openDays, setOpenDays] = useState<Set<string>>(new Set());
+
+  function toggleDay(tanggal: string) {
+    setOpenDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(tanggal)) next.delete(tanggal);
+      else next.add(tanggal);
+      return next;
+    });
+  }
+
+  const isDayOpen = (tanggal: string) => (query ? true : openDays.has(tanggal));
+  // Hormati preferensi gerak (pola yang sama dengan Dialog).
+  const reduceMotion = !!useReducedMotion();
 
   const visibleItems = query
     ? items.filter((item) => item.nama.toLowerCase().includes(query))
@@ -161,17 +180,75 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
           }
         />
       ) : (
-        <div className="mt-4 flex flex-col gap-6">
-          {days.map((tanggal) => {
+        <ul className="mt-4 divide-y divide-neutral-200/70 dark:divide-white/10">
+          {days.map((tanggal, i) => {
             const daftar = grouped.get(tanggal) ?? [];
+            // Ritme padding baris persis RefListCard (Laporan September 2026):
+            // pertama tanpa pt, tengah py-3, terakhir tanpa pb.
+            const pad = i === 0 ? " pb-3" : i === days.length - 1 ? " pt-3" : " py-3";
             return (
-              <section key={tanggal} aria-label={formatHariTanggal(tanggal)}>
-                <div className="flex items-baseline gap-2">
-                  <h2 className="text-sm font-semibold">{formatHariTanggal(tanggal)}</h2>
-                  {tanggal === todayISO && <span className="text-xs text-accent">Hari ini</span>}
-                </div>
+              <li key={tanggal} className={`px-1${pad}`}>
+                {/* Baris tanggal persis gaya baris RefListCard
+                    (Laporan September 2026): judul medium + sub kecil di kiri,
+                    chevron di kanan. */}
+                <button
+                  type="button"
+                  onClick={() => toggleDay(tanggal)}
+                  aria-expanded={isDayOpen(tanggal)}
+                  aria-label={`${formatHariTanggal(tanggal)}, ${daftar.length} kegiatan`}
+                  className="transition-soft flex w-full items-center justify-between gap-3 text-left hover:text-black dark:hover:text-white"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">
+                      {formatHariTanggal(tanggal)}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs text-neutral-500">
+                      {daftar.length} kegiatan
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1">
+                    {tanggal === todayISO && (
+                      <span className="text-xs text-accent">Hari ini</span>
+                    )}
+                    <motion.span
+                      aria-hidden="true"
+                      className="flex shrink-0 text-neutral-400"
+                      animate={{ rotate: isDayOpen(tanggal) ? 180 : 0 }}
+                      transition={
+                        reduceMotion
+                          ? { duration: 0.15 }
+                          : { type: "spring", stiffness: 500, damping: 32 }
+                      }
+                    >
+                      <ChevronDown className="size-5" />
+                    </motion.span>
+                  </span>
+                </button>
 
-                <ul className="mt-2 divide-y divide-neutral-200/70 dark:divide-white/10">
+                {/* Slide buka/tutup pakai spring ala liquid glass Apple
+                    (pola yang sama dengan Dialog): height 0↔auto + fade,
+                    critically-damped supaya mulus tanpa overshoot. */}
+                <AnimatePresence initial={false}>
+                  {isDayOpen(tanggal) && (
+                    <motion.div
+                      key={`day-${tanggal}`}
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={
+                        reduceMotion
+                          ? { duration: 0.15 }
+                          : {
+                              type: "spring",
+                              stiffness: 360,
+                              damping: 37,
+                              mass: 0.9,
+                              opacity: { duration: 0.22 },
+                            }
+                      }
+                      className="overflow-hidden"
+                    >
+                      <ul className="mt-2 divide-y divide-neutral-200/70 pb-1 dark:divide-white/10">
                   {daftar.map((item) => {
                     const revisi = item.review?.status === "revision";
                     // Semua gambar dan teks ditampilkan utuh (tanpa dipotong):
@@ -240,12 +317,15 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                         </div>
                       </li>
                     );
-                  })}
-                </ul>
-              </section>
+                      })}
+                      </ul>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
 
       <Dialog open={reviseOpen} onClose={closeRevise} title="Revisi kegiatan">
