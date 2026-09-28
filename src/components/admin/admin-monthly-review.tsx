@@ -171,7 +171,7 @@ export function AdminMonthlyReview({
               }}
               disabled={cancelling}
               aria-label="Batalkan revisi rekomendasi"
-              className="rounded-full bg-black/10 text-black hover:bg-black/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
+              className="min-h-[36px] rounded-full bg-black/[0.075] px-3 text-xs text-accent hover:bg-black/15 hover:text-accent-hover dark:bg-white/10 dark:hover:bg-white/15"
             >
               <Undo2 aria-hidden="true" />
               <span className="hidden sm:inline">
@@ -187,7 +187,7 @@ export function AdminMonthlyReview({
                 setReviseOpen(true);
               }}
               aria-label="Revisi rekomendasi"
-              className="rounded-full bg-black/10 text-black hover:bg-black/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
+              className="min-h-[36px] rounded-full bg-black/[0.075] px-3 text-xs text-accent hover:bg-black/15 hover:text-accent-hover dark:bg-white/10 dark:hover:bg-white/15"
             >
               <PencilLine aria-hidden="true" />
               <span className="hidden sm:inline">Revisi</span>

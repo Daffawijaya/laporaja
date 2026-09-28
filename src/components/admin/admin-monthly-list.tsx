@@ -297,7 +297,7 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                         )}
 
                         {(imageRows.length > 0 || textRows.length > 0) && (
-                          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="mt-2 grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             {imageRows.map((row, index) => (
                               <figure
                                 key={row.id}
