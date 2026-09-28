@@ -44,19 +44,24 @@ export default async function AdminLaporanPage({
       <div className="w-full">
         <div className="md:hidden">
           <h1 className="text-xl font-semibold tracking-tight">Laporan User</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {selected.nama} · {labelBulan}
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Rekap {labelBulan}</p>
         </div>
 
         <div className="mt-5 md:mt-1">
-          <Link
-            href={`/admin/laporan?bulan=${bulan}&tahun=${tahun}`}
-            className="mb-3 inline-flex min-h-[44px] items-center gap-1 text-sm text-muted-foreground transition-soft hover:text-accent"
-          >
-            <ChevronLeft aria-hidden="true" className="size-4" />
-            Rekap {labelBulan}
-          </Link>
+          <div className="mb-3 flex items-center gap-3">
+            <div className="ref-icon-btn-liquid shrink-0 bg-white/50! dark:bg-[rgb(28_28_30/0.85)]!">
+              <Link
+                href={`/admin/laporan?bulan=${bulan}&tahun=${tahun}`}
+                aria-label={`Kembali ke rekap ${labelBulan}`}
+                className="ref-icon-btn-plain"
+              >
+                <ChevronLeft aria-hidden="true" className="size-5" />
+              </Link>
+            </div>
+            <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight">
+              {selected.nama}
+            </h2>
+          </div>
           <ContentGrid
             gapClassName="lg:gap-3"
             aside={
@@ -73,11 +78,10 @@ export default async function AdminLaporanPage({
               </section>
             }
           >
-            {/* Bahasa visual yang sama dengan /laporan dan dashboard admin:
-                RefListCard (judul di luar kartu, isi rata dengan header). */}
+            {/* Nama user sudah pindah ke baris tombol kembali di atas,
+                jadi card ini tanpa judul luar. */}
             <RefListCard
               ariaLabel={`Kegiatan ${selected.nama} ${labelBulan}`}
-              title={selected.nama}
               className="mt-2 md:mt-0"
             >
               {/* Baris header kartu, sama seperti baris tombol di /laporan. */}
@@ -85,7 +89,7 @@ export default async function AdminLaporanPage({
                 <p className="min-w-0 text-sm text-neutral-500">
                   {selected.username} · {labelBulan}
                 </p>
-                <Button asChild variant="ghost" className="w-full sm:w-auto">
+                <Button asChild variant="default" className="w-full rounded-full sm:w-auto">
                   <Link
                     href={`/admin/laporan/export?user=${selected.id}&bulan=${bulan}&tahun=${tahun}`}
                   >

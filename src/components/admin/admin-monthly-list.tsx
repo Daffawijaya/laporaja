@@ -194,7 +194,7 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                                 key={row.id}
                                 path={row.image_url as string}
                                 alt={`Gambar ${index + 1} kegiatan ${item.nama}`}
-                                className="size-14 rounded-md border border-border object-cover"
+                                className="size-20 rounded-md border border-border object-cover"
                               />
                             ))}
                           </div>
@@ -221,6 +221,7 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                                 setCancelTarget(item);
                               }}
                               aria-label={`Batalkan revisi ${item.nama}`}
+                              className="rounded-full bg-black/10 text-black hover:bg-black/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
                             >
                               <Undo2 aria-hidden="true" />
                               <span className="hidden sm:inline">Batalkan revisi</span>
@@ -230,6 +231,7 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
                               variant="ghost"
                               onClick={() => openRevise(item)}
                               aria-label={`Revisi ${item.nama}`}
+                              className="rounded-full bg-black/10 text-black hover:bg-black/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
                             >
                               <PencilLine aria-hidden="true" />
                               <span className="hidden sm:inline">Revisi</span>
