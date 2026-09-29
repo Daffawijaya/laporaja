@@ -11,20 +11,14 @@ import { cn } from "@/lib/utils";
 import "./glass-select.css";
 
 // Config kaca SALINAN pill LiquidGlassTabs (liquid-glass-tabs.tsx) supaya
-// panel dropdown optically sama: tanpa tint biru, refraksi tepi strong +
-// kilau tepi + blur background strong.
+// panel dropdown optically sama: tanpa tint biru, tanpa kilau putih
+// (specular 0), refraksi tepi + blur backdrop tipis.
 const GLASS_CONFIG = {
   ...DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
-  // Refraksi tepi dibuat strong: lenturan lebih dalam + pita lebih lebar.
-  glassThickness: 44,
-  bezelWidth: 56,
-  // Pengali lenturan + kilau tepi: panel bg-nya datar (#fafafa) sehingga
-  // refraksi saja hampir tak terlihat — kilau yang bikin kaca terbaca.
-  scaleRatio: 1.6,
-  specularOpacity: 0.35,
-  // Frosted: bg di balik panel diblur strong agar kartu di belakangnya
-  // terbaca samar (stdDeviation 2 — 0 = tidak ada frost sama sekali).
-  blur: 2,
+  glassThickness: 24,
+  // stdDeviation tipis: 0 = tidak ada frost sama sekali, 1 = sudah noticeable.
+  blur: 0.6,
+  specularOpacity: 0,
   specularSat: 0,
   tintColor: "255,255,255",
   tintOpacity: 0,

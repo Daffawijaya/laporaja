@@ -11,20 +11,13 @@ import { cn } from "@/lib/utils";
 import "./glass-select.css";
 
 // Config kaca SAMA PERSIS panel dropdown (glass-select.tsx) supaya menu aksi
-// terlihat seperti komponen dropdown itu: tanpa tint biru, refraksi tepi
-// strong + kilau tepi + blur background strong.
+// terlihat seperti komponen dropdown itu: tanpa tint biru, tanpa kilau,
+// refraksi tepi + blur tipis.
 const GLASS_CONFIG = {
   ...DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
-  // Refraksi tepi dibuat strong: lenturan lebih dalam + pita lebih lebar.
-  // (samakan glass-select.tsx).
-  glassThickness: 44,
-  bezelWidth: 56,
-  // Pengali lenturan + kilau tepi: panel bg-nya datar sehingga refraksi
-  // saja hampir tak terlihat — kilau yang bikin kaca terbaca.
-  scaleRatio: 1.6,
-  specularOpacity: 0.35,
-  // Frosted: bg di balik panel diblur strong (samakan glass-select.tsx).
-  blur: 2,
+  glassThickness: 24,
+  blur: 0.6,
+  specularOpacity: 0,
   specularSat: 0,
   tintColor: "255,255,255",
   tintOpacity: 0,
