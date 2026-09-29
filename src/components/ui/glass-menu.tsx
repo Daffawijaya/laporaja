@@ -7,6 +7,7 @@ import {
   DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
   applyLiquidGlass,
 } from "@/lib/liquid-glass";
+import { useOverlay } from "@/components/ui/overlay-host";
 import { cn } from "@/lib/utils";
 import "./glass-select.css";
 
@@ -112,6 +113,9 @@ export function GlassMenu({
   const [open, setOpen] = React.useState(false);
   const [shown, setShown] = React.useState(false);
   const [cursor, setCursor] = React.useState(0);
+  // Overlay global (hitam 5%): tahan selama panel ter-mount (termasuk
+  // animasi keluar) agar pindah dropdown→modal tidak memicu fade.
+  useOverlay(mounted);
 
   React.useEffect(() => {
     if (!mounted) return;

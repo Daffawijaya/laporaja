@@ -291,12 +291,14 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Hapus bidang"
+        title={
+          deleteTarget ? `Hapus bidang "${deleteTarget.nama}"?` : "Hapus bidang"
+        }
         message={
           deleteTarget
             ? deleteTarget.userCount > 0
-              ? `Hapus bidang '${deleteTarget.nama}'? ${deleteTarget.userCount} user akan menjadi tanpa bidang.`
-              : `Hapus bidang '${deleteTarget.nama}'?`
+              ? `Jika bidang ini dihapus, ${deleteTarget.userCount} user akan menjadi tanpa bidang.`
+              : "Bidang ini akan dihapus permanen."
             : ""
         }
         busy={deleting}

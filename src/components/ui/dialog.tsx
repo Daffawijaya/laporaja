@@ -8,6 +8,7 @@ import {
   applyLiquidGlass,
   type LiquidGlassHandle,
 } from "@/lib/liquid-glass";
+import { useOverlay } from "@/components/ui/overlay-host";
 import { cn } from "@/lib/utils";
 
 // Config kaca SALINAN panel dropdown (glass-select.tsx) supaya ujung modal
@@ -82,6 +83,9 @@ export function Dialog({
   const glassHandleRef = useRef<LiquidGlassHandle | null>(null);
   const isDesktop = useDesktop();
   const reduceMotion = !!useReducedMotion();
+  // Overlay global (hitam 5%): acquire selama modal tampil. Pindah
+  // modal→modal tidak memicu fade karena counter tidak pernah 0.
+  useOverlay(open);
   // will-change dicabut sesudah animasi buka selesai: selama menempel,
   // panel menjadi containing block bagi dropdown fixed (GlassSelect/
   // GlassMenu) sehingga panel dropdown terklip overflow-hidden modal
@@ -151,8 +155,6 @@ export function Dialog({
           }}
           transition={{ duration: reduceMotion ? 0.15 : 0.2 }}
         >
-          {/* Tanpa overlay & blur: bg asli halaman dibiarkan terlihat. */}
-          <div className="absolute inset-0" aria-hidden="true" />
           <motion.div
             ref={attachGlass}
             role="dialog"

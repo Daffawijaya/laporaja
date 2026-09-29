@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { AuthListener } from "@/components/auth/auth-listener";
 import { ToastProvider } from "@/components/ui/toast";
+import { OverlayHost } from "@/components/ui/overlay-host";
 import { FxFilterLoader } from "@/components/ui/fx-filter-loader";
 import "./globals.css";
 
@@ -39,6 +40,7 @@ export default function RootLayout({
           <FxFilterLoader />
           <ToastProvider>
             <AuthListener />
+            <OverlayHost />
             {children}
           </ToastProvider>
         </ThemeProvider>
