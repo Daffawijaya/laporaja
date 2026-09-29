@@ -11,9 +11,11 @@ import {
   HiOutlineBell,
   HiChartBar,
   HiClipboardDocumentList,
+  HiFlag,
   HiHome,
   HiOutlineChartBar,
   HiOutlineClipboardDocumentList,
+  HiOutlineFlag,
   HiOutlineHome,
   HiOutlineSquares2X2,
   HiOutlineUserCircle,
@@ -130,8 +132,8 @@ export function DesktopWindow({
           key: "indikator",
           label: "Indikator",
           href: "/admin/indikator",
-          ActiveIcon: HiChartBar,
-          IdleIcon: HiOutlineChartBar,
+          ActiveIcon: HiFlag,
+          IdleIcon: HiOutlineFlag,
         },
       ]
     : [

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Pencil, Plus, Target, Trash2 } from "lucide-react";
+import { Flag, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, useModalKey } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { GlassMenu } from "@/components/ui/glass-menu";
+import { RefListCard } from "@/components/ui/ref-list-card";
 import { IndikatorBidangDialog } from "@/components/admin/indikator-bidang-dialog";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
@@ -152,86 +154,98 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-neutral-500">
-          {visibleItems.length === 0 ? "Belum ada bidang." : `${visibleItems.length} bidang.`}
-        </p>
-        <Button onClick={openAdd}>
-          <Plus aria-hidden="true" />
-          Tambah
-        </Button>
-      </div>
+    <div className="w-full">
+      <RefListCard ariaLabel="Bidang">
+        {pageError && (
+          <p role="alert" className="mb-3 text-sm text-danger">
+            {pageError}
+          </p>
+        )}
 
-      {pageError && (
-        <p role="alert" className="mt-3 text-sm text-danger">
-          {pageError}
-        </p>
-      )}
-
-      {visibleItems.length === 0 ? (
-        <EmptyState
-          className="mt-4"
-          title={query ? "Tidak ada hasil" : "Belum ada bidang"}
-          description={
-            query
-              ? `Tidak ada yang cocok dengan "${query}".`
-              : "Tambahkan bidang pertama untuk mengelompokkan pengguna."
-          }
-          action={
-            query ? undefined : (
-              <Button onClick={openAdd}>
-                <Plus aria-hidden="true" />
-                Tambah Bidang
-              </Button>
-            )
-          }
-        />
-      ) : (
-        <ul className="mt-2 divide-y divide-neutral-200/70 dark:divide-white/10">
-          {visibleItems.map((item) => (
-            <li
-              key={item.id}
-              className="flex min-h-[56px] items-center justify-between gap-3 px-1 py-2"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{item.nama}</p>
-                <p className="text-xs text-neutral-500">
-                  {item.userCount === 0 ? "Belum ada user" : `${item.userCount} user`}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  variant="ghost"
-                  onClick={() => openIndikator(item)}
-                  aria-label={`Indikator ${item.nama}`}
-                >
-                  <Target aria-hidden="true" />
-                  <span className="hidden sm:inline">Indikator</span>
+        {visibleItems.length === 0 ? (
+          <EmptyState
+            title={query ? "Tidak ada hasil" : "Belum ada bidang"}
+            description={
+              query
+                ? `Tidak ada yang cocok dengan "${query}".`
+                : "Tambahkan bidang pertama untuk mengelompokkan pengguna."
+            }
+            action={
+              query ? undefined : (
+                <Button onClick={openAdd}>
+                  <Plus aria-hidden="true" />
+                  Tambah Bidang
                 </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => openEdit(item)}
-                  aria-label={`Ubah ${item.nama}`}
-                >
-                  <Pencil aria-hidden="true" />
-                  <span className="hidden sm:inline">Ubah</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setPageError(null);
-                    setDeleteTarget(item);
-                  }}
-                  aria-label={`Hapus ${item.nama}`}
-                >
-                  <Trash2 aria-hidden="true" />
-                  <span className="hidden sm:inline">Hapus</span>
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
+              )
+            }
+          />
+        ) : (
+          /* Baris ramping ala halaman Pengguna: judul + subtitle,
+             aksi menciut jadi menu titik-tiga abu di kanan. */
+          <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
+            {visibleItems.map((item, i) => {
+              const pad =
+                visibleItems.length === 1
+                  ? ""
+                  : i === 0
+                    ? " pb-3"
+                    : i === visibleItems.length - 1
+                      ? " pt-3"
+                      : " py-3";
+              return (
+                <li key={item.id}>
+                  <div className={`flex items-center justify-between gap-3 px-1${pad}`}>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">
+                        {item.nama}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-neutral-500">
+                        {item.userCount === 0
+                          ? "Belum ada user"
+                          : `${item.userCount} user`}
+                      </span>
+                    </span>
+                    <GlassMenu
+                      label={`Aksi ${item.nama}`}
+                      items={[
+                        {
+                          key: "indikator",
+                          label: "Indikator",
+                          icon: <Flag aria-hidden="true" />,
+                          onSelect: () => openIndikator(item),
+                        },
+                        {
+                          key: "edit",
+                          label: "Ubah",
+                          icon: <Pencil aria-hidden="true" />,
+                          onSelect: () => openEdit(item),
+                        },
+                        {
+                          key: "delete",
+                          label: "Hapus",
+                          icon: <Trash2 aria-hidden="true" />,
+                          danger: true,
+                          onSelect: () => {
+                            setPageError(null);
+                            setDeleteTarget(item);
+                          },
+                        },
+                      ]}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </RefListCard>
+      {visibleItems.length > 0 && (
+        <div className="mt-3 flex justify-end">
+          <Button onClick={openAdd} className="rounded-full">
+            <Plus aria-hidden="true" />
+            Tambah
+          </Button>
+        </div>
       )}
 
       <Dialog

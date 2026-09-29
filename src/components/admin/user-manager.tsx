@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GlassMenu } from "@/components/ui/glass-menu";
+import { LiquidGlassTabs } from "@/components/ui/liquid-glass-tabs";
 import { RefListCard } from "@/components/ui/ref-list-card";
 import { useModalKey } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
@@ -80,16 +81,35 @@ export function UserManager({
     setDialog({ mode: "edit", user });
   }
 
+  // Filter tab bidang persis pola AdminMonthRecap (laporan): Semua +
+  // tiap bidang + Tanpa bidang. Tanpa angka (showCounts false).
+  const [filter, setFilter] = useState("semua");
+  const filterTabs = [
+    { key: "semua", label: "Semua" },
+    ...bidangOptions.map((bidang) => ({
+      key: `bidang:${bidang.id}`,
+      label: bidang.nama,
+    })),
+    { key: "tanpa", label: "Tanpa bidang" },
+  ];
+
   // Filter dari search global titlebar (?q=).
   const searchParams = useSearchParams();
   const query = (searchParams.get("q") ?? "").trim().toLowerCase();
-  const visibleUsers = query
-    ? users.filter(
-        (user) =>
-          user.profile.nama.toLowerCase().includes(query) ||
-          user.profile.username.toLowerCase().includes(query)
-      )
-    : users;
+  const visibleUsers = users.filter((user) => {
+    if (
+      query &&
+      !user.profile.nama.toLowerCase().includes(query) &&
+      !user.profile.username.toLowerCase().includes(query)
+    ) {
+      return false;
+    }
+    if (filter === "tanpa") return user.profile.bidang_id == null;
+    if (filter.startsWith("bidang:")) {
+      return user.profile.bidang_id === filter.slice("bidang:".length);
+    }
+    return true;
+  });
 
   function initialFor(target: { mode: "add" } | { mode: "edit"; user: AdminUserRow }): UserFormInitial {
     if (target.mode === "add") {
@@ -149,7 +169,22 @@ export function UserManager({
 
   return (
     <div className="w-full">
-      <RefListCard ariaLabel="Pengguna">
+      {/* Bar filter tab persis AdminMonthRecap (tanpa pilih bulan/tahun). */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <LiquidGlassTabs
+          ariaLabel="Filter bidang"
+          value={filter}
+          onChange={setFilter}
+          showCounts={false}
+          tabs={filterTabs}
+        />
+      </div>
+
+      <RefListCard
+        ariaLabel="Tenaga Ahli Pendamping 2026"
+        title="Tenaga Ahli Pendamping 2026"
+        className="mt-2"
+      >
         {pageError && (
           <p role="alert" className="mb-3 text-sm text-danger">
             {pageError}
@@ -158,14 +193,18 @@ export function UserManager({
 
         {visibleUsers.length === 0 ? (
           <EmptyState
-            title={query ? "Tidak ada hasil" : "Belum ada user"}
+            title={
+              query || filter !== "semua" ? "Tidak ada hasil" : "Belum ada user"
+            }
             description={
               query
                 ? `Tidak ada yang cocok dengan "${query}".`
-                : "Tambahkan user pertama agar mereka dapat mulai melapor."
+                : filter !== "semua"
+                  ? "Tidak ada user pada filter ini."
+                  : "Tambahkan user pertama agar mereka dapat mulai melapor."
             }
             action={
-              query ? undefined : (
+              query || filter !== "semua" ? undefined : (
                 <Button onClick={openAdd}>
                   <Plus aria-hidden="true" />
                   Tambah User

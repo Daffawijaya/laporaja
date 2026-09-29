@@ -6,9 +6,11 @@ import { usePathname } from "next/navigation";
 import {
   HiChartBar,
   HiClipboardDocumentList,
+  HiFlag,
   HiHome,
   HiOutlineChartBar,
   HiOutlineClipboardDocumentList,
+  HiOutlineFlag,
   HiOutlineHome,
   HiOutlinePlus,
   HiOutlineSquares2X2,
@@ -38,8 +40,8 @@ const USER_SLOTS: Slot[] = [
     label: "Indikator",
     href: "/laporan",
     hash: "#indikator",
-    ActiveIcon: HiChartBar,
-    IdleIcon: HiOutlineChartBar,
+    ActiveIcon: HiFlag,
+    IdleIcon: HiOutlineFlag,
   },
   { key: "tambah", label: "Tambah", href: "/laporan", ActiveIcon: HiPlus, IdleIcon: HiOutlinePlus },
   {
@@ -72,8 +74,8 @@ const ADMIN_SLOTS: Slot[] = [
     key: "indikator",
     label: "Indikator",
     href: "/admin/indikator",
-    ActiveIcon: HiChartBar,
-    IdleIcon: HiOutlineChartBar,
+    ActiveIcon: HiFlag,
+    IdleIcon: HiOutlineFlag,
   },
 ];
 

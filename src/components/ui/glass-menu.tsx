@@ -272,7 +272,12 @@ export function GlassMenu({
               >
                 <span className="flex min-w-0 items-center gap-2">
                   {item.icon ? (
-                    <span className="flex shrink-0 items-center opacity-70 [&_svg]:size-4">
+                    <span
+                      className={cn(
+                        "flex shrink-0 items-center opacity-70 [&_svg]:size-4",
+                        item.danger && "text-danger"
+                      )}
+                    >
                       {item.icon}
                     </span>
                   ) : null}

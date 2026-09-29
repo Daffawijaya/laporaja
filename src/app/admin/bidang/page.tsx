@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { assertOk } from "@/lib/errors";
 import { ContentGrid } from "@/components/layout/content-grid";
+import { RefListCard } from "@/components/ui/ref-list-card";
 import { BidangManager } from "@/components/admin/bidang-manager";
 
 export interface BidangWithCount {
@@ -48,31 +49,17 @@ export default async function BidangPage() {
         <ContentGrid
           gapClassName="lg:gap-3"
           aside={
-            <section aria-label="Ringkasan" className="ref-card p-4 pb-6">
-              <h2 className="text-sm font-semibold">Ringkasan</h2>
-              <ul className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
-                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
-                  <span className="text-neutral-500">Total bidang</span>
-                  <span className="font-medium">{initial.length}</span>
-                </li>
-                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
-                  <span className="text-neutral-500">Total user</span>
-                  <span className="font-medium">{totalUser}</span>
-                </li>
-                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
-                  <span className="text-neutral-500">Bidang kosong</span>
-                  <span className="font-medium">{kosong}</span>
-                </li>
-              </ul>
-            </section>
+            <RefListCard
+              ariaLabel="Ringkasan"
+              items={[
+                { key: "total", title: "Total bidang", desc: String(initial.length) },
+                { key: "user", title: "Total user", desc: String(totalUser) },
+                { key: "kosong", title: "Bidang kosong", desc: String(kosong) },
+              ]}
+            />
           }
         >
-          <div className="ref-card p-4 pb-6">
-            <h2 className="text-sm font-semibold">Bidang</h2>
-            <div className="mt-2">
-              <BidangManager initial={initial} />
-            </div>
-          </div>
+          <BidangManager initial={initial} />
         </ContentGrid>
       </div>
     </div>
