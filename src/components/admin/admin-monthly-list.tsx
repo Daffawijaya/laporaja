@@ -384,10 +384,12 @@ export function AdminMonthlyList({ items }: { items: KegiatanItem[] }) {
 
       <ConfirmDialog
         open={cancelTarget !== null}
-        title="Batalkan revisi"
+        title={
+          cancelTarget ? `Batalkan revisi "${cancelTarget.nama}"?` : "Batalkan revisi"
+        }
         message={
           cancelTarget
-            ? `Batalkan revisi "${cancelTarget.nama}"? Catatan revisinya dihapus dan kegiatan dianggap sudah beres.`
+            ? "Jika dibatalkan, catatan revisinya dihapus dan kegiatan dianggap sudah beres."
             : ""
         }
         confirmLabel="Batalkan revisi"

@@ -160,12 +160,12 @@ export function Dialog({
             onClick={(event) => event.stopPropagation()}
             className={cn(
               // Cangkang persis panel dropdown (.gsp-panel): bg 85% +
-              // border putih 2px + shadow yang sama, terang maupun gelap.
+              // border putih + shadow yang sama, terang maupun gelap.
               // Kaca refraksi dipasang via applyLiquidGlass (efek timer).
               // dlg-panel = scope gaya tombol & input modal (lihat globals.css).
               "dlg-panel relative flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden outline-none",
               !animDone && "will-change-transform",
-              "rounded-t-[32px] border-2 border-white bg-[#fafafa]/85 shadow-[0_4px_14px_rgb(0_0_0/0.1)] sm:rounded-[32px]",
+              "rounded-t-[32px] border border-white bg-[#fafafa]/85 shadow-[0_4px_14px_rgb(0_0_0/0.1)] sm:rounded-[32px]",
               "dark:border-white/12 dark:bg-[#222222]/85 dark:shadow-[0_4px_14px_rgb(0_0_0/0.4)]"
             )}
             style={{ transformOrigin: "center" }}

@@ -395,10 +395,12 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Hapus indikator"
+        title={
+          deleteTarget ? `Hapus indikator "${deleteTarget.nama}"?` : "Hapus indikator"
+        }
         message={
           deleteTarget
-            ? `Hapus indikator '${deleteTarget.nama}'? Tautan ke kegiatan ikut terhapus.`
+            ? "Jika indikator ini dihapus, tautan ke kegiatan ikut terhapus."
             : ""
         }
         busy={deleting}

@@ -300,10 +300,12 @@ export function UserManager({
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Hapus user"
+        title={
+          deleteTarget ? `Hapus user "${deleteTarget.profile.username}"?` : "Hapus user"
+        }
         message={
           deleteTarget
-            ? `Hapus user '${deleteTarget.profile.username}'? Akun login beserta seluruh datanya ikut terhapus.`
+            ? "Jika user ini dihapus, akun login beserta seluruh datanya ikut terhapus."
             : ""
         }
         busy={deleting}

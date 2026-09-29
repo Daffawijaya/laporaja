@@ -55,6 +55,21 @@ export default async function AdminLaporanPage({
         .maybeSingle();
       bidangNama = bidang?.nama ?? null;
     }
+    // Sub bidang user (boleh banyak) untuk jabatan:
+    // "Tenaga Ahli Pendamping Bidang Sub1, Sub2" (tanpa kurung).
+    const { data: subs } = await supabase
+      .from("user_sub_bidang")
+      .select("nama")
+      .eq("user_id", selected.id)
+      .order("nama");
+    const subNama = (subs ?? []).map((sub) => sub.nama).filter(Boolean);
+    const jabatan = [
+      "Tenaga Ahli Pendamping",
+      bidangNama,
+      subNama.length > 0 ? subNama.join(", ") : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
     const revisiKegiatan = items.filter((item) => item.review?.status === "revision").length;
     return (
       <div className="w-full">
@@ -105,7 +120,7 @@ export default async function AdminLaporanPage({
                     <li className="flex items-center justify-between gap-3 px-1 py-3">
                       <span className="text-sm font-medium">Jabatan</span>
                     <span className="max-w-[65%] text-right text-xs text-neutral-500">
-                      {bidangNama ? `Tenaga Ahli Pendamping ${bidangNama}` : "Tenaga Ahli Pendamping"}
+                      {jabatan}
                     </span>
                     </li>
                     <li className="flex items-center justify-between gap-3 px-1 pt-3">

@@ -512,10 +512,12 @@ export function MonthlyList({
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Hapus kegiatan"
+        title={
+          deleteTarget ? `Hapus kegiatan "${deleteTarget.nama}"?` : "Hapus kegiatan"
+        }
         message={
           deleteTarget
-            ? `Hapus kegiatan '${deleteTarget.nama}' beserta seluruh keterangannya?`
+            ? "Jika kegiatan ini dihapus, seluruh keterangannya ikut terhapus."
             : ""
         }
         busy={deleting}

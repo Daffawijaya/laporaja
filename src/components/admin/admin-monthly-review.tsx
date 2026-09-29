@@ -269,8 +269,8 @@ export function AdminMonthlyReview({
 
       <ConfirmDialog
         open={confirmApprove}
-        title="Setujui laporan"
-        message={`Setujui laporan ${userNama} ${labelBulan}? Laporan dianggap selesai dan tidak menunggu review lagi.`}
+        title={`Setujui laporan ${userNama} ${labelBulan}?`}
+        message="Jika disetujui, laporan dianggap selesai dan tidak menunggu review lagi."
         confirmLabel="Setujui"
         busy={approving}
         onCancel={() => setConfirmApprove(false)}

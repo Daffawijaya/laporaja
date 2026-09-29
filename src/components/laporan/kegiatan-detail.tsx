@@ -217,8 +217,8 @@ export function KegiatanDetail({
 
       <ConfirmDialog
         open={confirming}
-        title="Hapus kegiatan"
-        message={`Hapus kegiatan '${item.nama}' beserta seluruh keterangannya?`}
+        title={`Hapus kegiatan "${item.nama}"?`}
+        message="Jika kegiatan ini dihapus, seluruh keterangannya ikut terhapus."
         busy={deleting}
         onCancel={() => setConfirming(false)}
         onConfirm={handleDelete}
