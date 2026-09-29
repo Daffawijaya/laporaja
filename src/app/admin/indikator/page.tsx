@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { assertOk } from "@/lib/errors";
 import { ContentGrid } from "@/components/layout/content-grid";
+import { RefListCard } from "@/components/ui/ref-list-card";
 import { IndikatorManager, type IndikatorRow } from "@/components/admin/indikator-manager";
 
 export default async function IndikatorPage() {
@@ -84,40 +85,29 @@ export default async function IndikatorPage() {
         <ContentGrid
           gapClassName="lg:gap-3"
           aside={
-            <section aria-label="Ringkasan" className="ref-card p-4 pb-6">
-              <h2 className="text-sm font-semibold">Ringkasan</h2>
-              <ul className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
-                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
-                  <span className="text-neutral-500">Total indikator</span>
-                  <span className="font-medium">{items.length}</span>
-                </li>
-                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
-                  <span className="text-neutral-500">Tercapai bulan ini</span>
-                  <span className="font-medium">
-                    {
-                      items.filter(
-                        (item) =>
-                          item.target != null && item.bulanIni >= item.target
-                      ).length
-                    }
-                  </span>
-                </li>
-                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
-                  <span className="text-neutral-500">Tanpa target</span>
-                  <span className="font-medium">
-                    {items.filter((item) => item.target == null).length}
-                  </span>
-                </li>
-              </ul>
-            </section>
+            <RefListCard
+              ariaLabel="Ringkasan"
+              items={[
+                { key: "total", title: "Total indikator", desc: String(items.length) },
+                {
+                  key: "capai",
+                  title: "Tercapai bulan ini",
+                  desc: String(
+                    items.filter(
+                      (item) => item.target != null && item.bulanIni >= item.target
+                    ).length
+                  ),
+                },
+                {
+                  key: "tanpa",
+                  title: "Tanpa target",
+                  desc: String(items.filter((item) => item.target == null).length),
+                },
+              ]}
+            />
           }
         >
-          <div className="ref-card p-4 pb-6">
-            <h2 className="text-sm font-semibold">Indikator</h2>
-            <div className="mt-2">
-              <IndikatorManager initial={items} />
-            </div>
-          </div>
+          <IndikatorManager initial={items} />
         </ContentGrid>
       </div>
     </div>
