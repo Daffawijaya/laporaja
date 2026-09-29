@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
-// Overlay GLOBAL tunggal (hitam 5%) untuk semua modal (Dialog) & dropdown
+// Overlay GLOBAL tunggal (hitam 5%) untuk semua modal (Dialog)
 // (GlassSelect/GlassMenu). Tiap lapisan acquire saat tampil, release saat
 // hilang. Fade hanya di dua momen: 0→1 pemakai (fade in) dan kembali →0
 // (fade out). Pindah dropdown→modal atau modal→modal: counter tidak pernah

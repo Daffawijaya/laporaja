@@ -113,9 +113,10 @@ export function GlassMenu({
   const [open, setOpen] = React.useState(false);
   const [shown, setShown] = React.useState(false);
   const [cursor, setCursor] = React.useState(0);
-  // Overlay global (hitam 5%): tahan selama panel ter-mount (termasuk
-  // animasi keluar) agar pindah dropdown→modal tidak memicu fade.
-  useOverlay(mounted);
+  // Overlay global (hitam 5%): ikut state logika `open` agar dilepas
+  // tepat saat close (fade 200ms paralel panel). Handoff dropdown→modal
+  // tetap tanpa fade via batching + OverlayHost.
+  useOverlay(open);
 
   React.useEffect(() => {
     if (!mounted) return;

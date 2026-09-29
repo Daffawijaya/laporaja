@@ -110,7 +110,7 @@ export function AdminMonthRecap({
               value: String(index + 1),
               label: nama,
             }))}
-            className="w-auto"
+            className="w-auto bg-white/85"
           />
 
           <GlassSelect
@@ -118,7 +118,7 @@ export function AdminMonthRecap({
             value={String(tahun)}
             onChange={(next) => goMonth(bulan, Number(next))}
             options={tahunList.map((y) => ({ value: String(y), label: String(y) }))}
-            className="w-auto"
+            className="w-auto bg-white/85"
           />
         </div>
       </div>
