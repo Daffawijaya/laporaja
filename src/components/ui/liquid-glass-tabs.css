@@ -193,6 +193,15 @@
   transition: opacity var(--lgt-fade) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Dark saat interaksi/geser: TRANSPARAN (hanya refraksi kaca yang terlihat),
+   mirror sidebar (.dark .lgs-indicator.* di liquid-glass-sidebar.css).
+   Tanpa ini pill memakai putih 16% sehingga di dark mode terlihat abu. */
+.dark .lgt-indicator.lgt-interacting,
+.dark .lgt-indicator.lgt-landing,
+.dark .lgt-indicator.lgt-snapping {
+  background: transparent;
+}
+
 /* Dark = light dibalik: pil putih 5% (terang tipis di atas bg gelap). */
 .dark .lgt-indicator {
   background: rgb(255 255 255 / 0.05);

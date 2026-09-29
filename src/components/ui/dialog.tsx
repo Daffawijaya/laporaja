@@ -8,7 +8,6 @@ import {
   applyLiquidGlass,
   type LiquidGlassHandle,
 } from "@/lib/liquid-glass";
-import { useOverlay } from "@/components/ui/overlay-host";
 import { cn } from "@/lib/utils";
 
 // Config kaca SALINAN panel dropdown (glass-select.tsx) supaya ujung modal
@@ -83,9 +82,6 @@ export function Dialog({
   const glassHandleRef = useRef<LiquidGlassHandle | null>(null);
   const isDesktop = useDesktop();
   const reduceMotion = !!useReducedMotion();
-  // Overlay global (hitam 5%): acquire selama modal tampil. Pindah
-  // modal→modal tidak memicu fade karena counter tidak pernah 0.
-  useOverlay(open);
   // will-change dicabut sesudah animasi buka selesai: selama menempel,
   // panel menjadi containing block bagi dropdown fixed (GlassSelect/
   // GlassMenu) sehingga panel dropdown terklip overflow-hidden modal
@@ -169,8 +165,8 @@ export function Dialog({
               // dlg-panel = scope gaya tombol & input modal (lihat globals.css).
               "dlg-panel relative flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden outline-none",
               !animDone && "will-change-transform",
-              "rounded-t-[32px] border border-white bg-[#f3f3f3]/85 shadow-[0_1px_4px_rgb(0_0_0/0.05)] sm:rounded-[32px]",
-              "dark:border-white/12 dark:bg-[rgb(28_28_30/0.85)] dark:shadow-[0_1px_4px_rgb(0_0_0/0.42)]"
+              "rounded-t-[32px] border border-white bg-[#fafafa]/85 shadow-[0_1px_4px_rgb(0_0_0/0.05)] sm:rounded-[32px]",
+              "dark:border-white/12 dark:bg-[#222222]/85 dark:shadow-[0_1px_4px_rgb(0_0_0/0.42)]"
             )}
             style={{ transformOrigin: "center" }}
             initial={

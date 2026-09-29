@@ -7,7 +7,6 @@ import {
   DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
   applyLiquidGlass,
 } from "@/lib/liquid-glass";
-import { useOverlay } from "@/components/ui/overlay-host";
 import { cn } from "@/lib/utils";
 import "./glass-select.css";
 
@@ -113,10 +112,6 @@ export function GlassMenu({
   const [open, setOpen] = React.useState(false);
   const [shown, setShown] = React.useState(false);
   const [cursor, setCursor] = React.useState(0);
-  // Overlay global (hitam 5%): ikut state logika `open` agar dilepas
-  // tepat saat close (fade 200ms paralel panel). Handoff dropdown→modal
-  // tetap tanpa fade via batching + OverlayHost.
-  useOverlay(open);
 
   React.useEffect(() => {
     if (!mounted) return;

@@ -12,12 +12,12 @@
   display: flex;
   flex-direction: column;
   border-radius: 24px;
-  /* Cangkang #f3f3f3 di 85% supaya teks opsi tidak
+  /* Cangkang #fafafa di 85% supaya teks opsi tidak
      perlu bertarung dengan isi panel di belakang. Refraksi tepi tetap
      jalan di atasnya, jadi tidak kehilangan kesan kaca. */
-  background: rgb(243 243 243 / 0.85);
-  border: 1px solid rgb(255, 255, 255);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.05);
+  background: rgb(250 250 250 / 0.85);
+  border: 2px solid #ffffff;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.1);
 
   /* Animasi buka/tutup: blob mulus ala pill tab LiquidGlassTabs.
      Easing + ritme sengaja sama (cubic-bezier(0.22, 1, 0.36, 1)).
@@ -106,13 +106,12 @@
   transition-delay: 0ms, 0ms;
 }
 
-/* Dark: warna kartu konten (#1c1c1e, sama .dark .ref-card) di 85%, bukan
-   hitam murni — supaya panel nyambung dengan kartu di bawahnya dan tetap
-   kelihatan bentuknya dari border + shadow + refraksi tepi. */
+/* Dark: #222222 di 85%, bukan hitam murni — supaya panel tetap kelihatan
+   bentuknya dari border + shadow + refraksi tepi. */
 .dark .gsp-panel {
-  background: rgb(28 28 30 / 0.85);
+  background: rgb(34 34 34 / 0.85);
   border-color: rgb(255 255 255 / 0.12);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.42);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.4);
 }
 
 /* Opsi scroll di dalam panel. Lapisan kaca adalah sibling absolute
