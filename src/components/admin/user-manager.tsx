@@ -7,6 +7,8 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { GlassMenu } from "@/components/ui/glass-menu";
+import { RefListCard } from "@/components/ui/ref-list-card";
 import { useModalKey } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -146,136 +148,93 @@ export function UserManager({
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-neutral-500">
-          {visibleUsers.length === 0 ? "Belum ada user." : `${visibleUsers.length} user.`}
-        </p>
-        <Button
-          onClick={openAdd}
-        >
-          <Plus aria-hidden="true" />
-          Tambah
-        </Button>
-      </div>
+    <div className="w-full">
+      <RefListCard ariaLabel="Pengguna">
+        {pageError && (
+          <p role="alert" className="mb-3 text-sm text-danger">
+            {pageError}
+          </p>
+        )}
 
-      {pageError && (
-        <p role="alert" className="mt-3 text-sm text-danger">
-          {pageError}
-        </p>
-      )}
-
-      {visibleUsers.length === 0 ? (
-        <EmptyState
-          className="mt-4"
-          title={query ? "Tidak ada hasil" : "Belum ada user"}
-          description={
-            query
-              ? `Tidak ada yang cocok dengan "${query}".`
-              : "Tambahkan user pertama agar mereka dapat mulai melapor."
-          }
-          action={
-            query ? undefined : (
-              <Button onClick={openAdd}>
-                <Plus aria-hidden="true" />
-                Tambah User
-              </Button>
-            )
-          }
-        />
-      ) : (
-        <>
-          <div className="mt-2 overflow-x-auto rounded-2xl border border-[#e1e1e3] bg-white max-md:hidden dark:border-white/10 dark:bg-[#1c1c1e]">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-neutral-200/70 text-xs text-neutral-500 dark:border-white/10">
-                  <th scope="col" className="px-4 py-3 font-medium">Nama</th>
-                  <th scope="col" className="px-4 py-3 font-medium">Username</th>
-                  <th scope="col" className="px-4 py-3 font-medium">Bidang</th>
-                  <th scope="col" className="px-4 py-3 font-medium">Sub bidang</th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleUsers.map((user) => (
-                  <tr key={user.profile.id} className="border-b border-neutral-200/70 last:border-0 dark:border-white/10">
-                    <td className="px-4 py-3 font-medium">{user.profile.nama}</td>
-                    <td className="px-4 py-3 text-neutral-500">{user.profile.username}</td>
-                    <td className="px-4 py-3">{user.bidangNama ?? "Tanpa bidang"}</td>
-                    <td className="px-4 py-3 text-neutral-500">
-                      {user.subBidang.length === 0 ? "Belum ada" : user.subBidang.join(", ")}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          onClick={() => openEdit(user)}
-                          aria-label={`Ubah ${user.profile.username}`}
-                        >
-                          <Pencil aria-hidden="true" />
-                          Ubah
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() => {
+        {visibleUsers.length === 0 ? (
+          <EmptyState
+            title={query ? "Tidak ada hasil" : "Belum ada user"}
+            description={
+              query
+                ? `Tidak ada yang cocok dengan "${query}".`
+                : "Tambahkan user pertama agar mereka dapat mulai melapor."
+            }
+            action={
+              query ? undefined : (
+                <Button onClick={openAdd}>
+                  <Plus aria-hidden="true" />
+                  Tambah User
+                </Button>
+              )
+            }
+          />
+        ) : (
+          /* Baris ramping ala daftar laporan (RefListCard): judul + subtitle,
+             aksi menciut jadi menu titik-tiga lingkaran di kanan. */
+          <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
+            {visibleUsers.map((user, i) => {
+              const pad =
+                visibleUsers.length === 1
+                  ? ""
+                  : i === 0
+                    ? " pb-3"
+                    : i === visibleUsers.length - 1
+                      ? " pt-3"
+                      : " py-3";
+              const subtitle = `${user.profile.username} · ${user.bidangNama ?? "Tanpa bidang"} · ${
+                user.subBidang.length === 0 ? "Belum ada" : user.subBidang.join(", ")
+              }`;
+              return (
+                <li key={user.profile.id}>
+                  <div className={`flex items-center justify-between gap-3 px-1${pad}`}>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">
+                        {user.profile.nama}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-neutral-500">
+                        {subtitle}
+                      </span>
+                    </span>
+                    <GlassMenu
+                      label={`Aksi ${user.profile.nama}`}
+                      items={[
+                        {
+                          key: "edit",
+                          label: "Ubah",
+                          icon: <Pencil aria-hidden="true" />,
+                          onSelect: () => openEdit(user),
+                        },
+                        {
+                          key: "delete",
+                          label: "Hapus",
+                          icon: <Trash2 aria-hidden="true" />,
+                          danger: true,
+                          onSelect: () => {
                             setPageError(null);
                             setDeleteTarget(user);
-                          }}
-                          aria-label={`Hapus ${user.profile.username}`}
-                        >
-                          <Trash2 aria-hidden="true" />
-                          Hapus
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <ul className="mt-2 divide-y divide-neutral-200/70 md:hidden dark:divide-white/10">
-            {visibleUsers.map((user) => (
-              <li key={user.profile.id} className="px-1 py-4">
-                <p className="text-sm font-medium">{user.profile.nama}</p>
-                <p className="mt-0.5 text-xs text-neutral-500">{user.profile.username}</p>
-                <dl className="mt-3 flex flex-col gap-1 text-sm">
-                  <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-neutral-500">Bidang</dt>
-                    <dd>{user.bidangNama ?? "Tanpa bidang"}</dd>
+                          },
+                        },
+                      ]}
+                    />
                   </div>
-                  <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-neutral-500">Sub bidang</dt>
-                    <dd className="text-neutral-500">
-                      {user.subBidang.length === 0 ? "Belum ada" : user.subBidang.join(", ")}
-                    </dd>
-                  </div>
-                </dl>
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    variant="secondary"
-                    className="flex-1"
-                    onClick={() => openEdit(user)}
-                  >
-                    <Pencil aria-hidden="true" />
-                    Ubah
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    className="flex-1"
-                    onClick={() => {
-                      setPageError(null);
-                      setDeleteTarget(user);
-                    }}
-                  >
-                    <Trash2 aria-hidden="true" />
-                    Hapus
-                  </Button>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
-        </>
+        )}
+      </RefListCard>
+      {visibleUsers.length > 0 && (
+        <div className="mt-3 flex justify-end">
+          <Button onClick={openAdd} className="rounded-full">
+            <Plus aria-hidden="true" />
+            Tambah
+          </Button>
+        </div>
       )}
 
       <UserFormDialog

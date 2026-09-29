@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { X } from "lucide-react";
 
 import {
   DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
@@ -210,22 +209,10 @@ export function Dialog({
                   : { duration: 0.34, ease: [0.32, 0.72, 0, 1] }
             }
           >
-            <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-              <h2
-                id={titleId}
-                className="text-base font-semibold tracking-tight"
-              >
-                {title}
-              </h2>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Tutup"
-                className="transition-soft -mr-2 flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <X aria-hidden="true" className="size-4" />
-              </button>
-            </div>
+            {/* Tanpa header judul + tombol X: judul hanya untuk pembaca layar. */}
+            <h2 id={titleId} className="sr-only">
+              {title}
+            </h2>
             <div className="overflow-y-auto px-5 py-5">{children}</div>
           </motion.div>
         </motion.div>

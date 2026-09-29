@@ -658,8 +658,8 @@ body {
 
   /* Tombol & input di dalam modal (scope .dlg-panel di dialog.tsx):
       pill tanpa border untuk semua tombol; tombol abu (secondary) jadi
-      hitam 7.5%; tombol biru/merah dipertahankan warnanya. Input/textarea/
-      select: bg hitam 7.5% tanpa border (dark: putih 10%). Spesifisitas
+      hitam 7.5%; tombol biru dipertahankan warnanya. Input/textarea/
+      select: bg hitam 7.5% tanpa border (dark: putih 7.5%). Spesifisitas
       sengaja di atas utilitas Tailwind agar menang tanpa !important. */
   .dlg-panel button {
     border-radius: 9999px;
@@ -674,13 +674,13 @@ body {
     background-color: rgb(0 0 0 / 0.12);
   }
 
-  /* Dark: semua tombol non-biru (abu maupun ghost) jadi putih 7.5%.
-     Merah danger & biru dipertahankan sebagai warna semantik/primer. */
-  .dark .dlg-panel button:not(.bg-accent):not(.bg-danger) {
+  /* Dark: semua tombol SELAIN biru jadi putih 7.5% tanpa border
+      (abu, ghost, maupun merah). Hanya biru primer yang dipertahankan. */
+  .dark .dlg-panel button:not(.bg-accent) {
     background-color: rgb(255 255 255 / 0.075);
   }
 
-  .dark .dlg-panel button:not(.bg-accent):not(.bg-danger):hover {
+  .dark .dlg-panel button:not(.bg-accent):hover {
     background-color: rgb(255 255 255 / 0.12);
   }
 
@@ -696,6 +696,25 @@ body {
   .dark .dlg-panel select {
     background-color: rgb(255 255 255 / 0.075);
     border-color: transparent;
+  }
+
+  /* Fallback bila class .dark belum kepasang tapi OS dark (pola sama
+     seperti aturan dark lain di file ini): */
+  @media (prefers-color-scheme: dark) {
+    :root:not(.light) .dlg-panel button:not(.bg-accent) {
+      background-color: rgb(255 255 255 / 0.075);
+    }
+
+    :root:not(.light) .dlg-panel button:not(.bg-accent):hover {
+      background-color: rgb(255 255 255 / 0.12);
+    }
+
+    :root:not(.light) .dlg-panel input,
+    :root:not(.light) .dlg-panel textarea,
+    :root:not(.light) .dlg-panel select {
+      background-color: rgb(255 255 255 / 0.075);
+      border-color: transparent;
+    }
   }
 
   /* Salinan persis style demo FxFilterJS (cssscript demo liquid-glass-noise-fxfilter,

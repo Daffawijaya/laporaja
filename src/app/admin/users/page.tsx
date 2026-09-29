@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { assertOk } from "@/lib/errors";
 import { ContentGrid } from "@/components/layout/content-grid";
+import { RefListCard } from "@/components/ui/ref-list-card";
 import { UserManager, type AdminUserRow } from "@/components/admin/user-manager";
 
 export default async function UsersPage() {
@@ -59,39 +60,27 @@ export default async function UsersPage() {
         <ContentGrid
           gapClassName="lg:gap-3"
           aside={
-            <section aria-label="Sebaran bidang" className="ref-card p-4 pb-6">
-              <h2 className="text-sm font-semibold">Sebaran bidang</h2>
-              <ul className="mt-2 divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
-                <li className="flex items-center justify-between gap-3 px-1 py-2.5">
-                  <span className="text-neutral-500">Total user</span>
-                  <span className="font-medium">{users.length}</span>
-                </li>
-                {sebaran.map(([nama, jumlah]) => (
-                  <li
-                    key={nama}
-                    className="flex items-center justify-between gap-3 px-1 py-2.5"
-                  >
-                    <span className="min-w-0 truncate text-neutral-500">{nama}</span>
-                    <span className="font-medium">{jumlah}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <RefListCard
+              ariaLabel="Sebaran bidang"
+              items={[
+                { key: "total", title: "Total user", desc: String(users.length) },
+                ...sebaran.map(([nama, jumlah]) => ({
+                  key: nama,
+                  title: nama,
+                  desc: String(jumlah),
+                })),
+              ]}
+            />
           }
         >
-          <div className="ref-card p-4 pb-6">
-            <h2 className="text-sm font-semibold">Pengguna</h2>
-            <div className="mt-2">
-              <UserManager
-                users={users}
-                bidangOptions={(bidangList ?? []).map((bidang) => ({
-                  id: bidang.id,
-                  nama: bidang.nama,
-                }))}
-                indikatorsByUser={indikatorsByUser}
-              />
-            </div>
-          </div>
+          <UserManager
+            users={users}
+            bidangOptions={(bidangList ?? []).map((bidang) => ({
+              id: bidang.id,
+              nama: bidang.nama,
+            }))}
+            indikatorsByUser={indikatorsByUser}
+          />
         </ContentGrid>
       </div>
     </div>
