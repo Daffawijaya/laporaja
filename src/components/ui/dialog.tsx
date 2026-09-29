@@ -4,16 +4,34 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { X } from "lucide-react";
 
+import {
+  DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
+  applyLiquidGlass,
+  type LiquidGlassHandle,
+} from "@/lib/liquid-glass";
 import { cn } from "@/lib/utils";
 
+// Config kaca SALINAN panel dropdown (glass-select.tsx) supaya ujung modal
+// merefraksi persis sama: tanpa tint biru, tanpa kilau, blur tipis.
+const MODAL_GLASS_CONFIG = {
+  ...DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
+  glassThickness: 24,
+  blur: 0.6,
+  specularOpacity: 0,
+  specularSat: 0,
+  tintColor: "255,255,255",
+  tintOpacity: 0,
+  balancedSpecular: true,
+};
+
 // Dialog sederhana ala sheet bawah pada mobile, terpusat pada desktop.
-// Mobile: sheet solid geser dari bawah. Desktop (sm+): liquid glass via
-// .fx-liquid-modal (full copas --fx-filter lab-glass liquid-glass() +
-// blur() Dark/Light). Buka dengan spring "blob", tutup mencair seperti
+// Kaca tepi 1:1 panel dropdown: cangkang + applyLiquidGlass, TANPA lapisan
+// FxFilter ganda (--fx-filter tidak dipakai di sini supaya dark mode tidak
+// ketumpuk overlay hitam). Buka dengan spring "blob", tutup mencair seperti
 // tetes air ala Apple (squash-stretch + tenggelam + blur).
 // Alasan: satu pola dialog untuk seluruh form admin. Hanya animasi
 // transform/opacity/filter (tanpa menyentuh width/height/border-radius)
-// agar FxFilter tidak regenerasi displacement map selama animasi berjalan.
+// agar tidak regenerasi displacement map selama animasi berjalan.
 // Baca sinkron saat init (bukan false dulu lalu effect) agar varian yang
 // benar langsung dipakai di frame pertama. Effect di bawah tetap dipakai
 // untuk perubahan ukuran layar. Diekspor untuk dipakai shell responsif.
@@ -61,8 +79,23 @@ export function Dialog({
 }) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const glassHandleRef = useRef<LiquidGlassHandle | null>(null);
   const isDesktop = useDesktop();
   const reduceMotion = !!useReducedMotion();
+
+  // Tempel/delepas lapisan kaca tepi persis panel dropdown. Ref callback
+  // (bukan effect per `open`) supaya destroy jalan saat node benar-benar
+  // dilepas — yaitu sesudah animasi tutup AnimatePresence selesai, bukan
+  // di awal exit (kaca tidak pop duluan). Transform scale saat blob tidak
+  // memicu rebuild (offsetWidth/Height tak berubah), jadi map tetap valid.
+  const attachGlass = useCallback((node: HTMLDivElement | null) => {
+    glassHandleRef.current?.destroy();
+    glassHandleRef.current = null;
+    panelRef.current = node;
+    if (node) {
+      glassHandleRef.current = applyLiquidGlass(node, () => MODAL_GLASS_CONFIG);
+    }
+  }, []);
   // onClose selalu inline baru tiap render di pemanggil. Simpan di ref agar
   // efek di bawah tidak jalan ulang (dan tidak mencuri fokus) saat mengetik.
   const onCloseRef = useRef(onClose);
@@ -102,20 +135,23 @@ export function Dialog({
           }}
           transition={{ duration: reduceMotion ? 0.15 : 0.2 }}
         >
-          <div
-            className="absolute inset-0 bg-black/25 sm:backdrop-blur-[2px]"
-            aria-hidden="true"
-          />
+          {/* Tanpa overlay & blur: bg asli halaman dibiarkan terlihat. */}
+          <div className="absolute inset-0" aria-hidden="true" />
           <motion.div
-            ref={panelRef}
+            ref={attachGlass}
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
             tabIndex={-1}
             onClick={(event) => event.stopPropagation()}
             className={cn(
-              "shadow-subtle fx-liquid-modal relative flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden outline-none",
-              "rounded-t-lg border border-border sm:rounded-2xl"
+              // Cangkang persis panel dropdown (.gsp-panel): bg 85% +
+              // border putih + shadow yang sama, terang maupun gelap.
+              // Kaca refraksi dipasang via applyLiquidGlass (attachGlass).
+              // dlg-panel = scope gaya tombol & input modal (lihat globals.css).
+              "dlg-panel relative flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden outline-none will-change-transform",
+              "rounded-t-lg border border-white bg-white/85 shadow-[0_1px_4px_rgb(0_0_0/0.05)] sm:rounded-2xl",
+              "dark:border-white/12 dark:bg-[rgb(28_28_30/0.85)] dark:shadow-[0_1px_4px_rgb(0_0_0/0.42)]"
             )}
             style={{ transformOrigin: "center" }}
             initial={

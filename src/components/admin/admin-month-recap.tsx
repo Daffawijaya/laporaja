@@ -34,10 +34,12 @@ export function AdminMonthRecap({
   stats,
   bulan,
   tahun,
+  showCounts = false,
 }: {
   stats: UserMonthStat[];
   bulan: number;
   tahun: number;
+  showCounts?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -73,7 +75,7 @@ export function AdminMonthRecap({
     return true;
   });
 
-  const count = {
+  const counts: Record<FilterKey, number> = {
     semua: stats.length,
     belum: stats.filter((stat) => stat.total === 0).length,
     menunggu: stats.filter((stat) => stat.total > 0 && stat.status === "menunggu").length,
@@ -91,10 +93,11 @@ export function AdminMonthRecap({
           ariaLabel="Filter status"
           value={filter}
           onChange={(key) => setFilter(key as FilterKey)}
+          showCounts={showCounts}
           tabs={FILTERS.map((item) => ({
             key: item.key,
             label: item.label,
-            count: count[item.key],
+            count: counts[item.key],
           }))}
         />
 

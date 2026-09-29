@@ -213,10 +213,16 @@ export default async function AdminLaporanPage({
   // Lapis 1: rekap sebulan semua user (ikut status bulanan).
   const stats = await getUserMonthStats(supabase, userList, tahun, bulan);
 
-  const sudahLapor = stats.filter((stat) => stat.total > 0).length;
-  const belumLapor = stats.filter((stat) => stat.total === 0).length;
-  const perluReview = stats.filter(
-    (stat) => stat.total > 0 && stat.status !== "approved"
+  const semua = stats.length;
+  const belum = stats.filter((stat) => stat.total === 0).length;
+  const menunggu = stats.filter(
+    (stat) => stat.total > 0 && stat.status === "menunggu"
+  ).length;
+  const revisi = stats.filter(
+    (stat) => stat.total > 0 && stat.status === "revision"
+  ).length;
+  const selesai = stats.filter(
+    (stat) => stat.total > 0 && stat.status === "approved"
   ).length;
 
   return (
@@ -238,20 +244,24 @@ export default async function AdminLaporanPage({
             <RefListCard ariaLabel="Ringkasan bulan ini">
               <ul className="divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
                 <li className="flex items-center justify-between gap-3 px-1 pb-3">
-                  <span className="text-sm font-medium">Total user</span>
-                  <span className="shrink-0 text-xs text-neutral-500">{stats.length}</span>
-                </li>
-                <li className="flex items-center justify-between gap-3 px-1 py-3">
-                  <span className="text-sm font-medium">Sudah lapor</span>
-                  <span className="shrink-0 text-xs text-neutral-500">{sudahLapor}</span>
+                  <span className="text-sm font-medium">Semua</span>
+                  <span className="shrink-0 text-xs text-neutral-500">{semua}</span>
                 </li>
                 <li className="flex items-center justify-between gap-3 px-1 py-3">
                   <span className="text-sm font-medium">Belum lapor</span>
-                  <span className="shrink-0 text-xs text-neutral-500">{belumLapor}</span>
+                  <span className="shrink-0 text-xs text-neutral-500">{belum}</span>
+                </li>
+                <li className="flex items-center justify-between gap-3 px-1 py-3">
+                  <span className="text-sm font-medium">Menunggu review</span>
+                  <span className="shrink-0 text-xs text-neutral-500">{menunggu}</span>
+                </li>
+                <li className="flex items-center justify-between gap-3 px-1 py-3">
+                  <span className="text-sm font-medium">Revisi</span>
+                  <span className="shrink-0 text-xs text-neutral-500">{revisi}</span>
                 </li>
                 <li className="flex items-center justify-between gap-3 px-1 pt-3">
-                  <span className="text-sm font-medium">Perlu review</span>
-                  <span className="shrink-0 text-xs text-neutral-500">{perluReview}</span>
+                  <span className="text-sm font-medium">Selesai</span>
+                  <span className="shrink-0 text-xs text-neutral-500">{selesai}</span>
                 </li>
               </ul>
             </RefListCard>

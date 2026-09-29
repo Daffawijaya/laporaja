@@ -49,11 +49,13 @@ export function LiquidGlassTabs({
   value,
   onChange,
   ariaLabel,
+  showCounts = true,
 }: {
   tabs: LiquidGlassTab[];
   value: string;
   onChange: (key: string) => void;
   ariaLabel: string;
+  showCounts?: boolean;
 }) {
   const navRef = useRef<HTMLElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -735,7 +737,7 @@ export function LiquidGlassTabs({
                 >
                   {tab.label}
                 </span>
-                {tab.count ? (
+                {showCounts && typeof tab.count === "number" ? (
                   <span className="lgt-badge" aria-label={`${tab.count}`}>
                     {tab.count}
                   </span>
