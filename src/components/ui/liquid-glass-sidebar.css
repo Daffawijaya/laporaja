@@ -1,0 +1,240 @@
+/* Sidebar liquid glass — mirror VERTIKAL persis dari liquid-glass-tabs
+   (tab bar horizontal). Seluruh logika & ritme disamakan 100%, hanya sumbu
+   yang diputar: left/width → top/height, pita refraksi kiri-kanan →
+   atas-bawah. Prefix lgs- agar tidak bentrok CSS lain.
+   Variabel waktu (--lgs-slide/--lgs-settle/--lgs-fade/--lgs-land-ms) nilainya
+   SAMA dengan --lgt-* dan disinkronkan dengan konstanta di
+   liquid-glass-sidebar.tsx (SLIDE_MS & SETTLE_MS). */
+
+.lgs-nav {
+  position: relative;
+  width: 100%;
+  /* Durasi dasar efek pill — SAMA dengan tab (0.72s/0.36s):
+     --lgs-slide : geser, susut/membesar, box-shadow, fade-in kaca.
+     --lgs-settle: fallback fade (kaca keluar, teks).
+     --lgs-fade  : fade transparan → solid saat settling (di-override JS). */
+  --lgs-slide: 0.72s;
+  --lgs-settle: 0.36s;
+  --lgs-fade: 0.36s;
+}
+
+/* Membesar halus saat pill disentuh — dipegang indikator (skala), bukan
+   nav, karena pill sidebar full-width. Lihat .lgs-indicator.lgs-interacting. */
+
+.lgs-nav-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lgs-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 44px;
+  /* Radius 24px = sama persis .ref-menu-active yang digantikan pill ini. */
+  border-radius: 24px;
+  /* Di bawah teks (lgs-item z:2). Resting: kartu putih + shadow lembut,
+     sama persis .ref-menu-active. */
+  z-index: 1;
+  pointer-events: none;
+  transform-origin: center center;
+  will-change: top, height, transform;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  transition:
+    top var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    height var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--lgs-land-ms, var(--lgs-slide)) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color var(--lgs-settle) cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lgs-indicator.lgs-interacting {
+  z-index: 999;
+  /* Membesar saat ditekan (mirror scale tab; dibatasi 1.05 karena pill
+     full-width tidak boleh luber horizontal). */
+  transform: scale(1.05);
+  /* Saat animasi/drag: kembali transparan liquid glass seperti tab. */
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+  transition:
+    top var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    height var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--lgs-land-ms, var(--lgs-slide)) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Fase landing: susut terjadi saat lgs-interacting dilepas (mirror tab). */
+.lgs-indicator.lgs-landing {
+  z-index: 999;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+  transition:
+    top var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    height var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--lgs-land-ms, var(--lgs-slide)) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Jalur state/navigasi (tanpa pointer): tahan kaca di depan selama snap. */
+.lgs-indicator.lgs-snapping {
+  z-index: 999;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+  transition:
+    top var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    height var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--lgs-land-ms, var(--lgs-slide)) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Lapisan kaca (refraksi) fade mengikuti kelas — scope indikator saja.
+   Base = fade-out cepat agar kelar bareng akhir slide. */
+.lgs-indicator .lg-layer {
+  opacity: 0;
+  transition: opacity var(--lgs-settle) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lgs-indicator.lgs-interacting .lg-layer,
+.lgs-indicator.lgs-landing .lg-layer,
+.lgs-indicator.lgs-snapping .lg-layer {
+  opacity: 1;
+  transition: opacity var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Fase settling: cross-fade transparan → solid. Solid MULAI di sini bareng
+   susut + geser yang masih jalan — selesai tepat di frame terakhir.
+   BEDA SENGAJA dari tab: resting pill sidebar OPAK (kartu putih / #1c1c1e,
+   seperti .ref-menu-active dulu), bukan abu transparan. Karena itu pill
+   DITURUNKAN ke belakang teks (z-index 1, teks z-index 2) begitu settling
+   mulai — kalau tetap di depan seperti tab, teks ketutup pill opak dan
+   sempat ilang selama cross-fade → finalize. Saat interacting/landing pill
+   tetap di depan (z-999) karena masih transparan, persis seperti tab. */
+.lgs-indicator.lgs-landing.lgs-settling,
+.lgs-indicator.lgs-snapping.lgs-settling {
+  z-index: 1;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
+  transition:
+    top var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    height var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--lgs-land-ms, var(--lgs-slide)) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color var(--lgs-fade) cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow var(--lgs-slide) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lgs-indicator.lgs-landing.lgs-settling .lg-layer,
+.lgs-indicator.lgs-snapping.lgs-settling .lg-layer {
+  opacity: 0;
+  transition: opacity var(--lgs-fade) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Dark = resting kartu #1c1c1e + shadow, sama persis .ref-menu-active. */
+.dark .lgs-indicator {
+  background: #1c1c1e;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+.dark .lgs-indicator.lgs-landing.lgs-settling,
+.dark .lgs-indicator.lgs-snapping.lgs-settling {
+  background: #1c1c1e;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+.lgs-nav-inner.lgs-dragging .lgs-indicator {
+  transition:
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color var(--lgs-settle) cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Item: visual SAMA dengan .ref-menu-item (idle abu, tanpa bg — bg kini
+   dipegang pill indikator yang geser). */
+.lgs-item {
+  position: relative;
+  z-index: 2;
+  border: none;
+  outline: none;
+  text-decoration: none;
+  touch-action: none;
+  min-height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: #6e6e73;
+  background: transparent;
+  transition: color 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dark .lgs-item {
+  color: #a3a3a3;
+}
+
+/* Hover: statis seperti tab (tanpa perubahan visual). */
+.lgs-item:hover {
+  color: inherit;
+}
+
+.lgs-item.lgs-active,
+.lgs-item.lgs-active:hover {
+  color: #1d1d1f;
+  font-weight: 600;
+}
+
+.dark .lgs-item.lgs-active,
+.dark .lgs-item.lgs-active:hover {
+  color: #ffffff;
+}
+
+.lgs-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.lgs-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lgs-label {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Pembungkus relatif label: acuan inset-0 salinan refraksi. */
+.lgs-labelwrap {
+  position: relative;
+  display: block;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Salinan refraksi teks: menumpuk persis di atas teks normal, hanya pita
+   ATAS-BAWAH pill yang terlihat (mirror pita kiri-kanan pada tab). */
+.lgs-label-glass {
+  position: absolute;
+  inset: 0;
+  filter: url(#lgs-text-refract);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.lgs-nav.lgs-dragging,
+.lgs-nav.lgs-dragging .lgs-item {
+  cursor: grabbing !important;
+}

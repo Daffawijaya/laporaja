@@ -9,11 +9,9 @@ import { Moon, Search, Sun } from "lucide-react";
 import {
   HiBell,
   HiOutlineBell,
-  HiChartBar,
   HiClipboardDocumentList,
   HiFlag,
   HiHome,
-  HiOutlineChartBar,
   HiOutlineClipboardDocumentList,
   HiOutlineFlag,
   HiOutlineHome,
@@ -26,7 +24,10 @@ import {
 } from "react-icons/hi2";
 import { MdNotifications, MdOutlineNotifications } from "react-icons/md";
 
-import { cn } from "@/lib/utils";
+import {
+  LiquidGlassSidebar,
+  type LiquidGlassSidebarItem,
+} from "@/components/ui/liquid-glass-sidebar";
 import type { Role } from "@/lib/supabase/database.types";
 
 type Icon = React.ComponentType<{ className?: string }>;
@@ -154,11 +155,21 @@ export function DesktopWindow({
     return pathname === item.href || pathname.startsWith(`${item.href}/`);
   }
 
+  const activeKey = menu.find((item) => menuActive(item))?.key ?? "";
+  const sidebarItems: LiquidGlassSidebarItem[] = menu.map((item) => ({
+    key: item.key,
+    label: item.label,
+    href: item.href,
+    IdleIcon: item.IdleIcon,
+    ActiveIcon: item.ActiveIcon,
+    badge: item.badge && badgeCount > 0 ? badge : undefined,
+  }));
+
   return (
     <div className="ref-shell hidden md:flex">
       {/* Sidebar kiri ala referensi */}
       <aside className="flex w-[260px] shrink-0 flex-col gap-1 overflow-y-auto px-4 py-2">
-        <Link href={isAdmin ? "/admin" : "/"} aria-label="LaporAja beranda" className="flex items-center py-2">
+        <Link href={isAdmin ? "/admin" : "/"} aria-label="LaporAja beranda" className="flex min-h-[60px] items-center">
           {/* Wordmark punya dua berkas: terang untuk mode terang, gelap untuk
               mode gelap. Ditukar lewat kelas dark, bukan state JS, supaya tidak
               ada kedipan sesudah hidrasi. */}
@@ -168,7 +179,7 @@ export function DesktopWindow({
             width={1697}
             height={372}
             priority
-            className="h-8 w-auto dark:hidden"
+            className="h-6 w-auto dark:hidden"
           />
           <Image
             src="/logodark.png"
@@ -177,36 +188,16 @@ export function DesktopWindow({
             width={1697}
             height={372}
             priority
-            className="hidden h-8 w-auto dark:block"
+            className="hidden h-6 w-auto dark:block"
           />
         </Link>
 
-        <nav aria-label={isAdmin ? "Navigasi admin" : "Navigasi utama"} className="mt-2 flex flex-col gap-1">
-          {menu.map((item) => {
-            const active = menuActive(item);
-            const ItemIcon = active ? item.ActiveIcon : item.IdleIcon;
-            const showBadge = item.badge && badgeCount > 0;
-            return (
-              <Link
-                key={item.key}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cn("ref-menu-item", active && "ref-menu-active")}
-              >
-                <ItemIcon aria-hidden="true" className="size-5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                {showBadge && (
-                  <span
-                    aria-hidden="true"
-                    className="flex min-h-5 min-w-5 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold text-white dark:bg-white dark:text-black"
-                  >
-                    {badge}
-                  </span>
-                )}
-                <span className="sr-only">{showBadge ? `, ${badgeCount} baru` : ""}</span>
-              </Link>
-            );
-          })}
+        <nav aria-label={isAdmin ? "Navigasi admin" : "Navigasi utama"} className="mt-3">
+          <LiquidGlassSidebar
+            ariaLabel={isAdmin ? "Navigasi admin" : "Navigasi utama"}
+            value={activeKey}
+            items={sidebarItems}
+          />
         </nav>
       </aside>
 
