@@ -25,6 +25,10 @@
   --lgt-slide: 0.72s;
   --lgt-settle: 0.36s;
   --lgt-fade: 0.36s;
+  /* --lgt-glass-fade: fade kaca → non-kaca SAJA (lapisan .lg-layer).
+     Di-override JS (setGlassFadeMs) agar mulai & selesai lebih awal dari
+     fade abu — samakan dengan GLASS_LEAD_MS di liquid-glass-tabs.tsx. */
+  --lgt-glass-fade: 0.24s;
 
   position: relative;
   /* Menyusut mengikuti teks (bukan stretch full-width) agar jarak
@@ -191,6 +195,17 @@
 .lgt-indicator.lgt-snapping.lgt-settling .lg-layer {
   opacity: 0;
   transition: opacity var(--lgt-fade) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Kaca keluar DULUAN (ditambah JS via kelas lgt-glass-out, sebelum
+   lgt-settling): refraksi memudar dengan durasinya sendiri
+   (--lgt-glass-fade) sementara fade abu (--lgt-fade) tetap mendarat di
+   frame terakhir. Ditaruh setelah rule settling agar menang saat
+   keduanya menempel. Dilepas di finalize — opacity sudah 0 = base,
+   jadi tanpa lompatan. z-index tidak disentuh (ikut interacting). */
+.lgt-indicator.lgt-glass-out .lg-layer {
+  opacity: 0;
+  transition: opacity var(--lgt-glass-fade) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Dark = light dibalik: pil putih 5% (terang tipis di atas bg gelap). */
