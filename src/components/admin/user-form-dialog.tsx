@@ -6,7 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { GlassSelect } from "@/components/ui/glass-select";
 import { Dialog } from "@/components/ui/dialog";
 import { SubBidangEditor } from "@/components/admin/sub-bidang-editor";
 import { isValidUsername } from "@/lib/auth/username";
@@ -195,20 +195,20 @@ export function UserFormDialog({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="user-bidang">Bidang</Label>
-          <Select
-            id="user-bidang"
+          <Label>Bidang</Label>
+          <GlassSelect
+            ariaLabel="Bidang"
             value={bidangId}
-            onChange={(event) => setBidangId(event.target.value)}
+            onChange={setBidangId}
             disabled={saving}
-          >
-            <option value="">Tanpa bidang</option>
-            {bidangOptions.map((bidang) => (
-              <option key={bidang.id} value={bidang.id}>
-                {bidang.nama}
-              </option>
-            ))}
-          </Select>
+            options={[
+              { value: "", label: "Tanpa bidang" },
+              ...bidangOptions.map((bidang) => ({
+                value: bidang.id,
+                label: bidang.nama,
+              })),
+            ]}
+          />
         </div>
 
         <SubBidangEditor

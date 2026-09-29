@@ -136,6 +136,15 @@
   transition: opacity var(--lgs-fade) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Dark saat geser: TRANSPARAN penuh seperti light mode (bukan abu).
+   Putih 16% di atas bg gelap terlihat abu solid dan menghalangi teks yang
+   dilewati — sementara kaca refraksi (lg-layer) tetap jalan. */
+.dark .lgs-indicator.lgs-interacting,
+.dark .lgs-indicator.lgs-landing,
+.dark .lgs-indicator.lgs-snapping {
+  background: transparent;
+}
+
 /* Dark = resting kartu #1c1c1e + shadow, sama persis .ref-menu-active. */
 .dark .lgs-indicator {
   background: #1c1c1e;

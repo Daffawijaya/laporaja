@@ -151,7 +151,7 @@ export type Database = {
               "id" | "target_bulanan" | "bidang_id" | "user_id" | "created_at" | "updated_at"
             >
           >;
-        Update: Partial<Pick<IndikatorRow, "nama" | "target_bulanan">>;
+        Update: Partial<Pick<IndikatorRow, "nama" | "target_bulanan" | "bidang_id" | "user_id">>;
         Relationships: [];
       };
       kegiatan_indikator: {

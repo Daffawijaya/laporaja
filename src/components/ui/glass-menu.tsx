@@ -77,6 +77,14 @@ export interface GlassMenuItem {
   onSelect: () => void;
 }
 
+export interface GlassMenuTriggerApi {
+  ref: React.Ref<HTMLButtonElement>;
+  onClick: () => void;
+  onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
+  open: boolean;
+  label: string;
+}
+
 // Menu aksi reusable: trigger lingkaran titik-tiga, panel dropdown kaca
 // yang sama dengan GlassSelect. Dipakai untuk aksi per-baris (Ubah/Hapus)
 // supaya baris tetap ramping seperti daftar laporan.
@@ -84,11 +92,14 @@ export function GlassMenu({
   label,
   items,
   className,
+  trigger,
 }: {
-  /** aria-label trigger, mis. "Aksi Andi". */
+  /** aria-label trigger + menu, mis. "Aksi Andi". */
   label: string;
   items: GlassMenuItem[];
   className?: string;
+  /** Trigger kustom (mis. tombol Tambah). Default: ikon titik-tiga abu. */
+  trigger?: (api: GlassMenuTriggerApi) => React.ReactNode;
 }) {
   const uid = React.useId();
   const itemId = (i: number) => `${uid}-item-${i}`;
@@ -237,23 +248,36 @@ export function GlassMenu({
 
   return (
     <>
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-label={label}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => (open ? close() : openPanel())}
-        onKeyDown={onKeyDown}
-        // Polos abu persis chevron daftar laporan: tanpa lingkaran,
-        // tanpa hover.
-        className={cn(
-          "flex shrink-0 items-center justify-center p-1 text-neutral-400",
-          className
-        )}
-      >
-        <Ellipsis aria-hidden="true" className="size-5" />
-      </button>
+      {trigger ? (
+        // Render-prop trigger kustom: ref objek hanya DITERUSKAN (ditulis
+        // saat mount oleh React), tidak pernah dibaca .current saat render.
+        // eslint-disable-next-line react-hooks/refs
+        trigger({
+          ref: triggerRef,
+          onClick: () => (open ? close() : openPanel()),
+          onKeyDown,
+          open,
+          label,
+        })
+      ) : (
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-label={label}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={() => (open ? close() : openPanel())}
+          onKeyDown={onKeyDown}
+          // Polos abu persis chevron daftar laporan: tanpa lingkaran,
+          // tanpa hover.
+          className={cn(
+            "flex shrink-0 items-center justify-center p-1 text-neutral-400",
+            className
+          )}
+        >
+          <Ellipsis aria-hidden="true" className="size-5" />
+        </button>
+      )}
 
       {mounted ? (
         <div ref={panelRef} data-radius="24" className={cn("gsp-panel", shown && "gsp-open")}>

@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { Select } from "@/components/ui/select";
+import { GlassSelect } from "@/components/ui/glass-select";
 import { NAMA_BULAN } from "@/components/laporan/types";
 
 export interface UserOption {
@@ -40,45 +40,38 @@ export function AdminLaporanFilter({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Select
-        aria-label="Pilih user"
+      <GlassSelect
+        ariaLabel="Pilih user"
         value={selectedUserId}
-        onChange={(event) => go({ user: event.target.value })}
+        onChange={(next) => go({ user: next })}
+        options={[
+          { value: "", label: "Pilih user" },
+          ...users.map((user) => ({
+            value: user.id,
+            label: `${user.nama} (${user.username})`,
+          })),
+        ]}
         className="w-auto max-w-full"
-      >
-        <option value="">Pilih user</option>
-        {users.map((user) => (
-          <option key={user.id} value={user.id}>
-            {user.nama} ({user.username})
-          </option>
-        ))}
-      </Select>
+      />
 
-      <Select
-        aria-label="Pilih bulan"
-        value={bulan}
-        onChange={(event) => go({ bulan: Number(event.target.value) })}
+      <GlassSelect
+        ariaLabel="Pilih bulan"
+        value={String(bulan)}
+        onChange={(next) => go({ bulan: Number(next) })}
+        options={NAMA_BULAN.map((nama, index) => ({
+          value: String(index + 1),
+          label: nama,
+        }))}
         className="w-auto"
-      >
-        {NAMA_BULAN.map((nama, index) => (
-          <option key={nama} value={index + 1}>
-            {nama}
-          </option>
-        ))}
-      </Select>
+      />
 
-      <Select
-        aria-label="Pilih tahun"
-        value={tahun}
-        onChange={(event) => go({ tahun: Number(event.target.value) })}
+      <GlassSelect
+        ariaLabel="Pilih tahun"
+        value={String(tahun)}
+        onChange={(next) => go({ tahun: Number(next) })}
+        options={tahunList.map((y) => ({ value: String(y), label: String(y) }))}
         className="w-auto"
-      >
-        {tahunList.map((y) => (
-          <option key={y} value={y}>
-            {y}
-          </option>
-        ))}
-      </Select>
+      />
     </div>
   );
 }

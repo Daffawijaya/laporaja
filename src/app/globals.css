@@ -657,11 +657,13 @@ body {
   }
 
   /* Tombol & input di dalam modal (scope .dlg-panel di dialog.tsx):
-      pill tanpa border untuk semua tombol; tombol abu (secondary) jadi
-      hitam 7.5%; tombol biru dipertahankan warnanya. Input/textarea/
-      select: bg hitam 7.5% tanpa border (dark: putih 7.5%). Spesifisitas
-      sengaja di atas utilitas Tailwind agar menang tanpa !important. */
-  .dlg-panel button {
+      pill tanpa border untuk semua tombol KECUALI trigger dropdown
+      (.gsp-trigger) yang dikembalikan ke gaya select lama; tombol abu
+      (secondary) jadi hitam 7.5%; tombol biru dipertahankan warnanya.
+      Input/textarea/select: bg hitam 7.5% tanpa border (dark: putih 7.5%).
+      Spesifisitas sengaja di atas utilitas Tailwind agar menang
+      tanpa !important. */
+  .dlg-panel button:not(.gsp-trigger) {
     border-radius: 9999px;
     border-color: transparent;
   }
@@ -677,21 +679,22 @@ body {
     --fx-filter: initial;
   }
 
-  .dlg-panel button.bg-surface {
+  .dlg-panel button.bg-surface:not(.gsp-trigger) {
     background-color: rgb(0 0 0 / 0.075);
   }
 
-  .dlg-panel button.bg-surface:hover {
+  .dlg-panel button.bg-surface:not(.gsp-trigger):hover {
     background-color: rgb(0 0 0 / 0.12);
   }
 
-  /* Dark: semua tombol SELAIN biru jadi putih 7.5% tanpa border
-      (abu, ghost, maupun merah). Hanya biru primer yang dipertahankan. */
-  .dark .dlg-panel button:not(.bg-accent) {
+  /* Dark: semua tombol SELAIN biru & trigger dropdown jadi putih 7.5%
+      tanpa border (abu, ghost, maupun merah). Hanya biru primer yang
+      dipertahankan. */
+  .dark .dlg-panel button:not(.bg-accent):not(.gsp-trigger) {
     background-color: rgb(255 255 255 / 0.075);
   }
 
-  .dark .dlg-panel button:not(.bg-accent):hover {
+  .dark .dlg-panel button:not(.bg-accent):not(.gsp-trigger):hover {
     background-color: rgb(255 255 255 / 0.12);
   }
 
@@ -716,11 +719,11 @@ body {
       --fx-filter: initial;
     }
 
-    :root:not(.light) .dlg-panel button:not(.bg-accent) {
+    :root:not(.light) .dlg-panel button:not(.bg-accent):not(.gsp-trigger) {
       background-color: rgb(255 255 255 / 0.075);
     }
 
-    :root:not(.light) .dlg-panel button:not(.bg-accent):hover {
+    :root:not(.light) .dlg-panel button:not(.bg-accent):not(.gsp-trigger):hover {
       background-color: rgb(255 255 255 / 0.12);
     }
 

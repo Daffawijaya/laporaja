@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { GlassSelect } from "@/components/ui/glass-select";
 import { NAMA_BULAN } from "@/components/laporan/types";
 
 export function MonthPicker({
@@ -48,31 +48,24 @@ export function MonthPicker({
         <ChevronLeft aria-hidden="true" />
       </Button>
 
-      <Select
-        aria-label="Pilih bulan"
-        value={bulan}
-        onChange={(event) => go(Number(event.target.value), tahun)}
+      <GlassSelect
+        ariaLabel="Pilih bulan"
+        value={String(bulan)}
+        onChange={(next) => go(Number(next), tahun)}
+        options={NAMA_BULAN.map((nama, index) => ({
+          value: String(index + 1),
+          label: nama,
+        }))}
         className="w-auto"
-      >
-        {NAMA_BULAN.map((nama, index) => (
-          <option key={nama} value={index + 1}>
-            {nama}
-          </option>
-        ))}
-      </Select>
+      />
 
-      <Select
-        aria-label="Pilih tahun"
-        value={tahun}
-        onChange={(event) => go(bulan, Number(event.target.value))}
+      <GlassSelect
+        ariaLabel="Pilih tahun"
+        value={String(tahun)}
+        onChange={(next) => go(bulan, Number(next))}
+        options={tahunList.map((y) => ({ value: String(y), label: String(y) }))}
         className="w-auto"
-      >
-        {tahunList.map((y) => (
-          <option key={y} value={y}>
-            {y}
-          </option>
-        ))}
-      </Select>
+      />
 
       <Button
         type="button"

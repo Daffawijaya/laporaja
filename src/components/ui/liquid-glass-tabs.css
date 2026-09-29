@@ -229,9 +229,8 @@
   justify-content: center;
   flex-direction: column;
   gap: 1px;
-  /* 11px / 400: satu ukuran DAN satu berat dengan trigger GlassSelect
-     (bulan/tahun) supaya seluruh baris filter rata. Tanpa bold — status
-     aktif sudah dibedakan oleh warna teks + pil abu di belakangnya. */
+  /* 11px / 400: label tab kecil agar pill tetap ramping. Tanpa bold —
+     status aktif sudah dibedakan oleh warna teks + pil abu di belakangnya. */
   font-weight: 400;
   font-size: 11px;
   letter-spacing: 0.01em;
