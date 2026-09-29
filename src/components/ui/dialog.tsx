@@ -12,14 +12,14 @@ import { cn } from "@/lib/utils";
 
 // Config kaca SALINAN panel dropdown (glass-select.tsx) supaya ujung modal
 // merefraksi persis sama: refraksi strong + kilau tepi, tanpa tint,
-// blur tipis.
+// blur background strong.
 const MODAL_GLASS_CONFIG = {
   ...DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
   glassThickness: 44,
   bezelWidth: 56,
   scaleRatio: 1.6,
   specularOpacity: 0.35,
-  blur: 0.6,
+  blur: 2,
   specularSat: 0,
   tintColor: "255,255,255",
   tintOpacity: 0,
