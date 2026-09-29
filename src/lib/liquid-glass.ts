@@ -371,12 +371,12 @@ export function applyLiquidGlass(
   refr.className = "lg-layer";
   refr.setAttribute("aria-hidden", "true");
   refr.style.cssText =
-    "position:absolute;inset:0;z-index:0;pointer-events:none;";
+    "position:absolute;inset:0;z-index:0;pointer-events:none;opacity:0;transition:opacity .35s ease;";
   const tint = document.createElement("div");
   tint.className = "lg-layer";
   tint.setAttribute("aria-hidden", "true");
   tint.style.cssText =
-    "position:absolute;inset:0;z-index:0;pointer-events:none;";
+    "position:absolute;inset:0;z-index:0;pointer-events:none;opacity:0;transition:opacity .35s ease;";
   el.insertBefore(tint, el.firstChild);
   el.insertBefore(refr, el.firstChild);
 
@@ -387,6 +387,7 @@ export function applyLiquidGlass(
   let lastH = 0;
   let lastR = 0;
   let timer: number | undefined;
+  let fadeRaf = 0;
 
   function elevate() {
     Array.from(el.children).forEach((c) => {
@@ -425,6 +426,19 @@ export function applyLiquidGlass(
       tint.style.backgroundColor = `rgba(${cfg.tintColor},${cfg.tintOpacity})`;
       tint.style.boxShadow = `inset 0 0 ${cfg.innerShadowBlur}px ${cfg.innerShadowSpread}px ${cfg.innerShadow}`;
       elevate();
+      // Fade-in lapisan kaca (hanya pembuatan pertama): backdrop-filter +
+      // peta refraksi aktif belakangan secara asinkron di compositor —
+      // tanpa fade akan terlihat "pop" (mis. panel modal 100 lalu tiba-tiba
+      // turun ke 85 di detik terakhir animasi buka). Double rAF agar frame
+      // opacity 0 sempat ter-paint dulu. Rebuild berikutnya tidak menyentuh
+      // opacity lagi.
+      window.cancelAnimationFrame(fadeRaf);
+      fadeRaf = window.requestAnimationFrame(() => {
+        fadeRaf = window.requestAnimationFrame(() => {
+          refr.style.opacity = "1";
+          tint.style.opacity = "1";
+        });
+      });
     } else {
       // Reuse node + ID yang sama → update geometri in-place. Backdrop-filter
       // tidak di-render ulang dari nol, jadi lebar pill bisa diikuti tiap frame
@@ -451,6 +465,7 @@ export function applyLiquidGlass(
     rebuild,
     destroy() {
       window.clearTimeout(timer);
+      window.cancelAnimationFrame(fadeRaf);
       ro.disconnect();
       if (filterNodes) filterNodes.filter.remove();
       filterNodes = null;

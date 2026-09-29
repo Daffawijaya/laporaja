@@ -26,8 +26,9 @@ const MODAL_GLASS_CONFIG = {
 // Dialog sederhana ala sheet bawah pada mobile, terpusat pada desktop.
 // Kaca tepi 1:1 panel dropdown: cangkang + applyLiquidGlass, TANPA lapisan
 // FxFilter ganda (--fx-filter tidak dipakai di sini supaya dark mode tidak
-// ketumpuk overlay hitam). Buka dengan spring "blob", tutup mencair seperti
-// tetes air ala Apple (squash-stretch + tenggelam + blur).
+// ketumpuk overlay hitam). Buka (desktop): zoom-out besar→normal + fade
+// yang cepat dan mulus (satu tween 240ms); tutup: fade opacity saja
+// tanpa gerak.
 // Alasan: satu pola dialog untuk seluruh form admin. Hanya animasi
 // transform/opacity/filter (tanpa menyentuh width/height/border-radius)
 // agar tidak regenerasi displacement map selama animasi berjalan.
@@ -82,19 +83,29 @@ export function Dialog({
   const isDesktop = useDesktop();
   const reduceMotion = !!useReducedMotion();
 
-  // Tempel/delepas lapisan kaca tepi persis panel dropdown. Ref callback
-  // (bukan effect per `open`) supaya destroy jalan saat node benar-benar
-  // dilepas — yaitu sesudah animasi tutup AnimatePresence selesai, bukan
-  // di awal exit (kaca tidak pop duluan). Transform scale saat blob tidak
-  // memicu rebuild (offsetWidth/Height tak berubah), jadi map tetap valid.
+  // Tunda bangun kaca sampai animasi buka selesai (~260ms):
+  // generateDisplacementMap di lib me-loop per-piksel secara sinkron di main
+  // thread — kalau jalan saat mount, animasi buka jank dan kacanya landing
+  // telat (pop di akhir animasi). Ref hanya menyimpan node; efek yang pasang
+  // timer + destroy (jalan juga saat unmount/sesudah exit, jadi tidak pop).
   const attachGlass = useCallback((node: HTMLDivElement | null) => {
-    glassHandleRef.current?.destroy();
-    glassHandleRef.current = null;
     panelRef.current = node;
-    if (node) {
-      glassHandleRef.current = applyLiquidGlass(node, () => MODAL_GLASS_CONFIG);
-    }
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const node = panelRef.current;
+    if (!node) return;
+    const timer = window.setTimeout(() => {
+      glassHandleRef.current?.destroy();
+      glassHandleRef.current = applyLiquidGlass(node, () => MODAL_GLASS_CONFIG);
+    }, 260);
+    return () => {
+      window.clearTimeout(timer);
+      glassHandleRef.current?.destroy();
+      glassHandleRef.current = null;
+    };
+  }, [open ]);
   // onClose selalu inline baru tiap render di pemanggil. Simpan di ref agar
   // efek di bawah tidak jalan ulang (dan tidak mencuri fokus) saat mengetik.
   const onCloseRef = useRef(onClose);
@@ -157,54 +168,27 @@ export function Dialog({
               reduceMotion
                 ? { opacity: 0 }
                 : isDesktop
-                  ? { opacity: 0, scale: 0.86, y: 28 }
+                  ? { opacity: 0, scale: 1.07 }
                   : { y: "100%" }
             }
             animate={
               reduceMotion
                 ? { opacity: 1 }
                 : isDesktop
-                  ? { opacity: 1, scale: 1, y: 0 }
+                  ? { opacity: 1, scale: 1 }
                   : { y: "0%" }
             }
-            exit={
-              reduceMotion
-                ? { opacity: 0 }
-                : isDesktop
-                  ? {
-                      // Tutup ala tetes air: gepeng dulu (squash-stretch),
-                      // lalu menyusut-tenggelam sambil meleleh jadi blur.
-                      opacity: [1, 1, 0.85, 0],
-                      scaleX: [1, 1.05, 0.94, 0.84],
-                      scaleY: [1, 0.93, 0.9, 0.8],
-                      y: [0, 4, 12, 30],
-                      filter: [
-                        "blur(0px)",
-                        "blur(2px)",
-                        "blur(6px)",
-                        "blur(12px)",
-                      ],
-                      transition: {
-                        duration: 0.38,
-                        times: [0, 0.3, 0.65, 1],
-                        ease: "easeIn",
-                      },
-                    }
-                  : {
-                      y: "100%",
-                      transition: { duration: 0.24, ease: "easeIn" },
-                    }
-            }
+            exit={{ opacity: 0, transition: { duration: 0.18 } }}
             transition={
               reduceMotion
                 ? { duration: 0.15 }
                 : isDesktop
                   ? {
-                      type: "spring",
-                      stiffness: 420,
-                      damping: 34,
-                      mass: 0.9,
-                      opacity: { duration: 0.22 },
+                      // Buka: zoom-out besar→normal + fade dalam SATU tween
+                      // (fade jangan dibuat terpisah/lebih cepat dari zoom
+                      // agar panel tidak keburu 100% di tengah animasi).
+                      duration: 0.24,
+                      ease: [0.22, 1, 0.36, 1],
                     }
                   : { duration: 0.34, ease: [0.32, 0.72, 0, 1] }
             }
