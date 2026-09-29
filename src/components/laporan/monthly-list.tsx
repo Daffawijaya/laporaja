@@ -441,8 +441,8 @@ export function MonthlyList({
         </RefListCard>
 
         <RefListCard
-          ariaLabel="Rekomendasi dan tindak lanjut"
-          title="Rekomendasi dan tindak lanjut"
+          ariaLabel="Rekomendasi dan Tindak Lanjut"
+          title="Rekomendasi dan Tindak Lanjut"
           className="mt-4"
         >
           <div className="flex items-center justify-between gap-3 px-1 pb-3">

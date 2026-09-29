@@ -245,7 +245,12 @@ export function GlassMenu({
         aria-expanded={open}
         onClick={() => (open ? close() : openPanel())}
         onKeyDown={onKeyDown}
-        className={cn("ref-icon-btn shrink-0", className)}
+        // Polos abu persis chevron daftar laporan: tanpa lingkaran,
+        // tanpa hover.
+        className={cn(
+          "flex shrink-0 items-center justify-center p-1 text-neutral-400",
+          className
+        )}
       >
         <Ellipsis aria-hidden="true" className="size-5" />
       </button>

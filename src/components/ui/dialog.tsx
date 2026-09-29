@@ -160,7 +160,7 @@ export function Dialog({
               // Kaca refraksi dipasang via applyLiquidGlass (attachGlass).
               // dlg-panel = scope gaya tombol & input modal (lihat globals.css).
               "dlg-panel relative flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden outline-none will-change-transform",
-              "rounded-t-lg border border-white bg-white/85 shadow-[0_1px_4px_rgb(0_0_0/0.05)] sm:rounded-2xl",
+              "rounded-t-[32px] border border-white bg-white/85 shadow-[0_1px_4px_rgb(0_0_0/0.05)] sm:rounded-[32px]",
               "dark:border-white/12 dark:bg-[rgb(28_28_30/0.85)] dark:shadow-[0_1px_4px_rgb(0_0_0/0.42)]"
             )}
             style={{ transformOrigin: "center" }}

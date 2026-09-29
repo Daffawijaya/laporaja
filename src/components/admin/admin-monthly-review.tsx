@@ -141,8 +141,8 @@ export function AdminMonthlyReview({
       )}
 
       <RefListCard
-        ariaLabel={`Rekomendasi dan tindak lanjut ${userNama} ${labelBulan}`}
-        title="Rekomendasi dan tindak lanjut"
+        ariaLabel={`Rekomendasi dan Tindak Lanjut ${userNama} ${labelBulan}`}
+        title="Rekomendasi dan Tindak Lanjut"
       >
         {initial.rekomendasi ? (
           <p className="max-w-prose px-1 text-sm leading-relaxed whitespace-pre-wrap">
