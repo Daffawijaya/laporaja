@@ -17,11 +17,10 @@ export interface LiquidGlassTab {
 
 const DRAG_THRESHOLD = 6;
 const OVERSHOOT = 22;
-// Acuan tunggal sinkronisasi (samakan --lgt-slide/--lgt-settle,
-// --lgt-fade/--lgt-glass-fade di CSS): lepas (t=0): slide + susut
-// 0→SLIDE_MS. Kaca (+ warp teks) mulai & selesai DULUAN (lead
-// GLASS_LEAD_MS); settle di SETTLE_MS mulai cross-fade transparan→abu →
-// geser, susut, abu, nav kelar pas SLIDE_MS. Durasi fade abu tidak tetap:
+// Acuan tunggal sinkronisasi (samakan --lgt-slide/--lgt-settle di CSS):
+// lepas (t=0): slide + susut 0→SLIDE_MS. Settle di SETTLE_MS mulai
+// cross-fade transparan→abu + kaca + teks → SEMUA (geser, susut, abu,
+// kaca, teks, nav) kelar pas SLIDE_MS. Durasi fade abu tidak tetap:
 // setFadeMs() = endDelay − settleDelay (lihat endInteraction).
 const SLIDE_MS = 720;
 const SETTLE_MS = 360;
@@ -31,13 +30,6 @@ const END_MS = SLIDE_MS;
 const LAND_MIN_MS = 240;
 // Jeda cabut node kaca setelah fade-out selesai (jangan pop).
 const GLASS_FADE_MS = 400;
-// Kaca → non-kaca mulai & selesai LEBIH AWAL dari akhir slide (fade abu
-// tetap mendarat di frame terakhir). Ubah angka ini untuk mengatur
-// seberapa duluan — samakan --lgt-glass-fade di CSS via setGlassFadeMs.
-const GLASS_LEAD_MS = 120;
-// Batas jadwal kaca: mulai paling cepat & durasi fade kaca paling pendek.
-const GLASS_START_MIN_MS = 40;
-const GLASS_FADE_MIN_MS = 100;
 const TEXT_SCALE_MAX = 7;
 // Kekuatan refraksi teks (feDisplacementMap scale) — dianimasikan 0↔MAX
 // karena filter url()↔none tidak bisa di-transition (selalu instant).
@@ -111,7 +103,6 @@ export function LiquidGlassTabs({
     let settleTimer: number | undefined;
     let endTimer: number | undefined;
     let teardownTimer: number | undefined;
-    let glassTimer: number | undefined;
     let raf = 0;
     let indicatorGlass: LiquidGlassHandle | null = null;
     // Rect tombol di-cache saat lepas — tombol tidak bergerak selama slide,
@@ -397,19 +388,10 @@ export function LiquidGlassTabs({
       nav!.style.setProperty("--lgt-fade", `${fadeMs}ms`);
     }
 
-    // Durasi fade kaca SAJA (--lgt-glass-fade): mulai & selesai lebih awal
-    // dari fade abu. Diatur per interaksi di endInteraction.
-    let glassFadeMs = 240;
-    function setGlassFadeMs(ms: number) {
-      glassFadeMs = Math.max(0, ms);
-      nav!.style.setProperty("--lgt-glass-fade", `${glassFadeMs}ms`);
-    }
-
     function beginInteraction() {
       window.clearTimeout(settleTimer);
       window.clearTimeout(endTimer);
       window.clearTimeout(teardownTimer);
-      window.clearTimeout(glassTimer);
       // Grow & shrink dikunci SAMA = SETTLE_MS (50% dari SLIDE_MS):
       // grow 0→360ms, shrink 360→720ms. Sebelumnya grow memakai SLIDE_MS
       // penuh sementara shrink cuma SLIDE_MS − SETTLE_MS, jadi susut
@@ -424,7 +406,6 @@ export function LiquidGlassTabs({
       void indicator!.offsetWidth;
       indicator!.classList.remove("lgt-landing");
       indicator!.classList.remove("lgt-settling");
-      indicator!.classList.remove("lgt-glass-out");
       indicator!.classList.add("lgt-interacting");
       nav!.classList.add("lgt-engaged");
       cacheItemRects();
@@ -434,19 +415,9 @@ export function LiquidGlassTabs({
       animateTextScale(TEXT_SCALE_MAX, SLIDE_MS);
     }
 
-    // Kaca keluar DULUAN (dijadwalkan endInteraction via glassTimer):
-    // tambah kelas + warp teks fade-out (scale→0) dengan durasi kaca
-    // sendiri. Fade abu (lgt-settling) menyusul di jadwalnya sendiri dan
-    // tetap mendarat di frame terakhir.
-    function beginGlassOut() {
-      indicator!.classList.add("lgt-glass-out");
-      animateTextScale(0, glassFadeMs);
-      updateTextRefraction();
-    }
-
-    // Mulai fase settling: fade abu SAJA, TANPA menyentuh
-    // transform/left/width — susut + geser jalan terus. (Kaca + warp teks
-    // sudah diurus beginGlassOut yang dijadwalkan lebih awal.)
+    // Mulai fase settling: warp teks fade-out (scale→0) + fade abu/kaca,
+    // TANPA menyentuh transform/left/width — susut + geser jalan terus.
+    // Kelas teks dipertahankan sampai scale 0 agar tidak pop.
     function beginSettle() {
       if (
         indicator!.classList.contains("lgt-landing") ||
@@ -462,6 +433,9 @@ export function LiquidGlassTabs({
           nav!.classList.remove("lgt-engaged");
         }
         indicator!.classList.add("lgt-settling");
+        // Warp teks ikut durasi fade yang sama → semua efek mendarat
+        // di frame yang sama, tidak ada sisa animasi setelahnya.
+        animateTextScale(0, fadeMs);
         updateTextRefraction();
       }
     }
@@ -474,7 +448,6 @@ export function LiquidGlassTabs({
       indicator!.classList.remove("lgt-landing");
       indicator!.classList.remove("lgt-snapping");
       indicator!.classList.remove("lgt-settling");
-      indicator!.classList.remove("lgt-glass-out");
       inner!.classList.remove("lgt-dragging");
       nav!.classList.remove("lgt-engaged");
       stopTracking();
@@ -495,19 +468,10 @@ export function LiquidGlassTabs({
       window.clearTimeout(settleTimer);
       window.clearTimeout(endTimer);
       window.clearTimeout(teardownTimer);
-      window.clearTimeout(glassTimer);
       // Fade transparan → abu mulai bareng settle dan harus selesai bareng
       // akhir animasi → durasinya = selisih settle ↔ end (bukan --lgt-settle
       // tetap, yang bisa berakhir melewati frame terakhir).
       setFadeMs(endDelay - settleDelay);
-      // Kaca mulai & selesai DULUAN (abu tidak berubah): geser jadwalnya
-      // lebih awal sejumlah GLASS_LEAD_MS dengan clamp agar tidak negatif
-      // atau lebih pendek dari minimum.
-      const glassStart = Math.max(GLASS_START_MIN_MS, settleDelay - GLASS_LEAD_MS);
-      setGlassFadeMs(
-        Math.max(GLASS_FADE_MIN_MS, endDelay - GLASS_LEAD_MS - glassStart)
-      );
-      glassTimer = window.setTimeout(beginGlassOut, glassStart);
       settleTimer = window.setTimeout(beginSettle, settleDelay);
       endTimer = window.setTimeout(finalize, endDelay);
     }
@@ -671,7 +635,6 @@ export function LiquidGlassTabs({
       window.clearTimeout(settleTimer);
       window.clearTimeout(endTimer);
       window.clearTimeout(teardownTimer);
-      window.clearTimeout(glassTimer);
       stopTracking();
       window.cancelAnimationFrame(textRaf);
       clearTextRefraction();
