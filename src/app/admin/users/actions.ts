@@ -21,7 +21,7 @@ export interface UserFormInput {
   password: string;
   bidangId: string | null;
   subBidang: string[];
-  indikators: { nama: string; target: number }[];
+  indikators: { nama: string; target: number | null }[];
 }
 
 // Galat khusus agar pemanggil dapat membedakan sesi berakhir dari galat lain.
@@ -62,20 +62,26 @@ function cleanNama(nama: unknown): string {
   return cleaned;
 }
 
-function cleanIndikators(list: unknown): { nama: string; target: number }[] {
+function cleanIndikators(list: unknown): { nama: string; target: number | null }[] {
   if (!Array.isArray(list)) return [];
-  const out: { nama: string; target: number }[] = [];
+  const out: { nama: string; target: number | null }[] = [];
   for (const item of list) {
     if (typeof item !== "object" || item === null) continue;
     const record = item as { nama?: unknown; target?: unknown };
     const nama = typeof record.nama === "string" ? record.nama.trim() : "";
-    const target = typeof record.target === "number" ? record.target : Number(record.target);
-    if (nama.length === 0 && (record.target === undefined || record.target === "")) continue;
+    const targetRaw =
+      typeof record.target === "string" ? record.target.trim() : record.target;
+    // Target opsional: kosong = null (tanpa target).
+    const target =
+      targetRaw === undefined || targetRaw === "" || targetRaw === null
+        ? null
+        : Number(targetRaw);
+    if (nama.length === 0 && target === null) continue;
     if (nama.length < 2 || nama.length > 120) {
       throw new Error("Setiap indikator harus 2-120 karakter.");
     }
-    if (!Number.isInteger(target) || target < 1 || target > 100000) {
-      throw new Error("Jumlah per bulan harus angka bulat 1 sampai 100000.");
+    if (target !== null && (!Number.isInteger(target) || target < 1 || target > 100000)) {
+      throw new Error("Target per bulan harus angka bulat 1 sampai 100000.");
     }
     out.push({ nama, target });
   }

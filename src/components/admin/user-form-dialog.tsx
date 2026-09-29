@@ -71,7 +71,7 @@ export function UserFormDialog({
 
   function addIndikatorRow() {
     keyRef.current += 1;
-    setIndikatorRows((prev) => [...prev, { key: keyRef.current, nama: "", target: "10" }]);
+    setIndikatorRows((prev) => [...prev, { key: keyRef.current, nama: "", target: "" }]);
     setFormError(null);
   }
 
@@ -123,10 +123,13 @@ export function UserFormDialog({
         setFormError("Setiap indikator harus 2-120 karakter.");
         return;
       }
-      const jumlah = Number(row.target);
-      if (!Number.isInteger(jumlah) || jumlah < 1 || jumlah > 100000) {
-        setFormError("Jumlah per bulan harus angka bulat 1 sampai 100000.");
-        return;
+      // Target opsional: kosong = tanpa target.
+      if (row.target.trim() !== "") {
+        const jumlah = Number(row.target);
+        if (!Number.isInteger(jumlah) || jumlah < 1 || jumlah > 100000) {
+          setFormError("Target per bulan harus angka bulat 1 sampai 100000.");
+          return;
+        }
       }
     }
     setFormError(null);
@@ -136,7 +139,10 @@ export function UserFormDialog({
       password,
       bidangId: bidangId === "" ? null : bidangId,
       subBidang,
-      indikators: indikatorRows.map((row) => ({ nama: row.nama.trim(), target: Number(row.target) })),
+      indikators: indikatorRows.map((row) => ({
+        nama: row.nama.trim(),
+        target: row.target.trim() === "" ? null : Number(row.target),
+      })),
     });
   }
 
@@ -236,7 +242,7 @@ export function UserFormDialog({
                       />
                     </div>
                     <div className="flex w-24 shrink-0 flex-col gap-1.5">
-                      <Label htmlFor={`indikator-target-${row.key}`}>Per bulan</Label>
+                      <Label htmlFor={`indikator-target-${row.key}`}>Target per bulan</Label>
                       <Input
                         id={`indikator-target-${row.key}`}
                         type="number"
@@ -244,6 +250,7 @@ export function UserFormDialog({
                         max={100000}
                         step={1}
                         value={row.target}
+                        placeholder="Opsional"
                         onChange={(event) =>
                           updateIndikatorRow(row.key, { target: event.target.value })
                         }

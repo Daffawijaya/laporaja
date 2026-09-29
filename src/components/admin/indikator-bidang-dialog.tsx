@@ -110,7 +110,7 @@ export function IndikatorBidangDialog({
   function openAdd() {
     setEditTarget(null);
     setNama("");
-    setTarget("10");
+    setTarget("");
     setFormError(null);
     setFormOpen(true);
   }
@@ -123,30 +123,32 @@ export function IndikatorBidangDialog({
     setFormOpen(true);
   }
 
-  function validate(): string | null {
+  // Target opsional: kosong = null (tanpa target).
+  function validate(): { jumlah: number | null } | { error: string } {
     if (nama.trim().length < 2 || nama.trim().length > 120) {
-      return "Nama indikator harus 2-120 karakter.";
+      return { error: "Nama indikator harus 2-120 karakter." };
     }
+    if (target.trim() === "") return { jumlah: null };
     const jumlah = Number(target);
     if (!Number.isInteger(jumlah) || jumlah < 1 || jumlah > 100000) {
-      return "Jumlah per bulan harus angka bulat 1 sampai 100000.";
+      return { error: "Target per bulan harus angka bulat 1 sampai 100000." };
     }
-    return null;
+    return { jumlah };
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
-    const failed = validate();
-    if (failed) {
-      setFormError(failed);
+    const valid = validate();
+    if ("error" in valid) {
+      setFormError(valid.error);
       return;
     }
     setSaving(true);
     setFormError(null);
     try {
       const supabase = createClient();
-      const payload = { nama: nama.trim(), target_bulanan: Number(target) };
+      const payload = { nama: nama.trim(), target_bulanan: valid.jumlah };
       if (editTarget) {
         const { error } = await supabase
           .from("indikator")
@@ -229,7 +231,7 @@ export function IndikatorBidangDialog({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="bidang-indikator-target">Jumlah per bulan</Label>
+              <Label htmlFor="bidang-indikator-target">Target per bulan</Label>
               <Input
                 id="bidang-indikator-target"
                 type="number"
@@ -237,6 +239,7 @@ export function IndikatorBidangDialog({
                 max={100000}
                 step={1}
                 value={target}
+                placeholder="Opsional"
                 onChange={(event) => {
                   setTarget(event.target.value);
                   setFormError(null);

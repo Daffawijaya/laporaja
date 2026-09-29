@@ -25,9 +25,7 @@ export interface IndikatorRow {
   total: number;
 }
 
-// Tabel lengkap semua indikator. Tambah baru langsung isi nama di tabel,
-// tersimpan sebagai global. Jumlah per bulan diisi belakangan di menu
-// Bidang atau menu Pengguna.
+// Tabel lengkap semua indikator. Target per bulan opsional (boleh kosong).
 export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
   const router = useRouter();
   const toast = useToast();
@@ -64,19 +62,21 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
 
   function openAdd() {
     setNama("");
-    setTarget("10");
+    setTarget("");
     setFormError(null);
     setTambahOpen(true);
   }
 
-  function validasiNamaTarget(): { jumlah: number } | null {
+  // Target opsional: kosong = null (tanpa target).
+  function validasiNamaTarget(): { jumlah: number | null } | null {
     if (nama.trim().length < 2 || nama.trim().length > 120) {
       setFormError("Nama indikator harus 2-120 karakter.");
       return null;
     }
+    if (target.trim() === "") return { jumlah: null };
     const jumlah = Number(target);
     if (!Number.isInteger(jumlah) || jumlah < 1 || jumlah > 100000) {
-      setFormError("Jumlah per bulan harus angka bulat 1 sampai 100000.");
+      setFormError("Target per bulan harus angka bulat 1 sampai 100000.");
       return null;
     }
     return { jumlah };
@@ -129,7 +129,7 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
   function openEdit(item: IndikatorRow) {
     setEditItem(item);
     setNama(item.nama);
-    setTarget(item.target == null ? "10" : String(item.target));
+    setTarget(item.target == null ? "" : String(item.target));
     setFormError(null);
   }
 
@@ -295,7 +295,7 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="indikator-baru-target">Jumlah per bulan</Label>
+            <Label htmlFor="indikator-baru-target">Target per bulan</Label>
             <Input
               id="indikator-baru-target"
               type="number"
@@ -303,6 +303,7 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
               max={100000}
               step={1}
               value={target}
+              placeholder="Opsional"
               onChange={(event) => {
                 setTarget(event.target.value);
                 setFormError(null);
@@ -354,7 +355,7 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="indikator-target">Jumlah per bulan</Label>
+            <Label htmlFor="indikator-target">Target per bulan</Label>
             <Input
               id="indikator-target"
               type="number"
@@ -362,6 +363,7 @@ export function IndikatorManager({ initial }: { initial: IndikatorRow[] }) {
               max={100000}
               step={1}
               value={target}
+              placeholder="Opsional"
               onChange={(event) => {
                 setTarget(event.target.value);
                 setFormError(null);
