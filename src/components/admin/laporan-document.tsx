@@ -22,6 +22,7 @@ export type StatusBulananPdf = "Menunggu Review" | "Revisi" | "Disetujui";
 
 export interface PdfTambahan {
   judul: string;
+  deskripsi: string | null;
   kolom: string[];
   baris: string[][];
 }
@@ -199,6 +200,9 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
         {data.tambahan.map((laporan) => (
           <View key={laporan.judul} break={laporan.baris.length > 6}>
             <Text style={styles.tambahanJudul}>{laporan.judul.toUpperCase()}</Text>
+            {laporan.deskripsi ? (
+              <Text style={[styles.paragraph, { color: "#6e6e73" }]}>{laporan.deskripsi}</Text>
+            ) : null}
             {laporan.baris.length === 0 ? (
               <Text style={styles.empty}>Belum ada isian.</Text>
             ) : (

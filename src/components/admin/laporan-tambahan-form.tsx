@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Copy, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GlassSelect } from "@/components/ui/glass-select";
 import { RefListCard } from "@/components/ui/ref-list-card";
+import { ContentGrid } from "@/components/layout/content-grid";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
@@ -25,17 +26,17 @@ interface KolomDraft {
   key: number;
   label: string;
   tipe: KolomTipe;
-  wajib: boolean;
 }
 
 let kolomSeq = 0;
-function kolomBaru(): KolomDraft {
+function kolomBaru(label = ""): KolomDraft {
   kolomSeq += 1;
-  return { key: kolomSeq, label: "", tipe: "text", wajib: true };
+  return { key: kolomSeq, label, tipe: "text" };
 }
 
-// Form buat laporan tambahan: judul + kolom isian yang ditentukan admin
-// (label + bentuk isian + wajib) + bidang yang wajib mengisi.
+// Form buat laporan tambahan ala Google Forms: kartu judul + kartu
+// kolom (satu per kolom) + rel tombol tambah. Styling (rounded,
+// warna, aksen) tetap ikut aplikasi.
 export function LaporanTambahanForm({
   bidangList,
   onCancel,
@@ -55,6 +56,21 @@ export function LaporanTambahanForm({
 
   function setKolomDraft(key: number, patch: Partial<KolomDraft>) {
     setKolom((prev) => prev.map((col) => (col.key === key ? { ...col, ...patch } : col)));
+    setFormError(null);
+  }
+
+  function tambahKolom() {
+    setKolom((prev) => [...prev, kolomBaru()]);
+    setFormError(null);
+  }
+
+  function duplikatKolom(key: number) {
+    setKolom((prev) => {
+      const index = prev.findIndex((col) => col.key === key);
+      if (index < 0) return prev;
+      const asal = prev[index];
+      return [...prev.slice(0, index + 1), kolomBaru(asal.label), ...prev.slice(index + 1)];
+    });
     setFormError(null);
   }
 
@@ -98,7 +114,11 @@ export function LaporanTambahanForm({
       const { data: auth } = await supabase.auth.getUser();
       const { data, error } = await supabase
         .from("laporan_tambahan")
-        .insert({ judul: cleanedJudul, created_by: auth.user?.id ?? null })
+        .insert({
+          judul: cleanedJudul,
+          deskripsi: null,
+          created_by: auth.user?.id ?? null,
+        })
         .select("id")
         .single();
       if (error || !data) {
@@ -116,7 +136,7 @@ export function LaporanTambahanForm({
             laporan_id: data.id,
             label: col.label,
             tipe: col.tipe,
-            wajib: col.wajib,
+            wajib: true,
             urutan: col.urutan,
           }))
         ),
@@ -136,137 +156,182 @@ export function LaporanTambahanForm({
     }
   }
 
-  return (
-    <RefListCard ariaLabel="Form laporan tambahan">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="tambahan-judul">Judul laporan</Label>
-          <Input
-            id="tambahan-judul"
-            value={judul}
-            onChange={(event) => {
-              setJudul(event.target.value);
-              setFormError(null);
-            }}
-            placeholder="Contoh: Pendampingan UMKM"
-            disabled={saving}
-            autoFocus
-          />
-        </div>
+  const bidangCard = (
+    <RefListCard ariaLabel="Bidang yang wajib mengisi">
+      {bidangList.length === 0 ? (
+        <p className="px-1 text-sm text-neutral-500">
+          Belum ada bidang. Tambahkan dulu di menu Bidang.
+        </p>
+      ) : (
+        <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
+          {bidangList.map((bidang, index) => (
+            <li
+              key={bidang.id}
+              className={
+                bidangList.length === 1
+                  ? "px-1"
+                  : index === 0
+                    ? "px-1 pb-3"
+                    : index === bidangList.length - 1
+                      ? "px-1 pt-3"
+                      : "px-1 py-3"
+              }
+            >
+              <label className="flex min-h-[28px] cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={bidangIds.includes(bidang.id)}
+                  onChange={() => toggleBidang(bidang.id)}
+                  disabled={saving}
+                  className="size-4 shrink-0 accent-[#0071e3]"
+                />
+                <span className="min-w-0 truncate text-sm">{bidang.nama}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+    </RefListCard>
+  );
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium">Kolom isian</legend>
-          <ul className="flex flex-col gap-3">
-            {kolom.map((col, index) => (
-              <li key={col.key} className="flex flex-col gap-2 rounded-md bg-muted/50 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-neutral-500">Kolom {index + 1}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => hapusKolom(col.key)}
-                    disabled={saving || kolom.length <= 1}
-                    aria-label={`Hapus kolom ${index + 1}`}
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </Button>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor={`kolom-label-${col.key}`}>Label</Label>
-                  <Input
-                    id={`kolom-label-${col.key}`}
-                    value={col.label}
-                    onChange={(event) => setKolomDraft(col.key, { label: event.target.value })}
-                    placeholder="Contoh: Nama Pelaku UMKM / Nama Usaha"
-                    disabled={saving}
-                  />
-                </div>
-                <div className="grid grid-cols-2 items-end gap-3">
-                  <div className="flex flex-col gap-2">
-                    <span className="text-sm font-medium">Bentuk isian</span>
+  return (
+    <form onSubmit={handleSubmit} className="w-full">
+      <ContentGrid gapClassName="lg:gap-3" aside={bidangCard}>
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          {/* Kartu judul. Padding + ukuran teks samakan kartu referensi (RefListCard p-4). */}
+          <div className="ref-card p-4">
+            <Label htmlFor="tambahan-judul" className="sr-only">
+              Judul laporan
+            </Label>
+            <Input
+              id="tambahan-judul"
+              value={judul}
+              onChange={(event) => {
+                setJudul(event.target.value);
+                setFormError(null);
+              }}
+              placeholder="Judul laporan"
+              disabled={saving}
+              autoFocus
+              className="h-auto border-0 bg-transparent px-1 py-1 text-[17px] font-semibold tracking-tight placeholder:text-neutral-400 focus-visible:border-b focus-visible:border-neutral-300 focus-visible:ring-0"
+            />
+          </div>
+
+          {/* Satu kartu berisi daftar baris kolom. Ritme padding samakan RefListCard referensi. */}
+          <div className="ref-card mt-2 p-4">
+            <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
+              {kolom.map((col, index) => (
+                <li
+                  key={col.key}
+                  className={
+                    kolom.length === 1
+                      ? "px-1"
+                      : index === 0
+                        ? "px-1 pb-3"
+                        : index === kolom.length - 1
+                          ? "px-1 pt-3"
+                          : "px-1 py-3"
+                  }
+                >
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor={`kolom-label-${col.key}`} className="sr-only">
+                      {`Kolom ${index + 1}`}
+                    </Label>
+                    <Input
+                      id={`kolom-label-${col.key}`}
+                      value={col.label}
+                      onChange={(event) => setKolomDraft(col.key, { label: event.target.value })}
+                      placeholder="Nama kolom"
+                      disabled={saving}
+                      className="h-11 min-w-0 flex-1 border-transparent bg-black/[0.075] text-sm hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
+                    />
                     <GlassSelect
                       ariaLabel={`Bentuk isian kolom ${index + 1}`}
                       value={col.tipe}
                       onChange={(value) => setKolomDraft(col.key, { tipe: value as KolomTipe })}
                       options={TIPE_OPTIONS}
                       disabled={saving}
+                      className="w-32 shrink-0 sm:w-36"
                     />
+                    <span className="flex shrink-0 items-center">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => duplikatKolom(col.key)}
+                        disabled={saving}
+                        aria-label={`Gandakan kolom ${index + 1}`}
+                      >
+                        <Copy aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => hapusKolom(col.key)}
+                        disabled={saving || kolom.length <= 1}
+                        aria-label={`Hapus kolom ${index + 1}`}
+                      >
+                        <Trash2 aria-hidden="true" />
+                      </Button>
+                    </span>
                   </div>
-                  <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={col.wajib}
-                      onChange={(event) => setKolomDraft(col.key, { wajib: event.target.checked })}
-                      disabled={saving}
-                      className="size-4 accent-[#0071e3]"
-                    />
-                    Wajib diisi
-                  </label>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mt-2 md:hidden">
             <Button
               type="button"
               variant="secondary"
-              onClick={() => {
-                setKolom((prev) => [...prev, kolomBaru()]);
-                setFormError(null);
-              }}
+              onClick={tambahKolom}
               disabled={saving}
-              className="rounded-full"
+              className="w-full rounded-full"
             >
               <Plus aria-hidden="true" />
               Tambah Kolom
             </Button>
           </div>
-        </fieldset>
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium">Bidang yang wajib mengisi</legend>
-          {bidangList.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Belum ada bidang. Tambahkan dulu di menu Bidang.
+          {formError && (
+            <p role="alert" className="mt-3 text-sm text-danger">
+              {formError}
             </p>
-          ) : (
-            <ul className="flex max-h-44 flex-col gap-1 overflow-y-auto">
-              {bidangList.map((bidang) => (
-                <li key={bidang.id}>
-                  <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-2 hover:bg-muted">
-                    <input
-                      type="checkbox"
-                      checked={bidangIds.includes(bidang.id)}
-                      onChange={() => toggleBidang(bidang.id)}
-                      disabled={saving}
-                      className="size-4 accent-[#0071e3]"
-                    />
-                    <span className="text-sm">{bidang.nama}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
           )}
-        </fieldset>
-        {formError && (
-          <p role="alert" className="text-sm text-danger">
-            {formError}
-          </p>
-        )}
-        <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onCancel}
-            disabled={saving}
-          >
-            Batal
-          </Button>
-          <Button type="submit" disabled={saving}>
-            {saving ? "Menyimpan..." : "Simpan"}
-          </Button>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onCancel}
+              disabled={saving}
+              className="rounded-full"
+            >
+              Batal
+            </Button>
+            <Button type="submit" disabled={saving} className="rounded-full">
+              {saving ? "Menyimpan..." : "Simpan"}
+            </Button>
+          </div>
         </div>
-      </form>
-    </RefListCard>
+
+        {/* Rel tombol tambah (desktop): salin persis ikon lingkaran navbar (lonceng/bulan). */}
+        <div className="sticky top-20 hidden shrink-0 md:block">
+          <div className="ref-icon-btn-liquid">
+            <button
+              type="button"
+              onClick={tambahKolom}
+              disabled={saving}
+              aria-label="Tambah kolom"
+              className="ref-icon-btn-plain disabled:opacity-50"
+            >
+              <Plus aria-hidden="true" className="size-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+      </ContentGrid>
+    </form>
   );
 }

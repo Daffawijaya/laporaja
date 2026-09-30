@@ -20,6 +20,7 @@ export interface BarisIsi {
 export interface TugasLaporan {
   id: string;
   judul: string;
+  deskripsi: string | null;
   bidang: { id: string; nama: string }[];
   kolom: KolomDef[];
   baris: BarisIsi[];
@@ -85,7 +86,7 @@ export async function getTugasUser(
   if (ids.length === 0) return [];
 
   const [laporanResult, kolomResult, barisResult] = await Promise.all([
-    supabase.from("laporan_tambahan").select("id, judul").in("id", ids).order("judul"),
+    supabase.from("laporan_tambahan").select("id, judul, deskripsi").in("id", ids).order("judul"),
     supabase
       .from("laporan_tambahan_kolom")
       .select("id, laporan_id, label, tipe, wajib")
@@ -154,6 +155,7 @@ export async function getTugasUser(
     return {
       id: row.id,
       judul: row.judul,
+      deskripsi: row.deskripsi,
       bidang: bidangByLaporan.get(row.id) ?? [],
       kolom: kolomByLaporan.get(row.id) ?? [],
       baris,
@@ -272,6 +274,7 @@ export interface TargetDenganStatus {
 export interface LaporanDetailAdmin {
   id: string;
   judul: string;
+  deskripsi: string | null;
   bidang: { id: string; nama: string }[];
   kolom: KolomDef[];
   baris: BarisDenganUser[];
@@ -286,7 +289,7 @@ export async function getLaporanDetailAdmin(
 ): Promise<LaporanDetailAdmin | null> {
   const { data: laporan, error: laporanError } = await supabase
     .from("laporan_tambahan")
-    .select("id, judul")
+    .select("id, judul, deskripsi")
     .eq("id", laporanId)
     .maybeSingle();
   if (laporanError) throw new Error("Gagal memuat laporan tambahan. Coba lagi.");
@@ -362,6 +365,7 @@ export async function getLaporanDetailAdmin(
   return {
     id: laporan.id,
     judul: laporan.judul,
+    deskripsi: laporan.deskripsi,
     bidang: (bidangResult.data ?? []).map((row) => ({ id: row.id, nama: row.nama })),
     kolom,
     baris: barisList.map((row) => ({

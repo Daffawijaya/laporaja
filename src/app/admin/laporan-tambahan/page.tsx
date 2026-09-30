@@ -64,11 +64,7 @@ export default async function LaporanTambahanPage({
     );
   }
 
-  const [items, bidangResult] = await Promise.all([
-    getLaporanListAdmin(supabase),
-    supabase.from("bidang").select("id, nama").order("nama"),
-  ]);
-  const bidangList = bidangResult.data ?? [];
+  const items = await getLaporanListAdmin(supabase);
   const belumLengkap = items.filter((item) => item.terisiUser < item.targetUser).length;
 
   return (
@@ -92,7 +88,7 @@ export default async function LaporanTambahanPage({
             />
           }
         >
-          <LaporanTambahanManager initial={items} bidangList={bidangList} />
+          <LaporanTambahanManager initial={items} />
         </ContentGrid>
       </div>
     </div>

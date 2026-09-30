@@ -55,6 +55,7 @@ function refTitle(pathname: string): string {
   if (pathname === "/admin/bidang") return "Bidang";
   if (pathname === "/admin/indikator") return "Indikator";
   if (pathname === "/admin/laporan-tambahan") return "Laporan Tambahan";
+  if (pathname === "/admin/laporan-tambahan/baru") return "Buat Laporan Tambahan";
   if (pathname === "/admin/laporan") return "Laporan";
   if (pathname.startsWith("/admin/laporan/")) return "Detail Laporan";
   return "Dashboard";

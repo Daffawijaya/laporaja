@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Eye, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -13,43 +12,19 @@ import { RefListCard } from "@/components/ui/ref-list-card";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
-import { LaporanTambahanForm } from "@/components/admin/laporan-tambahan-form";
 import type { LaporanAdminItem } from "@/lib/laporan-tambahan/queries";
 
 export function LaporanTambahanManager({
   initial,
-  bidangList,
 }: {
   initial: LaporanAdminItem[];
-  bidangList: { id: string; nama: string }[];
 }) {
   const router = useRouter();
   const toast = useToast();
-  const reduceMotion = !!useReducedMotion();
   const [items, setItems] = useState(initial);
-  const [expanded, setExpanded] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<LaporanAdminItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
-  const formRef = useRef<HTMLDivElement>(null);
-
-  // Sinkron dari server setiap refresh (mis. sesudah simpan inline):
-  // penyesuaian state saat render (pola resmi React, bukan effect).
-  const [prevInitial, setPrevInitial] = useState(initial);
-  if (prevInitial !== initial) {
-    setPrevInitial(initial);
-    setItems(initial);
-  }
-
-  // Form meluncur ke tampilan saat dibuka.
-  useEffect(() => {
-    if (expanded) {
-      formRef.current?.scrollIntoView({
-        behavior: reduceMotion ? "auto" : "smooth",
-        block: "nearest",
-      });
-    }
-  }, [expanded, reduceMotion]);
 
   const searchParams = useSearchParams();
   const query = (searchParams.get("q") ?? "").trim().toLowerCase();
@@ -58,12 +33,7 @@ export function LaporanTambahanManager({
     : items;
 
   function goAdd() {
-    setExpanded((prev) => !prev);
-  }
-
-  function handleSaved() {
-    setExpanded(false);
-    router.refresh();
+    router.push("/admin/laporan-tambahan/baru");
   }
 
   function handleSession(error: unknown): boolean {
@@ -181,46 +151,12 @@ export function LaporanTambahanManager({
       </RefListCard>
       {visibleItems.length > 0 && (
         <div className="mt-3 flex justify-end">
-          <Button onClick={goAdd} className="rounded-full" aria-expanded={expanded}>
+          <Button onClick={goAdd} className="rounded-full">
             <Plus aria-hidden="true" />
-            {expanded ? "Tutup" : "Buat"}
+            Buat
           </Button>
         </div>
       )}
-
-      {/* Slide buka/tutup pola detail laporan: height 0↔auto + fade,
-          spring critically-damped tanpa overshoot. */}
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            key="form-buat"
-            ref={formRef}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={
-              reduceMotion
-                ? { duration: 0.15 }
-                : {
-                    type: "spring",
-                    stiffness: 360,
-                    damping: 37,
-                    mass: 0.9,
-                    opacity: { duration: 0.22 },
-                  }
-            }
-            className="overflow-hidden"
-          >
-            <div className="pt-3">
-              <LaporanTambahanForm
-                bidangList={bidangList}
-                onCancel={() => setExpanded(false)}
-                onSaved={handleSaved}
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <ConfirmDialog
         open={deleteTarget !== null}

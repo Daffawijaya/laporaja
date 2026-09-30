@@ -2,7 +2,20 @@
 
 import { RefListCard } from "@/components/ui/ref-list-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { formatTanggalPanjang } from "@/components/laporan/types";
 import type { LaporanDetailAdmin } from "@/lib/laporan-tambahan/queries";
+
+// Nilai tanggal (YYYY-MM-DD) ditampilkan sebagai "hari, tanggal bulan tahun".
+function formatNilai(tipe: string, raw: string | null | undefined): string {
+  if (!raw) return "-";
+  if (tipe !== "date") return raw;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  try {
+    return formatTanggalPanjang(raw);
+  } catch {
+    return raw;
+  }
+}
 
 // Detail satu laporan tambahan untuk admin: definisi kolom + status isi
 // per user target + seluruh baris isian yang dikelompokkan per pengisi.
@@ -18,6 +31,11 @@ export function LaporanTambahanDetail({ detail }: { detail: LaporanDetailAdmin }
   return (
     <div className="w-full">
       <RefListCard ariaLabel="Status pengisian">
+        {detail.deskripsi && (
+          <p className="mb-3 px-1 text-sm whitespace-pre-wrap text-neutral-500">
+            {detail.deskripsi}
+          </p>
+        )}
         <ul className="divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
           <li className="flex items-center justify-between gap-3 px-1 pb-3">
             <span className="text-sm font-medium">Kolom isian</span>
@@ -86,7 +104,7 @@ export function LaporanTambahanDetail({ detail }: { detail: LaporanDetailAdmin }
                           <td className="px-2 py-1.5 text-neutral-500">{index + 1}</td>
                           {detail.kolom.map((col) => (
                             <td key={col.id} className="px-2 py-1.5 whitespace-pre-wrap">
-                              {row.nilai[col.id] ?? "-"}
+                              {formatNilai(col.tipe, row.nilai[col.id])}
                             </td>
                           ))}
                         </tr>

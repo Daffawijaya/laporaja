@@ -89,6 +89,7 @@ export type KegiatanIndikatorRow = {
 export type LaporanTambahanRow = {
   id: string;
   judul: string;
+  deskripsi: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -205,8 +206,8 @@ export type Database = {
       laporan_tambahan: {
         Row: LaporanTambahanRow;
         Insert: Pick<LaporanTambahanRow, "judul"> &
-          Partial<Pick<LaporanTambahanRow, "id" | "created_by" | "created_at" | "updated_at">>;
-        Update: Partial<Pick<LaporanTambahanRow, "judul">>;
+          Partial<Pick<LaporanTambahanRow, "id" | "deskripsi" | "created_by" | "created_at" | "updated_at">>;
+        Update: Partial<Pick<LaporanTambahanRow, "judul" | "deskripsi">>;
         Relationships: [];
       };
       laporan_tambahan_bidang: {

@@ -5,7 +5,7 @@ import { getSignedImageUrl } from "@/lib/supabase/storage";
 import { clampBulan, clampTahun, deriveMonthStatus, getMonthlyLaporan, getMonthlyReview } from "@/lib/laporan/queries";
 import { getTugasUser } from "@/lib/laporan-tambahan/queries";
 import { LaporanDocument, type PdfDay, type PdfTambahan } from "@/components/admin/laporan-document";
-import { NAMA_BULAN, pad2 } from "@/components/laporan/types";
+import { NAMA_BULAN, formatTanggalPanjang, pad2 } from "@/components/laporan/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -119,8 +119,19 @@ export async function GET(request: Request) {
 
   const tambahan: PdfTambahan[] = tugas.map((item) => ({
     judul: item.judul,
+    deskripsi: item.deskripsi,
     kolom: item.kolom.map((col) => col.label),
-    baris: item.baris.map((row) => item.kolom.map((col) => row.nilai[col.id] ?? "")),
+    baris: item.baris.map((row) =>
+      item.kolom.map((col) => {
+        const raw = row.nilai[col.id] ?? "";
+        if (!raw || col.tipe !== "date" || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+        try {
+          return formatTanggalPanjang(raw);
+        } catch {
+          return raw;
+        }
+      })
+    ),
   }));
 
   const buffer = await renderToBuffer(

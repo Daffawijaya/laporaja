@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
+import { formatTanggalPanjang } from "@/components/laporan/types";
 import {
   cleanNilai,
   type BarisIsi,
@@ -64,6 +65,19 @@ function FieldInput({
       />
     </div>
   );
+}
+
+// Nilai tanggal (YYYY-MM-DD) ditampilkan sebagai "hari, tanggal bulan tahun"
+// cth: "Senin, 12 Januari 2026". Nilai lain/non-ISO dikembalikan apa adanya.
+function formatNilai(col: KolomDef, raw: string): string {
+  if (!raw) return "-";
+  if (col.tipe !== "date") return raw;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  try {
+    return formatTanggalPanjang(raw);
+  } catch {
+    return raw;
+  }
 }
 
 // Seksi pengisian laporan tambahan di halaman laporan user: daftar tugas
@@ -231,6 +245,11 @@ export function LaporanTambahanSection({
               {item.terisi ? "Sudah diisi" : "Belum diisi"}
             </span>
           </div>
+          {item.deskripsi && (
+            <p className="px-1 pb-3 text-xs whitespace-pre-wrap text-neutral-500">
+              {item.deskripsi}
+            </p>
+          )}
 
           {item.baris.length === 0 ? (
             <EmptyState
@@ -278,7 +297,7 @@ export function LaporanTambahanSection({
                           <div key={col.id} className="contents">
                             <dt className="text-neutral-500">{col.label}</dt>
                             <dd className="whitespace-pre-wrap">
-                              {row.nilai[col.id] || "-"}
+                              {formatNilai(col, row.nilai[col.id] ?? "")}
                             </dd>
                           </div>
                         ))}
