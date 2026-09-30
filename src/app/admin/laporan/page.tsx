@@ -7,6 +7,7 @@ import { RefListCard } from "@/components/ui/ref-list-card";
 import { assertOk } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import { clampBulan, clampTahun, getMonthlyLaporan, getMonthlyReview, getUserMonthStats } from "@/lib/laporan/queries";
+import { getTugasBelumTerisi } from "@/lib/laporan-tambahan/queries";
 import { getIndikatorProgress } from "@/lib/indikator/queries";
 import { NAMA_BULAN } from "@/components/laporan/types";
 import { AdminMonthRecap } from "@/components/admin/admin-month-recap";
@@ -40,10 +41,11 @@ export default async function AdminLaporanPage({
 
   // Lapis 2: detail bulanan satu user (tampilan lama + tombol kembali).
   if (selected) {
-    const [items, monthly, indikators] = await Promise.all([
+    const [items, monthly, indikators, tugasBelum] = await Promise.all([
       getMonthlyLaporan(supabase, selected.id, tahun, bulan),
       getMonthlyReview(supabase, selected.id, tahun, bulan),
       getIndikatorProgress(supabase, selected.id, tahun, bulan),
+      getTugasBelumTerisi(supabase, selected.id, selected.bidang_id),
     ]);
     // Nama bidang untuk jabatan penilai (tidak lagi hardcode).
     let bidangNama: string | null = null;
@@ -218,6 +220,7 @@ export default async function AdminLaporanPage({
               labelBulan={labelBulan}
               initial={monthly}
               revisiKegiatan={revisiKegiatan}
+              tugasBelum={tugasBelum}
             />
           </ContentGrid>
         </div>

@@ -5,10 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   HiChartBar,
+  HiClipboardDocumentCheck,
   HiClipboardDocumentList,
   HiFlag,
   HiHome,
   HiOutlineChartBar,
+  HiOutlineClipboardDocumentCheck,
   HiOutlineClipboardDocumentList,
   HiOutlineFlag,
   HiOutlineHome,
@@ -76,6 +78,13 @@ const ADMIN_SLOTS: Slot[] = [
     href: "/admin/indikator",
     ActiveIcon: HiFlag,
     IdleIcon: HiOutlineFlag,
+  },
+  {
+    key: "tambahan",
+    label: "Tambahan",
+    href: "/admin/laporan-tambahan",
+    ActiveIcon: HiClipboardDocumentCheck,
+    IdleIcon: HiOutlineClipboardDocumentCheck,
   },
 ];
 

@@ -86,6 +86,47 @@ export type KegiatanIndikatorRow = {
   created_at: string;
 };
 
+export type LaporanTambahanRow = {
+  id: string;
+  judul: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LaporanTambahanBidangRow = {
+  laporan_id: string;
+  bidang_id: string;
+};
+
+export type KolomTipe = "text" | "textarea" | "date" | "number";
+
+export type LaporanTambahanKolomRow = {
+  id: string;
+  laporan_id: string;
+  label: string;
+  tipe: KolomTipe;
+  wajib: boolean;
+  urutan: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LaporanTambahanBarisRow = {
+  id: string;
+  laporan_id: string;
+  user_id: string;
+  urutan: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LaporanTambahanNilaiRow = {
+  baris_id: string;
+  kolom_id: string;
+  nilai: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -159,6 +200,40 @@ export type Database = {
         Insert: Pick<KegiatanIndikatorRow, "kegiatan_id" | "indikator_id"> &
           Partial<Pick<KegiatanIndikatorRow, "created_at">>;
         Update: Partial<Pick<KegiatanIndikatorRow, "kegiatan_id" | "indikator_id">>;
+        Relationships: [];
+      };
+      laporan_tambahan: {
+        Row: LaporanTambahanRow;
+        Insert: Pick<LaporanTambahanRow, "judul"> &
+          Partial<Pick<LaporanTambahanRow, "id" | "created_by" | "created_at" | "updated_at">>;
+        Update: Partial<Pick<LaporanTambahanRow, "judul">>;
+        Relationships: [];
+      };
+      laporan_tambahan_bidang: {
+        Row: LaporanTambahanBidangRow;
+        Insert: Pick<LaporanTambahanBidangRow, "laporan_id" | "bidang_id">;
+        Update: Partial<Pick<LaporanTambahanBidangRow, "laporan_id" | "bidang_id">>;
+        Relationships: [];
+      };
+      laporan_tambahan_kolom: {
+        Row: LaporanTambahanKolomRow;
+        Insert: Pick<LaporanTambahanKolomRow, "laporan_id" | "label" | "tipe"> &
+          Partial<Pick<LaporanTambahanKolomRow, "id" | "wajib" | "urutan" | "created_at" | "updated_at">>;
+        Update: Partial<Pick<LaporanTambahanKolomRow, "label" | "tipe" | "wajib" | "urutan">>;
+        Relationships: [];
+      };
+      laporan_tambahan_baris: {
+        Row: LaporanTambahanBarisRow;
+        Insert: Pick<LaporanTambahanBarisRow, "laporan_id" | "user_id"> &
+          Partial<Pick<LaporanTambahanBarisRow, "id" | "urutan" | "created_at" | "updated_at">>;
+        Update: Partial<Pick<LaporanTambahanBarisRow, "urutan">>;
+        Relationships: [];
+      };
+      laporan_tambahan_nilai: {
+        Row: LaporanTambahanNilaiRow;
+        Insert: Pick<LaporanTambahanNilaiRow, "baris_id" | "kolom_id"> &
+          Partial<Pick<LaporanTambahanNilaiRow, "nilai">>;
+        Update: Partial<Pick<LaporanTambahanNilaiRow, "nilai">>;
         Relationships: [];
       };
     };

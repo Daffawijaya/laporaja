@@ -3,7 +3,8 @@ import { getCurrentProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getSignedImageUrl } from "@/lib/supabase/storage";
 import { clampBulan, clampTahun, deriveMonthStatus, getMonthlyLaporan, getMonthlyReview } from "@/lib/laporan/queries";
-import { LaporanDocument, type PdfDay } from "@/components/admin/laporan-document";
+import { getTugasUser } from "@/lib/laporan-tambahan/queries";
+import { LaporanDocument, type PdfDay, type PdfTambahan } from "@/components/admin/laporan-document";
 import { NAMA_BULAN, pad2 } from "@/components/laporan/types";
 
 export const dynamic = "force-dynamic";
@@ -47,10 +48,12 @@ export async function GET(request: Request) {
 
   let items: Awaited<ReturnType<typeof getMonthlyLaporan>>;
   let monthly: Awaited<ReturnType<typeof getMonthlyReview>>;
+  let tugas: Awaited<ReturnType<typeof getTugasUser>>;
   try {
-    [items, monthly] = await Promise.all([
+    [items, monthly, tugas] = await Promise.all([
       getMonthlyLaporan(supabase, userId, tahun, bulan),
       getMonthlyReview(supabase, userId, tahun, bulan),
+      getTugasUser(supabase, userId, owner.bidang_id),
     ]);
   } catch {
     return Response.json(
@@ -114,6 +117,12 @@ export async function GET(request: Request) {
     });
   }
 
+  const tambahan: PdfTambahan[] = tugas.map((item) => ({
+    judul: item.judul,
+    kolom: item.kolom.map((col) => col.label),
+    baris: item.baris.map((row) => item.kolom.map((col) => row.nilai[col.id] ?? "")),
+  }));
+
   const buffer = await renderToBuffer(
     <LaporanDocument
       data={{
@@ -129,6 +138,7 @@ export async function GET(request: Request) {
               : "Menunggu Review",
         rekomendasi: monthly.rekomendasi,
         days,
+        tambahan,
       }}
     />
   );

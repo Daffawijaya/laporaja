@@ -9,9 +9,11 @@ import { Moon, Search, Sun } from "lucide-react";
 import {
   HiBell,
   HiOutlineBell,
+  HiClipboardDocumentCheck,
   HiClipboardDocumentList,
   HiFlag,
   HiHome,
+  HiOutlineClipboardDocumentCheck,
   HiOutlineClipboardDocumentList,
   HiOutlineFlag,
   HiOutlineHome,
@@ -52,6 +54,7 @@ function refTitle(pathname: string): string {
   if (pathname === "/admin/users") return "Pengguna";
   if (pathname === "/admin/bidang") return "Bidang";
   if (pathname === "/admin/indikator") return "Indikator";
+  if (pathname === "/admin/laporan-tambahan") return "Laporan Tambahan";
   if (pathname === "/admin/laporan") return "Laporan";
   if (pathname.startsWith("/admin/laporan/")) return "Detail Laporan";
   return "Dashboard";
@@ -135,6 +138,13 @@ export function DesktopWindow({
           href: "/admin/indikator",
           ActiveIcon: HiFlag,
           IdleIcon: HiOutlineFlag,
+        },
+        {
+          key: "tambahan",
+          label: "Laporan Tambahan",
+          href: "/admin/laporan-tambahan",
+          ActiveIcon: HiClipboardDocumentCheck,
+          IdleIcon: HiOutlineClipboardDocumentCheck,
         },
       ]
     : [

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { clampBulan, clampTahun, getMonthlyLaporan, getMonthlyReview, getYearlySummary } from "@/lib/laporan/queries";
+import { getTugasUser } from "@/lib/laporan-tambahan/queries";
 import { getIndikatorProgress } from "@/lib/indikator/queries";
 import { MonthlyList } from "@/components/laporan/monthly-list";
 import { YearArchive } from "@/components/laporan/year-archive";
@@ -31,10 +32,11 @@ export default async function LaporanPage({
   const bulan = clampBulan(params.bulan, now.getMonth() + 1);
   const tahun = clampTahun(params.tahun, now.getFullYear());
 
-  const [items, indikators, monthlyReview] = await Promise.all([
+  const [items, indikators, monthlyReview, tugasTambahan] = await Promise.all([
     getMonthlyLaporan(supabase, user.id, tahun, bulan),
     getIndikatorProgress(supabase, user.id, tahun, bulan),
     getMonthlyReview(supabase, user.id, tahun, bulan),
+    getTugasUser(supabase, user.id, profile.bidang_id),
   ]);
 
   return (
@@ -46,6 +48,7 @@ export default async function LaporanPage({
       items={items}
       indikators={indikators}
       initialReview={monthlyReview}
+      tugasTambahan={tugasTambahan}
     />
   );
 }

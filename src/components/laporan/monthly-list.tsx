@@ -33,6 +33,8 @@ import {
   type KegiatanItem,
 } from "@/components/laporan/types";
 import type { IndikatorProgress } from "@/lib/indikator/queries";
+import { LaporanTambahanSection } from "@/components/laporan/laporan-tambahan-section";
+import type { TugasLaporan } from "@/lib/laporan-tambahan/queries";
 
 // Kapital depan tiap kalimat rekomendasi: huruf pertama tiap kalimat
 // (awal teks atau sesudah . ! ?) jadi kapital, sisanya dibiarkan.
@@ -61,6 +63,7 @@ export function MonthlyList({
   items,
   indikators,
   initialReview,
+  tugasTambahan,
 }: {
   userId: string;
   nama: string;
@@ -69,6 +72,7 @@ export function MonthlyList({
   items: KegiatanItem[];
   indikators: IndikatorProgress[];
   initialReview: MonthlyReviewState;
+  tugasTambahan: TugasLaporan[];
 }) {
   const toast = useToast();
   const router = useRouter();
@@ -439,6 +443,8 @@ export function MonthlyList({
           </div>
           )}
         </RefListCard>
+
+        <LaporanTambahanSection userId={userId} tugas={tugasTambahan} />
 
         <RefListCard
           ariaLabel="Rekomendasi dan Tindak Lanjut"

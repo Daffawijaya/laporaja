@@ -20,6 +20,12 @@ export interface PdfDay {
 
 export type StatusBulananPdf = "Menunggu Review" | "Revisi" | "Disetujui";
 
+export interface PdfTambahan {
+  judul: string;
+  kolom: string[];
+  baris: string[][];
+}
+
 export interface LaporanPdfData {
   ownerNama: string;
   bidangNama: string | null;
@@ -28,6 +34,7 @@ export interface LaporanPdfData {
   statusBulanan: StatusBulananPdf;
   rekomendasi: string | null;
   days: PdfDay[];
+  tambahan: PdfTambahan[];
 }
 
 const styles = StyleSheet.create({
@@ -62,6 +69,22 @@ const styles = StyleSheet.create({
   statusApproved: { fontSize: 11, fontWeight: "bold", color: "#067647" },
   statusRevision: { fontSize: 11, fontWeight: "bold", color: "#b42318" },
   statusPending: { fontSize: 11, color: "#6e6e73" },
+  tambahanJudul: { fontSize: 12, fontWeight: "bold", marginTop: 12, marginBottom: 6 },
+  tabelHead: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#1d1d1f",
+    paddingBottom: 3,
+    marginBottom: 3,
+  },
+  tabelRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e5ea",
+    paddingVertical: 3,
+  },
+  selHead: { fontSize: 8, fontWeight: "bold", color: "#6e6e73", paddingRight: 4 },
+  sel: { fontSize: 8, paddingRight: 4 },
   empty: { fontSize: 11, color: "#6e6e73", marginTop: 8 },
   footer: {
     position: "absolute",
@@ -170,6 +193,36 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
                 )}
               </View>
             ))}
+          </View>
+        ))}
+
+        {data.tambahan.map((laporan) => (
+          <View key={laporan.judul} break={laporan.baris.length > 6}>
+            <Text style={styles.tambahanJudul}>{laporan.judul.toUpperCase()}</Text>
+            {laporan.baris.length === 0 ? (
+              <Text style={styles.empty}>Belum ada isian.</Text>
+            ) : (
+              <View>
+                <View style={styles.tabelHead}>
+                  <Text style={[styles.selHead, { width: 18 }]}>No</Text>
+                  {laporan.kolom.map((label, colIndex) => (
+                    <Text key={colIndex} style={[styles.selHead, { flex: 1 }]}>
+                      {label}
+                    </Text>
+                  ))}
+                </View>
+                {laporan.baris.map((cells, index) => (
+                  <View key={index} style={styles.tabelRow}>
+                    <Text style={[styles.sel, { width: 18 }]}>{index + 1}</Text>
+                    {cells.map((cell, colIndex) => (
+                      <Text key={colIndex} style={[styles.sel, { flex: 1 }]}>
+                        {cell || "-"}
+                      </Text>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         ))}
 
