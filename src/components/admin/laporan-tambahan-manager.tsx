@@ -6,6 +6,7 @@ import { Eye, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GlassMenu } from "@/components/ui/glass-menu";
 import { RefListCard } from "@/components/ui/ref-list-card";
@@ -25,6 +26,15 @@ export function LaporanTambahanManager({
   const [deleteTarget, setDeleteTarget] = useState<LaporanAdminItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+  // Modal tambah bidang: semua bidang + checkbox, tautan awal dimuat ulang
+  // saat dibuka agar segar.
+  const [bidangTarget, setBidangTarget] = useState<LaporanAdminItem | null>(null);
+  const [semuaBidang, setSemuaBidang] = useState<{ id: string; nama: string }[]>([]);
+  const [awalIds, setAwalIds] = useState<string[]>([]);
+  const [checkedIds, setCheckedIds] = useState<string[]>([]);
+  const [bidangLoading, setBidangLoading] = useState(false);
+  const [bidangError, setBidangError] = useState<string | null>(null);
+  const [bidangSaving, setBidangSaving] = useState(false);
 
   const searchParams = useSearchParams();
   const query = (searchParams.get("q") ?? "").trim().toLowerCase();
@@ -45,8 +55,102 @@ export function LaporanTambahanManager({
     return false;
   }
 
-  async function handleDelete() {
-    if (!deleteTarget || deleting) return;
+  async function openBidang(item: LaporanAdminItem) {
+    setBidangTarget(item);
+    setBidangError(null);
+    setAwalIds(item.bidang.map((bidang) => bidang.id));
+    setCheckedIds(item.bidang.map((bidang) => bidang.id));
+    setBidangLoading(true);
+    try {
+      const supabase = createClient();
+      const [bidangRes, linkRes] = await Promise.all([
+        supabase.from("bidang").select("id, nama").order("nama"),
+        supabase.from("laporan_tambahan_bidang").select("bidang_id").eq("laporan_id", item.id),
+      ]);
+      if (bidangRes.error || linkRes.error) {
+        if (handleSession(bidangRes.error ?? linkRes.error)) return;
+        setBidangError("Gagal memuat bidang. Coba lagi.");
+        return;
+      }
+      setSemuaBidang(bidangRes.data ?? []);
+      const taut = (linkRes.data ?? []).map((row) => row.bidang_id);
+      setAwalIds(taut);
+      setCheckedIds(taut);
+    } finally {
+      setBidangLoading(false);
+    }
+  }
+
+  function toggleBidangModal(id: string) {
+    setCheckedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setBidangError(null);
+  }
+
+  async function handleSimpanBidang(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!bidangTarget || bidangSaving) return;
+    const tambah = checkedIds.filter((id) => !awalIds.includes(id));
+    const hapus = awalIds.filter((id) => !checkedIds.includes(id));
+    if (tambah.length === 0 && hapus.length === 0) {
+      setBidangTarget(null);
+      return;
+    }
+    setBidangSaving(true);
+    setBidangError(null);
+    try {
+      const supabase = createClient();
+      if (hapus.length > 0) {
+        const { error } = await supabase
+          .from("laporan_tambahan_bidang")
+          .delete()
+          .eq("laporan_id", bidangTarget.id)
+          .in("bidang_id", hapus);
+        if (error) {
+          if (handleSession(error)) return;
+          setBidangError("Gagal menyimpan. Coba lagi.");
+          return;
+        }
+      }
+      if (tambah.length > 0) {
+        const { error } = await supabase.from("laporan_tambahan_bidang").insert(
+          tambah.map((bidang_id) => ({ laporan_id: bidangTarget.id, bidang_id }))
+        );
+        if (error) {
+          if (handleSession(error)) return;
+          setBidangError("Gagal menyimpan. Coba lagi.");
+          return;
+        }
+      }
+      // Hitung ulang target & pengisi agar angka di daftar langsung benar.
+      const laporanId = bidangTarget.id;
+      const [userRes, barisRes] = await Promise.all([
+        checkedIds.length > 0
+          ? supabase.from("profiles").select("id").eq("role", "user").in("bidang_id", checkedIds)
+          : Promise.resolve({ data: [] as { id: string }[], error: null }),
+        supabase.from("laporan_tambahan_baris").select("user_id").eq("laporan_id", laporanId),
+      ]);
+      if (userRes.error || barisRes.error) {
+        if (handleSession(userRes.error ?? barisRes.error)) return;
+        setBidangError("Bidang tersimpan, tapi gagal memuat ulang. Muat ulang halaman.");
+        return;
+      }
+      const targetUser = (userRes.data ?? []).length;
+      const terisiUser = new Set((barisRes.data ?? []).map((row) => row.user_id)).size;
+      const bidangBaru = semuaBidang.filter((bidang) => checkedIds.includes(bidang.id));
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === laporanId ? { ...item, bidang: bidangBaru, targetUser, terisiUser } : item
+        )
+      );
+      setBidangTarget(null);
+      toast.success("Bidang diperbarui.");
+      router.refresh();
+    } finally {
+      setBidangSaving(false);
+    }
+  }
+
+  async function handleDelete() {    if (!deleteTarget || deleting) return;
     setDeleting(true);
     setPageError(null);
     try {
@@ -131,6 +235,15 @@ export function LaporanTambahanManager({
                           onSelect: () => router.push(`/admin/laporan-tambahan?id=${item.id}`),
                         },
                         {
+                          key: "bidang",
+                          label: "Tambah bidang",
+                          icon: <Plus aria-hidden="true" />,
+                          onSelect: () => {
+                            setPageError(null);
+                            openBidang(item);
+                          },
+                        },
+                        {
                           key: "delete",
                           label: "Hapus",
                           icon: <Trash2 aria-hidden="true" />,
@@ -157,6 +270,71 @@ export function LaporanTambahanManager({
           </Button>
         </div>
       )}
+
+      <Dialog
+        open={bidangTarget !== null}
+        onClose={() => setBidangTarget(null)}
+        title={bidangTarget ? `Tambah bidang ${bidangTarget.judul}` : "Tambah bidang"}
+      >
+        {bidangLoading ? (
+          <p className="text-sm text-muted-foreground">Memuat...</p>
+        ) : (
+          <>
+            <h3 className="text-[15px] font-semibold text-foreground">
+              {bidangTarget ? `Tambah bidang "${bidangTarget.judul}"` : "Tambah bidang"}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Pilih bidang yang wajib mengisi laporan ini.
+            </p>
+            <form onSubmit={handleSimpanBidang} className="mt-4">
+              {semuaBidang.length === 0 ? (
+                <p className="text-sm text-neutral-500">
+                  Belum ada bidang. Tambahkan dulu di menu Bidang.
+                </p>
+              ) : (
+                <ul className="flex flex-col">
+                  {semuaBidang.map((bidang) => (
+                    <li key={bidang.id} className="px-1 py-0.5">
+                      <label className="flex min-h-[28px] cursor-pointer items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={checkedIds.includes(bidang.id)}
+                          onChange={() => toggleBidangModal(bidang.id)}
+                          disabled={bidangSaving}
+                          className="size-4 shrink-0 accent-[#0071e3]"
+                        />
+                        <span className="min-w-0 truncate text-sm">{bidang.nama}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {bidangError && (
+                <p role="alert" className="mt-4 text-sm text-danger">
+                  {bidangError}
+                </p>
+              )}
+              <div className="mt-6 flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setBidangTarget(null)}
+                  disabled={bidangSaving}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  disabled={bidangSaving || bidangLoading}
+                >
+                  {bidangSaving ? "Menyimpan..." : "Simpan"}
+                </Button>
+              </div>
+            </form>
+          </>
+        )}
+      </Dialog>
 
       <ConfirmDialog
         open={deleteTarget !== null}

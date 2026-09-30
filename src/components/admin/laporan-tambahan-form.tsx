@@ -99,13 +99,9 @@ export function LaporanTambahanForm({
     }
     for (const col of cleanedKolom) {
       if (col.label.length < 2 || col.label.length > 120) {
-        setFormError("Label kolom harus 2-120 karakter.");
+        setFormError("Judul kolom harus 2-120 karakter.");
         return;
       }
-    }
-    if (bidangIds.length === 0) {
-      setFormError("Pilih minimal satu bidang.");
-      return;
     }
     setSaving(true);
     setFormError(null);
@@ -140,9 +136,12 @@ export function LaporanTambahanForm({
             urutan: col.urutan,
           }))
         ),
-        supabase.from("laporan_tambahan_bidang").insert(
-          bidangIds.map((bidang_id) => ({ laporan_id: data.id, bidang_id }))
-        ),
+        // Bidang boleh kosong: laporan tersimpan tanpa penugasan.
+        bidangIds.length > 0
+          ? supabase.from("laporan_tambahan_bidang").insert(
+              bidangIds.map((bidang_id) => ({ laporan_id: data.id, bidang_id }))
+            )
+          : Promise.resolve({ error: null }),
       ]);
       if (kolomResult.error || linkResult.error) {
         await supabase.from("laporan_tambahan").delete().eq("id", data.id);
@@ -214,7 +213,7 @@ export function LaporanTambahanForm({
               placeholder="Judul laporan"
               disabled={saving}
               autoFocus
-              className="h-auto border-0 bg-transparent px-1 py-1 text-[17px] font-semibold tracking-tight placeholder:text-neutral-400 focus-visible:border-b focus-visible:border-neutral-300 focus-visible:ring-0"
+              className="h-auto rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 py-1 text-[17px] font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 focus-visible:border-accent focus-visible:ring-0 dark:border-white/15"
             />
           </div>
 
@@ -242,7 +241,7 @@ export function LaporanTambahanForm({
                       id={`kolom-label-${col.key}`}
                       value={col.label}
                       onChange={(event) => setKolomDraft(col.key, { label: event.target.value })}
-                      placeholder="Nama kolom"
+                      placeholder="Judul kolom"
                       disabled={saving}
                       className="h-11 min-w-0 flex-1 border-transparent bg-black/[0.075] text-sm hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
                     />
