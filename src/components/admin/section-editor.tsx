@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Reorder, useDragControls } from "motion/react";
-import { Copy, GripVertical, Plus, Trash2 } from "lucide-react";
+import { Copy, GripHorizontal, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -320,8 +320,8 @@ export function SectionCard({
   }
 
   const card = (
-    <div className="ref-card p-4">
-      <div className="flex items-center gap-1">
+    <div className="ref-card px-4 pt-1 pb-4">
+      <div className="flex justify-center">
         <button
           type="button"
           onPointerDown={(event) => {
@@ -341,10 +341,12 @@ export function SectionCard({
           aria-label={`Geser ${item.judul} (panah atas bawah untuk pindah)`}
           title="Tahan dan geser untuk pindah"
           style={{ touchAction: "none" }}
-          className="flex min-h-[44px] min-w-[44px] shrink-0 cursor-grab items-center justify-center rounded-md text-neutral-400 transition-soft hover:text-foreground active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+          className="flex min-w-[56px] cursor-grab items-center justify-center rounded-md text-neutral-400 transition-soft hover:text-foreground active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
         >
-          <GripVertical aria-hidden="true" className="size-5" />
+          <GripHorizontal aria-hidden="true" className="size-5" />
         </button>
+      </div>
+      <div className="flex items-center gap-1">
         <div className="min-w-0 flex-1">
           <Label htmlFor={`ejudul-${item.kind}-${item.id}`} className="sr-only">
             Judul section
@@ -358,7 +360,7 @@ export function SectionCard({
             }}
             placeholder="Judul section"
             disabled={saving}
-            className="h-auto rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 py-1 text-[17px] font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 focus-visible:border-accent focus-visible:ring-0 dark:border-white/15"
+            className="h-auto rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 pt-0 pb-1 text-[17px] leading-none font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 focus-visible:border-accent focus-visible:ring-0 dark:border-white/15"
           />
         </div>
         {item.kind === "section" && (
