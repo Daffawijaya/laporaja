@@ -104,8 +104,8 @@ export type LaporanTambahanBidangRow = {
 
 export type KolomTipe = "text" | "textarea" | "date" | "number";
 
-/** Bentuk isian laporan tambahan: tabel (baris-baris kolom) atau esai (satu teks panjang). */
-export type LaporanFormat = "tabel" | "esai";
+/** Bentuk isian laporan tambahan: tabel (baris-baris kolom), esai (satu teks panjang), atau judul (pembatas tanpa isian). */
+export type LaporanFormat = "tabel" | "esai" | "judul";
 
 export type LaporanTambahanKolomRow = {
   id: string;
@@ -133,7 +133,7 @@ export type LaporanTambahanNilaiRow = {
   nilai: string;
 };
 
-export type SectionKode = "kegiatan" | "rekomendasi";
+export type SectionKode = "kegiatan" | "rekomendasi" | "info" | "indikator";
 
 export type LaporanSectionRow = {
   kode: SectionKode;
@@ -144,6 +144,12 @@ export type LaporanSectionRow = {
 export type LaporanSectionBidangRow = {
   kode: string;
   bidang_id: string;
+};
+
+export type PengaturanRow = {
+  kunci: string;
+  nilai: string;
+  updated_at: string;
 };
 
 export type Database = {
@@ -266,6 +272,13 @@ export type Database = {
         Row: LaporanSectionBidangRow;
         Insert: Pick<LaporanSectionBidangRow, "kode" | "bidang_id">;
         Update: Partial<Pick<LaporanSectionBidangRow, "kode" | "bidang_id">>;
+        Relationships: [];
+      };
+      pengaturan: {
+        Row: PengaturanRow;
+        Insert: Pick<PengaturanRow, "kunci"> &
+          Partial<Pick<PengaturanRow, "nilai" | "updated_at">>;
+        Update: Partial<Pick<PengaturanRow, "nilai">>;
         Relationships: [];
       };
     };

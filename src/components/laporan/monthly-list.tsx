@@ -64,6 +64,7 @@ export function MonthlyList({
   indikators,
   initialReview,
   tugasTambahan,
+  tampilIndikator,
 }: {
   userId: string;
   nama: string;
@@ -73,6 +74,8 @@ export function MonthlyList({
   indikators: IndikatorProgress[];
   initialReview: MonthlyReviewState;
   tugasTambahan: TugasLaporan[];
+  /** Kartu indikator tampil bila bidang user tertaut ke section indikator. */
+  tampilIndikator: boolean;
 }) {
   const toast = useToast();
   const router = useRouter();
@@ -239,7 +242,7 @@ export function MonthlyList({
               </RefListCard>
             )}
 
-            {visibleIndikators.length > 0 && (
+            {tampilIndikator && visibleIndikators.length > 0 && (
               <RefListCard
                 ariaLabel="Indikator kinerja"
                 title="Indikator kinerja"

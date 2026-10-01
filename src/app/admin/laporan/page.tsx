@@ -41,13 +41,22 @@ export default async function AdminLaporanPage({
 
   // Lapis 2: detail bulanan satu user (tampilan lama + tombol kembali).
   if (selected) {
-    const [items, monthly, indikators, tugasBelum, sectionBelum] = await Promise.all([
+    const [items, monthly, indikators, tugasBelum, sectionBelum, pengaturan] = await Promise.all([
       getMonthlyLaporan(supabase, selected.id, tahun, bulan),
       getMonthlyReview(supabase, selected.id, tahun, bulan),
       getIndikatorProgress(supabase, selected.id, tahun, bulan),
       getTugasBelumTerisi(supabase, selected.id, selected.bidang_id),
       getSectionBelumTerisi(supabase, selected.id, selected.bidang_id, tahun, bulan),
+      supabase.from("pengaturan").select("kunci, nilai").in("kunci", ["unit_kerja", "jabatan_awalan"]),
     ]);
+    const nilaiPengaturan = new Map(
+      (pengaturan.data ?? []).map((row) => [row.kunci, row.nilai] as const)
+    );
+    const unitKerja =
+      nilaiPengaturan.get("unit_kerja")?.trim() ||
+      "Diskop UKM Kutai Kartanegara - Bidang Pemberdayaan Usaha Mikro (PUM)";
+    const awalanJabatan =
+      nilaiPengaturan.get("jabatan_awalan")?.trim() || "Tenaga Ahli Pendamping";
     // Nama bidang untuk jabatan penilai (tidak lagi hardcode).
     let bidangNama: string | null = null;
     if (selected.bidang_id) {
@@ -67,7 +76,7 @@ export default async function AdminLaporanPage({
       .order("nama");
     const subNama = (subs ?? []).map((sub) => sub.nama).filter(Boolean);
     const jabatan = [
-      "Tenaga Ahli Pendamping",
+      awalanJabatan,
       bidangNama,
       subNama.length > 0 ? subNama.join(", ") : null,
     ]
@@ -129,7 +138,7 @@ export default async function AdminLaporanPage({
                     <li className="flex items-center justify-between gap-3 px-1 pt-3">
                       <span className="text-sm font-medium">Unit Kerja</span>
                       <span className="max-w-[65%] text-right text-xs text-neutral-500">
-                        Diskop UKM Kutai Kartanegara - Bidang Pemberdayaan Usaha Mikro (PUM)
+                        {unitKerja}
                       </span>
                     </li>
                   </ul>

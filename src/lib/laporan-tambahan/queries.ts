@@ -154,15 +154,17 @@ export async function getTugasUser(
   }
   return laporanList.map((row) => {
     const baris = barisByLaporan.get(row.id) ?? [];
+    const format = (row.format ?? "tabel") as LaporanFormat;
     return {
       id: row.id,
       judul: row.judul,
       deskripsi: row.deskripsi,
-      format: (row.format ?? "tabel") as LaporanFormat,
+      // Blok judul hanya pembatas: tidak wajib diisi.
+      format,
       bidang: bidangByLaporan.get(row.id) ?? [],
       kolom: kolomByLaporan.get(row.id) ?? [],
       baris,
-      terisi: baris.length > 0,
+      terisi: format === "judul" || baris.length > 0,
     };
   });
 }
@@ -183,6 +185,8 @@ export interface LaporanAdminItem {
   /** 'tambahan' = baris laporan_tambahan, 'section' = master laporan_section (id = kode). */
   kind: "tambahan" | "section";
   judul: string;
+  /** Deskripsi laporan dinamis; null untuk section tetap. */
+  deskripsi: string | null;
   /** Posisi susun di builder admin (antar kedua jenis). */
   urutan: number;
   /** Bentuk isian laporan dinamis; null untuk section tetap. */
@@ -200,7 +204,7 @@ export async function getLaporanListAdmin(
 ): Promise<LaporanAdminItem[]> {
   const { data: laporanList, error: laporanError } = await supabase
     .from("laporan_tambahan")
-    .select("id, judul, format, urutan")
+    .select("id, judul, deskripsi, format, urutan")
     .order("urutan")
     .order("judul");
   if (laporanError) throw new Error("Gagal memuat laporan tambahan. Coba lagi.");
@@ -259,6 +263,7 @@ export async function getLaporanListAdmin(
       id: row.id,
       kind: "tambahan" as const,
       judul: row.judul,
+      deskripsi: row.deskripsi,
       urutan: row.urutan ?? 0,
       format: (row.format ?? "tabel") as LaporanFormat,
       bidang,
@@ -271,7 +276,7 @@ export async function getLaporanListAdmin(
 }
 
 // Urutan tampil laporan section yang bermakna (bukan alfabetis).
-const SECTION_ORDER = ["kegiatan", "rekomendasi"];
+const SECTION_ORDER = ["info", "kegiatan", "indikator", "rekomendasi"];
 
 // Daftar laporan section untuk halaman admin: master + tautan bidang +
 // hitung user target per bidang. Ketuntasan (terisiUser) tidak bermakna
@@ -314,6 +319,7 @@ export async function getLaporanSectionListAdmin(
         id: row.kode,
         kind: "section" as const,
         judul: row.judul,
+        deskripsi: null,
         urutan: row.urutan ?? SECTION_ORDER.indexOf(row.kode) * 10,
         format: null,
         bidang,
@@ -328,6 +334,20 @@ export async function getLaporanSectionListAdmin(
         a.urutan - b.urutan ||
         SECTION_ORDER.indexOf(a.id) - SECTION_ORDER.indexOf(b.id)
     );
+}
+
+// Nilai pengaturan umum (mis. unit_kerja). Kosong bila baris belum ada.
+export async function getPengaturan(
+  supabase: ServerClient,
+  kunci: string
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("pengaturan")
+    .select("nilai")
+    .eq("kunci", kunci)
+    .maybeSingle();
+  if (error) throw new Error("Gagal memuat pengaturan. Coba lagi.");
+  return data?.nilai ?? "";
 }
 
 // Matriks target builder: semua bidang + jumlah user per bidang (role user)

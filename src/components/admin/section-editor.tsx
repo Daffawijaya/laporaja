@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Reorder, useDragControls } from "motion/react";
 import { Copy, GripHorizontal, Plus, Trash2 } from "lucide-react";
@@ -43,6 +43,15 @@ function keDraft(kolom: { id: string; label: string; tipe: KolomTipe }[]): Kolom
   return kolom.length > 0
     ? kolom.map((col) => kolomBaru(col.label, col.id, col.tipe))
     : [kolomBaru()];
+}
+
+// Potret draft untuk banding kotor vs tersimpan.
+function snapOf(judul: string, deskripsi: string, kolom: KolomDraft[]): string {
+  return JSON.stringify({
+    j: judul.trim(),
+    d: deskripsi.trim(),
+    k: kolom.map((col) => [col.id, col.label.trim(), col.tipe]),
+  });
 }
 
 function sesiBerakhir(
@@ -150,57 +159,212 @@ function KolomRows({
   );
 }
 
-// Satu kartu section ala Google Forms: gagang geser + judul + isian +
-// simpan. Draft lokal diselaraskan ulang bila data server berubah
-// (mis. kolom baru dapat id sesudah simpan).
+const INFO_LABELS = ["Bulan", "Tahun", "Nama"];
+
+// Isian kartu Info: baris dokumentasi (mengikuti data user, tanpa
+// dropdown) + Jabatan dan Unit kerja yang bisa diketik dan tersimpan
+// otomatis. Jabatan di sini hanya awalan; sisanya ikut bidang dan
+// sub bidang user.
+function InfoIsianCard({
+  jabatanAwal,
+  unitAwal,
+}: {
+  jabatanAwal: string;
+  unitAwal: string;
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const [jabatan, setJabatan] = useState(jabatanAwal);
+  const [unit, setUnit] = useState(unitAwal);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [prev, setPrev] = useState(`${jabatanAwal}|${unitAwal}`);
+  const sig = `${jabatanAwal}|${unitAwal}`;
+  const snap = JSON.stringify({ j: jabatan.trim(), u: unit.trim() });
+  const [savedSnap, setSavedSnap] = useState(snap);
+  if (prev !== sig) {
+    setPrev(sig);
+    setJabatan(jabatanAwal);
+    setUnit(unitAwal);
+    setSavedSnap(JSON.stringify({ j: jabatanAwal.trim(), u: unitAwal.trim() }));
+  }
+  const masalah = (() => {
+    const j = jabatan.trim();
+    const u = unit.trim();
+    if (j.length < 2 || j.length > 120) return "Jabatan harus 2-120 karakter.";
+    if (u.length === 0) return "Unit kerja wajib diisi.";
+    if (u.length > 200) return "Unit kerja maksimal 200 karakter.";
+    return null;
+  })();
+
+  const simpan = useCallback(
+    async (snapAwal: { j: string; u: string }) => {
+      setSaving(true);
+      setError(null);
+      try {
+        const supabase = createClient();
+        const [r1, r2] = await Promise.all([
+          supabase
+            .from("pengaturan")
+            .upsert({ kunci: "jabatan_awalan", nilai: snapAwal.j }, { onConflict: "kunci" }),
+          supabase
+            .from("pengaturan")
+            .upsert({ kunci: "unit_kerja", nilai: snapAwal.u }, { onConflict: "kunci" }),
+        ]);
+        const gagal = r1.error ?? r2.error;
+        if (gagal) {
+          if (gagal instanceof SessionExpiredError || isSessionError(gagal)) {
+            toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
+            router.replace("/login?expired=1");
+            return;
+          }
+          setError("Gagal menyimpan. Coba lagi.");
+          return;
+        }
+        setSavedSnap(JSON.stringify(snapAwal));
+      } finally {
+        setSaving(false);
+      }
+    },
+    [router, toast]
+  );
+
+  useEffect(() => {
+    if (snap === savedSnap || masalah || saving) return;
+    const timer = window.setTimeout(() => {
+      void simpan({ j: jabatan.trim(), u: unit.trim() });
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [snap, savedSnap, masalah, saving, simpan, jabatan, unit]);
+
+  const baris = [...INFO_LABELS, "Jabatan", "Unit kerja"];
+  return (
+    <div>
+      <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
+        {baris.map((label, index) => {
+          const pad =
+            baris.length === 1
+              ? "px-1"
+              : index === 0
+                ? "px-1 pb-3"
+                : index === baris.length - 1
+                  ? "px-1 pt-3"
+                  : "px-1 py-3";
+          const editable = label === "Jabatan" || label === "Unit kerja";
+          const isJabatan = label === "Jabatan";
+          return (
+            <li key={label} className={pad}>
+              <Label htmlFor={`info-${label}`} className="sr-only">
+                {label}
+              </Label>
+              <Input
+                id={`info-${label}`}
+                value={isJabatan ? jabatan : editable ? unit : label}
+                onChange={
+                  editable
+                    ? (event) => {
+                        if (isJabatan) setJabatan(event.target.value);
+                        else setUnit(event.target.value);
+                        setError(null);
+                      }
+                    : undefined
+                }
+                disabled={!editable}
+                placeholder={editable ? label : undefined}
+                className="h-11 w-full min-w-0 flex-1 border-transparent bg-black/[0.075] text-sm hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
+              />
+            </li>
+          );
+        })}
+      </ul>
+      {(error ?? masalah) && (
+        <p role="alert" className="mt-2 px-1 text-sm text-danger">
+          {error ?? masalah}
+        </p>
+      )}
+      {saving && (
+        <p aria-live="polite" className="mt-2 px-1 text-xs text-neutral-500">
+          Menyimpan…
+        </p>
+      )}
+    </div>
+  );
+}
 export function SectionCard({
   item,
   dragAktif,
+  autoFocusJudul,
+  jabatanAwal,
+  unitKerjaAwal,
   onMoveKey,
   onDeleteRequest,
   onSaved,
-  bidangText,
 }: {
   item: BuilderItem;
   dragAktif: boolean;
+  autoFocusJudul?: boolean;
+  jabatanAwal: string;
+  unitKerjaAwal: string;
   onMoveKey: (item: BuilderItem, arah: -1 | 1) => void;
   onDeleteRequest: (item: BuilderItem) => void;
   onSaved: () => void;
-  bidangText: string;
 }) {
   const controls = useDragControls();
   const router = useRouter();
   const toast = useToast();
   const [judul, setJudul] = useState(item.judul);
+  const [deskripsi, setDeskripsi] = useState(item.deskripsi ?? "");
   const [kolom, setKolom] = useState<KolomDraft[]>(() => keDraft(item.kolom));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const savingRef = useRef(false);
+  const judulRef = useRef<HTMLInputElement>(null);
 
-  const sig = `${item.judul}|${item.kolom.map((col) => col.id).join(",")}`;
+  useEffect(() => {
+    if (autoFocusJudul) judulRef.current?.focus();
+  }, [autoFocusJudul]);
+
+  const sig = `${item.judul}|${item.deskripsi ?? ""}|${item.kolom.map((col) => col.id).join(",")}`;
   const [prevSig, setPrevSig] = useState(sig);
+  // Potret draft untuk banding kotor vs tersimpan.
+  const snap = snapOf(judul, deskripsi, kolom);
+  const [savedSnap, setSavedSnap] = useState(() =>
+    snapOf(item.judul, item.deskripsi ?? "", keDraft(item.kolom))
+  );
   if (prevSig !== sig) {
     setPrevSig(sig);
     setJudul(item.judul);
-    setKolom(keDraft(item.kolom));
+    setDeskripsi(item.deskripsi ?? "");
+    const segar = keDraft(item.kolom);
+    setKolom(segar);
+    setSavedSnap(snapOf(item.judul, item.deskripsi ?? "", segar));
   }
 
   const dinamis = item.kind === "tambahan";
   const esai = dinamis && item.format === "esai";
-  const pakaiKolom = dinamis && !esai;
+  const kepala = dinamis && item.format === "judul";
+  const pakaiKolom = dinamis && item.format === "tabel";
+  const infoRingkas = item.kind === "section" && item.id === "info";
 
-  const awalKolom = item.kolom;
-  const samaKolom =
-    !pakaiKolom ||
-    (kolom.length === awalKolom.length &&
-      kolom.every((col, index) => {
-        const asal = awalKolom[index];
-        return (
-          col.id === asal.id &&
-          col.label.trim() === asal.label &&
-          col.tipe === asal.tipe
-        );
-      }));
-  const dirty = judul.trim() !== item.judul || !samaKolom;
+  // Validasi ringan saat mengetik (ditampilkan, tidak toast).
+  let masalah: string | null = null;
+  const cj = judul.trim();
+  if (!infoRingkas) {
+    if (cj.length < 2 || cj.length > 120) {
+      masalah = "Judul section harus 2-120 karakter.";
+    } else if (pakaiKolom) {
+      if (kolom.length === 0) {
+        masalah = "Tambahkan minimal satu kolom isian.";
+      } else {
+        const buruk = kolom.find((col) => {
+          const label = col.label.trim();
+          return label.length < 2 || label.length > 120;
+        });
+        if (buruk) masalah = "Judul kolom harus 2-120 karakter.";
+      }
+    }
+  }
 
   function patchKolom(key: number, patch: Partial<KolomDraft>) {
     setKolom((prev) => prev.map((col) => (col.key === key ? { ...col, ...patch } : col)));
@@ -216,33 +380,36 @@ export function SectionCard({
     setError(null);
   }
 
-  async function handleSimpan() {
-    if (saving) return;
+  const simpan = useCallback(async (snapAwal: string) => {
     const cleanedJudul = judul.trim();
-    if (cleanedJudul.length < 2 || cleanedJudul.length > 120) {
-      setError("Judul section harus 2-120 karakter.");
-      return;
-    }
     const cleanedKolom = pakaiKolom
       ? kolom.map((col, index) => ({ ...col, label: col.label.trim(), urutan: index }))
       : [];
-    if (pakaiKolom) {
-      if (cleanedKolom.length === 0) {
-        setError("Tambahkan minimal satu kolom isian.");
-        return;
-      }
-      for (const col of cleanedKolom) {
-        if (col.label.length < 2 || col.label.length > 120) {
-          setError("Judul kolom harus 2-120 karakter.");
-          return;
-        }
-      }
-    }
+    const awalKolom = item.kolom;
+    savingRef.current = true;
     setSaving(true);
     setError(null);
     try {
       const supabase = createClient();
-      if (cleanedJudul !== item.judul) {
+      if (kepala && dinamis) {
+        const patch: { judul?: string; deskripsi?: string | null } = {};
+        if (cleanedJudul !== item.judul) patch.judul = cleanedJudul;
+        const cleanedDesc = deskripsi.trim();
+        if (cleanedDesc !== (item.deskripsi ?? "")) {
+          patch.deskripsi = cleanedDesc.length > 0 ? cleanedDesc : null;
+        }
+        if (Object.keys(patch).length > 0) {
+          const { error } = await supabase
+            .from("laporan_tambahan")
+            .update(patch)
+            .eq("id", item.id);
+          if (error) {
+            if (sesiBerakhir(toast, router, error)) return;
+            setError("Gagal menyimpan. Coba lagi.");
+            return;
+          }
+        }
+      } else if (cleanedJudul !== item.judul) {
         const { error } =
           item.kind === "section"
             ? await supabase
@@ -312,46 +479,78 @@ export function SectionCard({
           }
         }
       }
-      toast.success("Section diperbarui.");
+      setSavedSnap(snapAwal);
       onSaved();
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
+  }, [dinamis, item, judul, deskripsi, kepala, kolom, onSaved, pakaiKolom, router, toast]);
+
+  // Simpan otomatis 800 mdetik sesudah berhenti mengetik.
+  useEffect(() => {
+    if (infoRingkas || snap === savedSnap || masalah || saving) return;
+    const timer = window.setTimeout(() => {
+      void simpan(snap);
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [snap, savedSnap, masalah, saving, infoRingkas, simpan]);
+
+  const gagang = (
+    <div className="flex justify-center">
+      <button
+        type="button"
+        onPointerDown={(event) => {
+          if (dragAktif) controls.start(event);
+        }}
+        onKeyDown={(event) => {
+          if (!dragAktif) return;
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            onMoveKey(item, -1);
+          } else if (event.key === "ArrowDown") {
+            event.preventDefault();
+            onMoveKey(item, 1);
+          }
+        }}
+        disabled={!dragAktif}
+        aria-label={`Geser ${item.judul} (panah atas bawah untuk pindah)`}
+        title="Tahan dan geser untuk pindah"
+        style={{ touchAction: "none" }}
+        className="flex min-w-[56px] cursor-grab items-center justify-center rounded-md text-neutral-400 transition-soft hover:text-foreground active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+      >
+        <GripHorizontal aria-hidden="true" className="size-5" />
+      </button>
+    </div>
+  );
+
+  // Kartu Info ringkas: hanya gagang + isian (jabatan dan unit kerja
+  // tersimpan otomatis, sisanya mengikuti data user).
+  if (infoRingkas) {
+    const minimal = (
+      <div className="ref-card px-4 pt-1 pb-4">
+        {gagang}
+        <InfoIsianCard jabatanAwal={jabatanAwal} unitAwal={unitKerjaAwal} />
+      </div>
+    );
+    if (!dragAktif) return minimal;
+    return (
+      <Reorder.Item value={editorKey(item)} as="div" dragListener={false} dragControls={controls}>
+        {minimal}
+      </Reorder.Item>
+    );
   }
 
   const card = (
     <div className="ref-card px-4 pt-1 pb-4">
-      <div className="flex justify-center">
-        <button
-          type="button"
-          onPointerDown={(event) => {
-            if (dragAktif) controls.start(event);
-          }}
-          onKeyDown={(event) => {
-            if (!dragAktif) return;
-            if (event.key === "ArrowUp") {
-              event.preventDefault();
-              onMoveKey(item, -1);
-            } else if (event.key === "ArrowDown") {
-              event.preventDefault();
-              onMoveKey(item, 1);
-            }
-          }}
-          disabled={!dragAktif}
-          aria-label={`Geser ${item.judul} (panah atas bawah untuk pindah)`}
-          title="Tahan dan geser untuk pindah"
-          style={{ touchAction: "none" }}
-          className="flex min-w-[56px] cursor-grab items-center justify-center rounded-md text-neutral-400 transition-soft hover:text-foreground active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
-        >
-          <GripHorizontal aria-hidden="true" className="size-5" />
-        </button>
-      </div>
+      {gagang}
       <div className="flex items-center gap-1">
         <div className="min-w-0 flex-1">
           <Label htmlFor={`ejudul-${item.kind}-${item.id}`} className="sr-only">
             Judul section
           </Label>
           <Input
+            ref={judulRef}
             id={`ejudul-${item.kind}-${item.id}`}
             value={judul}
             onChange={(event) => {
@@ -359,7 +558,6 @@ export function SectionCard({
               setError(null);
             }}
             placeholder="Judul section"
-            disabled={saving}
             className="h-auto rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 pt-0 pb-1 text-[17px] leading-none font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 focus-visible:border-accent focus-visible:ring-0 dark:border-white/15"
           />
         </div>
@@ -373,12 +571,16 @@ export function SectionCard({
             Esai
           </span>
         )}
+        {kepala && (
+          <span className="shrink-0 rounded-full bg-black/[0.075] px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-white/10">
+            Judul
+          </span>
+        )}
         <Button
           type="button"
           variant="ghost"
           size="icon"
           onClick={() => onDeleteRequest(item)}
-          disabled={saving}
           aria-label={`Hapus ${item.judul}`}
         >
           <Trash2 aria-hidden="true" />
@@ -399,36 +601,27 @@ export function SectionCard({
               setKolom((prev) => [...prev, kolomBaru()]);
               setError(null);
             }}
-            disabled={saving}
+            disabled={false}
           />
         ) : item.kind === "section" ? (
           <IsianSectionCard kode={item.id} />
-        ) : (
+        ) : esai ? (
           <p className="px-1 text-xs text-neutral-500">
             Bentuk esai: user mengisi satu teks panjang.
           </p>
-        )}
+        ) : null}
       </div>
 
-      <p className="mt-2 px-1 text-xs text-neutral-500">
-        Bidang pengisi: {bidangText || "belum ada (atur di panel kanan)"}
-      </p>
-
-      {error && (
+      {(error ?? masalah) && (
         <p role="alert" className="mt-2 px-1 text-sm text-danger">
-          {error}
+          {error ?? masalah}
         </p>
       )}
-      <div className="mt-3 flex justify-end">
-        <Button
-          type="button"
-          onClick={handleSimpan}
-          disabled={saving || !dirty}
-          className="rounded-full"
-        >
-          {saving ? "Menyimpan..." : "Simpan"}
-        </Button>
-      </div>
+      {saving && (
+        <p aria-live="polite" className="mt-2 px-1 text-xs text-neutral-500">
+          Menyimpan…
+        </p>
+      )}
     </div>
   );
 
@@ -440,219 +633,34 @@ export function SectionCard({
   );
 }
 
-// Kartu blanko tambah section: judul + bentuk + kolom, tanpa bidang
-// (bidang boleh kosong, diatur sesudahnya di panel kanan).
-export function BlankSectionCard({
-  onCancel,
-  onCreated,
-}: {
-  onCancel: () => void;
-  onCreated: () => void;
-}) {
-  const toast = useToast();
-  const router = useRouter();
-  const [judul, setJudul] = useState("");
-  const [format, setFormat] = useState<"tabel" | "esai">("tabel");
-  const [kolom, setKolom] = useState<KolomDraft[]>(() => [kolomBaru()]);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const esai = format === "esai";
 
-  async function handleSimpan() {
-    if (saving) return;
-    const cleanedJudul = judul.trim();
-    if (cleanedJudul.length < 2 || cleanedJudul.length > 120) {
-      setError("Judul section harus 2-120 karakter.");
-      return;
-    }
-    const cleanedKolom = esai
-      ? []
-      : kolom.map((col, index) => ({ ...col, label: col.label.trim(), urutan: index }));
-    if (!esai) {
-      if (cleanedKolom.length === 0) {
-        setError("Tambahkan minimal satu kolom isian.");
-        return;
-      }
-      for (const col of cleanedKolom) {
-        if (col.label.length < 2 || col.label.length > 120) {
-          setError("Judul kolom harus 2-120 karakter.");
-          return;
-        }
-      }
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const supabase = createClient();
-      const { data: auth } = await supabase.auth.getUser();
-      const { data, error } = await supabase
-        .from("laporan_tambahan")
-        .insert({
-          judul: cleanedJudul,
-          deskripsi: null,
-          format,
-          created_by: auth.user?.id ?? null,
-        })
-        .select("id")
-        .single();
-      if (error || !data) {
-        if (sesiBerakhir(toast, router, error)) return;
-        setError("Gagal menambah section. Coba lagi.");
-        return;
-      }
-      const kolomInsert = esai
-        ? [{ laporan_id: data.id, label: "Isian", tipe: "textarea" as KolomTipe, wajib: true, urutan: 0 }]
-        : cleanedKolom.map((col) => ({
-            laporan_id: data.id,
-            label: col.label,
-            tipe: col.tipe,
-            wajib: true,
-            urutan: col.urutan,
-          }));
-      const { error: kolomError } = await supabase
-        .from("laporan_tambahan_kolom")
-        .insert(kolomInsert);
-      if (kolomError) {
-        await supabase.from("laporan_tambahan").delete().eq("id", data.id);
-        if (sesiBerakhir(toast, router, kolomError)) return;
-        setError("Gagal menyimpan kolom isian. Coba lagi.");
-        return;
-      }
-      toast.success("Section dibuat.");
-      onCreated();
-    } finally {
-      setSaving(false);
-    }
-  }
 
-  return (
-    <div className="ref-card p-4">
-      <div className="flex items-center gap-1">
-        <div className="min-w-0 flex-1">
-          <Label htmlFor="baru-judul" className="sr-only">
-            Judul section baru
-          </Label>
-          <Input
-            id="baru-judul"
-            value={judul}
-            onChange={(event) => {
-              setJudul(event.target.value);
-              setError(null);
-            }}
-            placeholder="Judul section baru"
-            disabled={saving}
-            autoFocus
-            className="h-auto rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 py-1 text-[17px] font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 focus-visible:border-accent focus-visible:ring-0 dark:border-white/15"
-          />
-        </div>
-      </div>
-
-      <div className="mt-2" role="radiogroup" aria-label="Bentuk isian">
-        <div className="flex flex-col">
-          {(["tabel", "esai"] as const).map((nilai) => (
-            <label key={nilai} className="flex cursor-pointer items-start gap-3 px-1 py-2">
-              <input
-                type="radio"
-                name="baru-bentuk"
-                checked={format === nilai}
-                onChange={() => {
-                  setFormat(nilai);
-                  setError(null);
-                }}
-                disabled={saving}
-                className="mt-1 size-4 shrink-0 accent-[#0071e3]"
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">
-                  {nilai === "tabel" ? "Tabel" : "Esai"}
-                </span>
-                <span className="mt-0.5 block text-xs text-neutral-500">
-                  {nilai === "tabel"
-                    ? "Baris-baris data berisi kolom, mis. progres verifikasi."
-                    : "Satu isian teks panjang, mis. rekomendasi."}
-                </span>
-              </span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {!esai && (
-        <div className="mt-2">
-          <KolomRows
-            kolom={kolom}
-            onPatch={(key, patch) => {
-              setKolom((prev) => prev.map((col) => (col.key === key ? { ...col, ...patch } : col)));
-              setError(null);
-            }}
-            onDuplicate={(key) => {
-              setKolom((prev) => {
-                const index = prev.findIndex((col) => col.key === key);
-                if (index < 0) return prev;
-                return [...prev.slice(0, index + 1), kolomBaru(prev[index].label), ...prev.slice(index + 1)];
-              });
-              setError(null);
-            }}
-            onRemove={(key) => {
-              setKolom((prev) => prev.filter((col) => col.key !== key));
-              setError(null);
-            }}
-            onAdd={() => {
-              setKolom((prev) => [...prev, kolomBaru()]);
-              setError(null);
-            }}
-            disabled={saving}
-          />
-        </div>
-      )}
-
-      {error && (
-        <p role="alert" className="mt-2 px-1 text-sm text-danger">
-          {error}
-        </p>
-      )}
-      <div className="mt-3 flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={onCancel}
-          disabled={saving}
-          className="rounded-full"
-        >
-          Batal
-        </Button>
-        <Button
-          type="button"
-          onClick={handleSimpan}
-          disabled={saving}
-          className="rounded-full"
-        >
-          {saving ? "Menyimpan..." : "Simpan"}
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 // Tumpukan kartu yang bisa diurutkan: drag gagang (pointer + panah
 // keyboard) ala Google Forms. Geser nonaktif saat mencari.
 export function SectionEditor({
   ordered,
   query,
+  focusId,
+  jabatanAwal,
+  unitKerjaAwal,
   onReorder,
   onMoveKey,
   onDeleteRequest,
   onSaved,
-  bidangTextOf,
+  onTambah,
 }: {
   ordered: BuilderItem[];
   query: string;
+  focusId: string | null;
+  jabatanAwal: string;
+  unitKerjaAwal: string;
   onReorder: (keys: string[]) => void;
   onMoveKey: (item: BuilderItem, arah: -1 | 1) => void;
   onDeleteRequest: (item: BuilderItem) => void;
   onSaved: () => void;
-  bidangTextOf: (item: BuilderItem) => string;
+  onTambah: () => void;
 }) {
   const visible = query
     ? ordered.filter((item) => item.judul.toLowerCase().includes(query))
@@ -665,7 +673,15 @@ export function SectionEditor({
         description={
           query
             ? `Tidak ada yang cocok dengan "${query}".`
-            : "Tambahkan section pertama di bawah."
+            : "Tambahkan section pertama lewat rel di kanan."
+        }
+        action={
+          query ? undefined : (
+            <Button onClick={onTambah}>
+              <Plus aria-hidden="true" />
+              Tambah Section
+            </Button>
+          )
         }
       />
     );
@@ -680,10 +696,12 @@ export function SectionEditor({
               key={editorKey(item)}
               item={item}
               dragAktif={false}
+              autoFocusJudul={focusId === editorKey(item)}
+              jabatanAwal={jabatanAwal}
+              unitKerjaAwal={unitKerjaAwal}
               onMoveKey={onMoveKey}
               onDeleteRequest={onDeleteRequest}
               onSaved={onSaved}
-              bidangText={bidangTextOf(item)}
             />
           ))}
         </div>
@@ -706,10 +724,12 @@ export function SectionEditor({
           key={editorKey(item)}
           item={item}
           dragAktif
+          autoFocusJudul={focusId === editorKey(item)}
+          jabatanAwal={jabatanAwal}
+          unitKerjaAwal={unitKerjaAwal}
           onMoveKey={onMoveKey}
           onDeleteRequest={onDeleteRequest}
           onSaved={onSaved}
-          bidangText={bidangTextOf(item)}
         />
       ))}
     </Reorder.Group>

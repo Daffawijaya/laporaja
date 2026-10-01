@@ -373,7 +373,16 @@ export function LaporanTambahanSection({
   return (
     <div className={className}>
       {tugas.map((item) =>
-        item.format === "esai" ? (
+        item.format === "judul" ? (
+          <div key={item.id} className="mt-4">
+            <p className="text-sm font-semibold">{item.judul}</p>
+            {item.deskripsi && (
+              <p className="mt-1 text-sm whitespace-pre-wrap text-neutral-500">
+                {item.deskripsi}
+              </p>
+            )}
+          </div>
+        ) : item.format === "esai" ? (
           <EsaiIsian key={item.id} userId={userId} item={item} />
         ) : (
         <RefListCard

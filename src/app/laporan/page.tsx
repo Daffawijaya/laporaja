@@ -32,12 +32,23 @@ export default async function LaporanPage({
   const bulan = clampBulan(params.bulan, now.getMonth() + 1);
   const tahun = clampTahun(params.tahun, now.getFullYear());
 
-  const [items, indikators, monthlyReview, tugasTambahan] = await Promise.all([
-    getMonthlyLaporan(supabase, user.id, tahun, bulan),
-    getIndikatorProgress(supabase, user.id, tahun, bulan),
-    getMonthlyReview(supabase, user.id, tahun, bulan),
-    getTugasUser(supabase, user.id, profile.bidang_id),
-  ]);
+  const [items, indikators, monthlyReview, tugasTambahan, sectionIndikator] =
+    await Promise.all([
+      getMonthlyLaporan(supabase, user.id, tahun, bulan),
+      getIndikatorProgress(supabase, user.id, tahun, bulan),
+      getMonthlyReview(supabase, user.id, tahun, bulan),
+      getTugasUser(supabase, user.id, profile.bidang_id),
+      // Blok indikator tampil bila bidang user tertaut ke sectionnya.
+      // Tanpa bidang: tampil seperti dulu.
+      profile.bidang_id
+        ? supabase
+            .from("laporan_section_bidang")
+            .select("kode")
+            .eq("kode", "indikator")
+            .eq("bidang_id", profile.bidang_id)
+            .maybeSingle()
+        : Promise.resolve({ data: { kode: "indikator" } }),
+    ]);
 
   return (
     <MonthlyList
@@ -49,6 +60,7 @@ export default async function LaporanPage({
       indikators={indikators}
       initialReview={monthlyReview}
       tugasTambahan={tugasTambahan}
+      tampilIndikator={!!sectionIndikator.data}
     />
   );
 }

@@ -23,6 +23,8 @@ export type StatusBulananPdf = "Menunggu Review" | "Revisi" | "Disetujui";
 export interface PdfTambahan {
   judul: string;
   deskripsi: string | null;
+  /** Blok judul hanya cetak judul + deskripsi tanpa tabel isian. */
+  kepalaJudul: boolean;
   kolom: string[];
   baris: string[][];
 }
@@ -203,7 +205,8 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
             {laporan.deskripsi ? (
               <Text style={[styles.paragraph, { color: "#6e6e73" }]}>{laporan.deskripsi}</Text>
             ) : null}
-            {laporan.baris.length === 0 ? (
+            {!laporan.kepalaJudul &&
+              (laporan.baris.length === 0 ? (
               <Text style={styles.empty}>Belum ada isian.</Text>
             ) : (
               <View>
@@ -226,10 +229,10 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
                   </View>
                 ))}
               </View>
+              )
             )}
           </View>
         ))}
-
         <Text style={styles.dateHeading}>REKOMENDASI DAN TINDAK LANJUT</Text>
         {data.rekomendasi ? (
           <Text style={styles.paragraph}>{data.rekomendasi}</Text>

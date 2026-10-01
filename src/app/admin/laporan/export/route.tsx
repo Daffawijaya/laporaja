@@ -120,6 +120,7 @@ export async function GET(request: Request) {
   const tambahan: PdfTambahan[] = tugas.map((item) => ({
     judul: item.judul,
     deskripsi: item.deskripsi,
+    kepalaJudul: item.format === "judul",
     kolom: item.kolom.map((col) => col.label),
     baris: item.baris.map((row) =>
       item.kolom.map((col) => {

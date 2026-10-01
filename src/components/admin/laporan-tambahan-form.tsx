@@ -67,7 +67,7 @@ export function LaporanTambahanForm({
   // Bentuk isian dipilih sekali saat buat; tidak bisa diubah sesudahnya
   // agar data isian yang sudah masuk tidak yatim.
   const [format, setFormat] = useState<LaporanFormat>(initial?.format ?? "tabel");
-  const esaiAktif = initial ? initial.format === "esai" : format === "esai";
+  const esaiAktif = initial ? initial.format !== "tabel" : format !== "tabel";
   const [kolom, setKolom] = useState<KolomDraft[]>(() =>
     initial && initial.kolom.length > 0
       ? initial.kolom.map((col) => ({ ...kolomBaru(col.label, col.id), tipe: col.tipe }))
@@ -125,7 +125,7 @@ export function LaporanTambahanForm({
     cleanedKolom: { id: string | null; label: string; tipe: KolomTipe; urutan: number }[]
   ): Promise<boolean> {
     if (!initial) return false;
-    const esai = initial.format === "esai";
+    const esai = initial.format !== "tabel";
     const awalKolom = initial.kolom;
     const samaBidang =
       bidangIds.length === initial.linkedIds.length &&
@@ -233,8 +233,9 @@ export function LaporanTambahanForm({
       setFormError("Judul laporan harus 2-120 karakter.");
       return;
     }
-    // Esai tidak memakai editor kolom: satu kolom teks panjang dibuat otomatis.
-    const esai = initial ? initial.format === "esai" : format === "esai";
+    // Esai dan judul tidak memakai editor kolom (esai: satu kolom teks
+    // panjang dibuat otomatis; judul: tanpa isian).
+    const esai = initial ? initial.format !== "tabel" : format !== "tabel";
     const cleanedKolom = esai
       ? []
       : kolom.map((col, index) => ({ ...col, label: col.label.trim(), urutan: index }));
@@ -416,6 +417,14 @@ export function LaporanTambahanForm({
             </div>
           )}
 
+          {initial?.format === "judul" && (
+            <div className="ref-card mt-2 p-4">
+              <p className="px-1 text-xs text-neutral-500">
+                Bentuk judul: hanya tampil sebagai pembatas tanpa isian.
+              </p>
+            </div>
+          )}
+
           {/* Satu kartu berisi daftar baris kolom. Ritme padding samakan RefListCard referensi. */}
           {!esaiAktif && (
           <div className="ref-card mt-2 p-4">
@@ -585,10 +594,22 @@ export function LaporanTambahanEdit({ data }: { data: LaporanEditData }) {
 // Isian bawaan ditampilkan sebagai info karena mengikuti formulir
 // laporan utama.
 const ISIAN_SECTION: Record<string, { label: string; tipe: KolomTipe }[]> = {
+  info: [
+    { label: "Bulan", tipe: "text" },
+    { label: "Tahun", tipe: "number" },
+    { label: "Nama", tipe: "text" },
+    { label: "Jabatan", tipe: "text" },
+    { label: "Unit kerja", tipe: "text" },
+  ],
   kegiatan: [
     { label: "Nama kegiatan", tipe: "text" },
     { label: "Tanggal", tipe: "date" },
     { label: "Keterangan", tipe: "textarea" },
+  ],
+  indikator: [
+    { label: "Nama indikator", tipe: "text" },
+    { label: "Target", tipe: "number" },
+    { label: "Capaian", tipe: "number" },
   ],
   rekomendasi: [{ label: "Rekomendasi dan tindak lanjut", tipe: "textarea" }],
 };

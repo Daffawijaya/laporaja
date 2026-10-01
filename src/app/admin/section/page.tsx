@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getBidangTargetMatrix,
   getLaporanEditData,
+  getPengaturan,
   getSectionBuilderData,
   getSectionEditData,
 } from "@/lib/laporan-tambahan/queries";
@@ -98,9 +99,11 @@ export default async function SectionPage({
     );
   }
 
-  const [semua, matrix] = await Promise.all([
+  const [semua, matrix, unitKerja, jabatanAwalan] = await Promise.all([
     getSectionBuilderData(supabase),
     getBidangTargetMatrix(supabase),
+    getPengaturan(supabase, "unit_kerja"),
+    getPengaturan(supabase, "jabatan_awalan"),
   ]);
 
   return (
@@ -116,6 +119,8 @@ export default async function SectionPage({
           initialItems={semua}
           bidangList={matrix.semuaBidang}
           userCountByBidang={matrix.userCountByBidang}
+          jabatanAwal={jabatanAwalan}
+          unitKerjaAwal={unitKerja}
         />
       </div>
     </div>
