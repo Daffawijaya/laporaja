@@ -14,9 +14,9 @@ import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import type { SectionKode } from "@/lib/supabase/database.types";
-import type { KolomTipe, LaporanEditData } from "@/lib/laporan-tambahan/queries";
+import type { KolomTipe, LaporanEditData, LaporanFormat } from "@/lib/laporan-tambahan/queries";
 
-const TIPE_OPTIONS: { value: KolomTipe; label: string }[] = [
+export const TIPE_OPTIONS: { value: KolomTipe; label: string }[] = [
   { value: "text", label: "Teks pendek" },
   { value: "textarea", label: "Teks panjang" },
   { value: "date", label: "Tanggal" },
@@ -40,6 +40,8 @@ function kolomBaru(label = "", id: string | null = null): KolomDraft {
 export interface LaporanFormAwal {
   id: string;
   judul: string;
+  /** Bentuk isian; esai memakai satu kolom teks panjang otomatis. */
+  format: LaporanFormat;
   kolom: { id: string; label: string; tipe: KolomTipe }[];
   linkedIds: string[];
 }
@@ -62,6 +64,10 @@ export function LaporanTambahanForm({
   const router = useRouter();
   const toast = useToast();
   const [judul, setJudul] = useState(initial?.judul ?? "");
+  // Bentuk isian dipilih sekali saat buat; tidak bisa diubah sesudahnya
+  // agar data isian yang sudah masuk tidak yatim.
+  const [format, setFormat] = useState<LaporanFormat>(initial?.format ?? "tabel");
+  const esaiAktif = initial ? initial.format === "esai" : format === "esai";
   const [kolom, setKolom] = useState<KolomDraft[]>(() =>
     initial && initial.kolom.length > 0
       ? initial.kolom.map((col) => ({ ...kolomBaru(col.label, col.id), tipe: col.tipe }))
@@ -113,21 +119,24 @@ export function LaporanTambahanForm({
   // Simpan mode ubah: update judul + selisih kolom (ubah/tambah/hapus) +
   // selisih tautan bidang. Hapus kolom ikut menghapus nilai isiannya
   // (cascade DB). Kembali true bila tersimpan (atau tak ada perubahan).
+  // Esai memakai satu kolom teks otomatis: selisih kolom dilewati.
   async function simpanUbah(
     cleanedJudul: string,
     cleanedKolom: { id: string | null; label: string; tipe: KolomTipe; urutan: number }[]
   ): Promise<boolean> {
     if (!initial) return false;
+    const esai = initial.format === "esai";
     const awalKolom = initial.kolom;
     const samaBidang =
       bidangIds.length === initial.linkedIds.length &&
       bidangIds.every((id) => initial.linkedIds.includes(id));
     const samaKolom =
-      cleanedKolom.length === awalKolom.length &&
-      cleanedKolom.every((col, index) => {
-        const asal = awalKolom[index];
-        return col.id === asal.id && col.label === asal.label && col.tipe === asal.tipe;
-      });
+      esai ||
+      (cleanedKolom.length === awalKolom.length &&
+        cleanedKolom.every((col, index) => {
+          const asal = awalKolom[index];
+          return col.id === asal.id && col.label === asal.label && col.tipe === asal.tipe;
+        }));
     if (cleanedJudul === initial.judul && samaBidang && samaKolom) return true;
     const supabase = createClient();
     const laporanId = initial.id;
@@ -141,52 +150,54 @@ export function LaporanTambahanForm({
         return false;
       }
     }
-    const keptIds = new Set(
-      cleanedKolom.filter((col) => col.id !== null).map((col) => col.id as string)
-    );
-    const hapusKolomIds = awalKolom.map((col) => col.id).filter((id) => !keptIds.has(id));
-    if (hapusKolomIds.length > 0) {
-      const { error } = await supabase
-        .from("laporan_tambahan_kolom")
-        .delete()
-        .in("id", hapusKolomIds);
-      if (error) {
-        if (!gagalSimpan(error)) setFormError("Gagal menyimpan. Coba lagi.");
-        return false;
-      }
-    }
-    const kept = cleanedKolom.filter((col) => col.id !== null);
-    if (kept.length > 0) {
-      const { error } = await supabase.from("laporan_tambahan_kolom").upsert(
-        kept.map((col) => ({
-          id: col.id as string,
-          laporan_id: laporanId,
-          label: col.label,
-          tipe: col.tipe,
-          wajib: true,
-          urutan: col.urutan,
-        })),
-        { onConflict: "id" }
+    if (!esai) {
+      const keptIds = new Set(
+        cleanedKolom.filter((col) => col.id !== null).map((col) => col.id as string)
       );
-      if (error) {
-        if (!gagalSimpan(error)) setFormError("Gagal menyimpan. Coba lagi.");
-        return false;
+      const hapusKolomIds = awalKolom.map((col) => col.id).filter((id) => !keptIds.has(id));
+      if (hapusKolomIds.length > 0) {
+        const { error } = await supabase
+          .from("laporan_tambahan_kolom")
+          .delete()
+          .in("id", hapusKolomIds);
+        if (error) {
+          if (!gagalSimpan(error)) setFormError("Gagal menyimpan. Coba lagi.");
+          return false;
+        }
       }
-    }
-    const baru = cleanedKolom.filter((col) => col.id === null);
-    if (baru.length > 0) {
-      const { error } = await supabase.from("laporan_tambahan_kolom").insert(
-        baru.map((col) => ({
-          laporan_id: laporanId,
-          label: col.label,
-          tipe: col.tipe,
-          wajib: true,
-          urutan: col.urutan,
-        }))
-      );
-      if (error) {
-        if (!gagalSimpan(error)) setFormError("Gagal menyimpan. Coba lagi.");
-        return false;
+      const kept = cleanedKolom.filter((col) => col.id !== null);
+      if (kept.length > 0) {
+        const { error } = await supabase.from("laporan_tambahan_kolom").upsert(
+          kept.map((col) => ({
+            id: col.id as string,
+            laporan_id: laporanId,
+            label: col.label,
+            tipe: col.tipe,
+            wajib: true,
+            urutan: col.urutan,
+          })),
+          { onConflict: "id" }
+        );
+        if (error) {
+          if (!gagalSimpan(error)) setFormError("Gagal menyimpan. Coba lagi.");
+          return false;
+        }
+      }
+      const baru = cleanedKolom.filter((col) => col.id === null);
+      if (baru.length > 0) {
+        const { error } = await supabase.from("laporan_tambahan_kolom").insert(
+          baru.map((col) => ({
+            laporan_id: laporanId,
+            label: col.label,
+            tipe: col.tipe,
+            wajib: true,
+            urutan: col.urutan,
+          }))
+        );
+        if (error) {
+          if (!gagalSimpan(error)) setFormError("Gagal menyimpan. Coba lagi.");
+          return false;
+        }
       }
     }
     const tambahBidang = bidangIds.filter((id) => !initial.linkedIds.includes(id));
@@ -222,15 +233,21 @@ export function LaporanTambahanForm({
       setFormError("Judul laporan harus 2-120 karakter.");
       return;
     }
-    const cleanedKolom = kolom.map((col, index) => ({ ...col, label: col.label.trim(), urutan: index }));
-    if (cleanedKolom.length === 0) {
-      setFormError("Tambahkan minimal satu kolom isian.");
-      return;
-    }
-    for (const col of cleanedKolom) {
-      if (col.label.length < 2 || col.label.length > 120) {
-        setFormError("Judul kolom harus 2-120 karakter.");
+    // Esai tidak memakai editor kolom: satu kolom teks panjang dibuat otomatis.
+    const esai = initial ? initial.format === "esai" : format === "esai";
+    const cleanedKolom = esai
+      ? []
+      : kolom.map((col, index) => ({ ...col, label: col.label.trim(), urutan: index }));
+    if (!esai) {
+      if (cleanedKolom.length === 0) {
+        setFormError("Tambahkan minimal satu kolom isian.");
         return;
+      }
+      for (const col of cleanedKolom) {
+        if (col.label.length < 2 || col.label.length > 120) {
+          setFormError("Judul kolom harus 2-120 karakter.");
+          return;
+        }
       }
     }
     setSaving(true);
@@ -250,6 +267,7 @@ export function LaporanTambahanForm({
         .insert({
           judul: cleanedJudul,
           deskripsi: null,
+          format,
           created_by: auth.user?.id ?? null,
         })
         .select("id")
@@ -263,16 +281,17 @@ export function LaporanTambahanForm({
         setFormError("Gagal menambah laporan. Coba lagi.");
         return;
       }
-      const [kolomResult, linkResult] = await Promise.all([
-        supabase.from("laporan_tambahan_kolom").insert(
-          cleanedKolom.map((col) => ({
+      const kolomInsert = esai
+        ? [{ laporan_id: data.id, label: "Isian", tipe: "textarea" as KolomTipe, wajib: true, urutan: 0 }]
+        : cleanedKolom.map((col) => ({
             laporan_id: data.id,
             label: col.label,
             tipe: col.tipe,
             wajib: true,
             urutan: col.urutan,
-          }))
-        ),
+          }));
+      const [kolomResult, linkResult] = await Promise.all([
+        supabase.from("laporan_tambahan_kolom").insert(kolomInsert),
         // Bidang boleh kosong: laporan tersimpan tanpa penugasan.
         bidangIds.length > 0
           ? supabase.from("laporan_tambahan_bidang").insert(
@@ -354,7 +373,51 @@ export function LaporanTambahanForm({
             />
           </div>
 
+          {!initial && (
+            <div className="ref-card mt-2 p-4" role="radiogroup" aria-label="Bentuk isian">
+              <div className="flex flex-col">
+                {(["tabel", "esai"] as const).map((nilai) => (
+                  <label
+                    key={nilai}
+                    className="flex cursor-pointer items-start gap-3 px-1 py-2"
+                  >
+                    <input
+                      type="radio"
+                      name="bentuk-isian"
+                      checked={format === nilai}
+                      onChange={() => {
+                        setFormat(nilai);
+                        setFormError(null);
+                      }}
+                      disabled={saving}
+                      className="mt-1 size-4 shrink-0 accent-[#0071e3]"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">
+                        {nilai === "tabel" ? "Tabel" : "Esai"}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-neutral-500">
+                        {nilai === "tabel"
+                          ? "Baris-baris data berisi kolom, mis. progres verifikasi."
+                          : "Satu isian teks panjang, mis. rekomendasi."}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {initial?.format === "esai" && (
+            <div className="ref-card mt-2 p-4">
+              <p className="px-1 text-xs text-neutral-500">
+                Bentuk esai: user mengisi satu teks panjang. Kolom isian dibuat otomatis.
+              </p>
+            </div>
+          )}
+
           {/* Satu kartu berisi daftar baris kolom. Ritme padding samakan RefListCard referensi. */}
+          {!esaiAktif && (
           <div className="ref-card mt-2 p-4">
             <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
               {kolom.map((col, index) => (
@@ -417,7 +480,9 @@ export function LaporanTambahanForm({
               ))}
             </ul>
           </div>
+          )}
 
+          {!esaiAktif && (
           <div className="mt-2 md:hidden">
             <Button
               type="button"
@@ -430,6 +495,7 @@ export function LaporanTambahanForm({
               Tambah Kolom
             </Button>
           </div>
+          )}
 
           {formError && (
             <p role="alert" className="mt-3 text-sm text-danger">
@@ -453,6 +519,7 @@ export function LaporanTambahanForm({
         </div>
 
         {/* Rel tombol tambah (desktop): salin persis ikon lingkaran navbar (lonceng/bulan). */}
+        {!esaiAktif && (
         <div className="sticky top-20 hidden shrink-0 md:block">
           <div className="ref-icon-btn-liquid">
             <button
@@ -466,6 +533,7 @@ export function LaporanTambahanForm({
             </button>
           </div>
         </div>
+        )}
       </div>
       </ContentGrid>
     </form>
@@ -480,7 +548,7 @@ export function LaporanSectionEdit({
 }) {
   const router = useRouter();
   function kembali() {
-    router.push("/admin/laporan-tambahan");
+    router.push("/admin/section");
     router.refresh();
   }
   return (
@@ -499,20 +567,23 @@ export function LaporanSectionEdit({
 export function LaporanTambahanEdit({ data }: { data: LaporanEditData }) {
   const router = useRouter();
   function kembali() {
-    router.push("/admin/laporan-tambahan");
+    router.push("/admin/section");
     router.refresh();
   }
   return (
     <LaporanTambahanForm
       bidangList={data.bidangList}
-      initial={{ id: data.id, judul: data.judul, kolom: data.kolom, linkedIds: data.linkedIds }}
+      initial={{ id: data.id, judul: data.judul, format: data.format, kolom: data.kolom, linkedIds: data.linkedIds }}
       onCancel={kembali}
       onSaved={kembali}
     />
   );
 }
 
-// Isian tetap tiap section (cermin formulir yang diisi user).
+// Form ubah section tetap ala halaman buat: kartu judul + daftar bidang
+// di kanan. Styling disamakan dengan form buat.
+// Isian bawaan ditampilkan sebagai info karena mengikuti formulir
+// laporan utama.
 const ISIAN_SECTION: Record<string, { label: string; tipe: KolomTipe }[]> = {
   kegiatan: [
     { label: "Nama kegiatan", tipe: "text" },
@@ -522,7 +593,7 @@ const ISIAN_SECTION: Record<string, { label: string; tipe: KolomTipe }[]> = {
   rekomendasi: [{ label: "Rekomendasi dan tindak lanjut", tipe: "textarea" }],
 };
 
-function IsianSectionCard({ kode }: { kode: string }) {
+export function IsianSectionCard({ kode }: { kode: string }) {
   const baris = ISIAN_SECTION[kode];
   if (!baris) return null;
   return (
@@ -560,15 +631,9 @@ function IsianSectionCard({ kode }: { kode: string }) {
           </li>
         ))}
       </ul>
-      <p className="mt-3 px-1 text-xs text-neutral-500">
-        Isian bawaan section ini mengikuti formulir laporan dan tidak bisa diubah.
-      </p>
     </div>
   );
 }
-
-// Form ubah section tetap ala halaman buat: kartu judul + daftar bidang
-// di kanan. Styling disamakan dengan form buat.
 export function LaporanSectionForm({
   kode,
   judulAwal,

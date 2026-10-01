@@ -90,6 +90,8 @@ export type LaporanTambahanRow = {
   id: string;
   judul: string;
   deskripsi: string | null;
+  format: LaporanFormat;
+  urutan: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -101,6 +103,9 @@ export type LaporanTambahanBidangRow = {
 };
 
 export type KolomTipe = "text" | "textarea" | "date" | "number";
+
+/** Bentuk isian laporan tambahan: tabel (baris-baris kolom) atau esai (satu teks panjang). */
+export type LaporanFormat = "tabel" | "esai";
 
 export type LaporanTambahanKolomRow = {
   id: string;
@@ -133,6 +138,7 @@ export type SectionKode = "kegiatan" | "rekomendasi";
 export type LaporanSectionRow = {
   kode: SectionKode;
   judul: string;
+  urutan: number;
 };
 
 export type LaporanSectionBidangRow = {
@@ -218,8 +224,8 @@ export type Database = {
       laporan_tambahan: {
         Row: LaporanTambahanRow;
         Insert: Pick<LaporanTambahanRow, "judul"> &
-          Partial<Pick<LaporanTambahanRow, "id" | "deskripsi" | "created_by" | "created_at" | "updated_at">>;
-        Update: Partial<Pick<LaporanTambahanRow, "judul" | "deskripsi">>;
+          Partial<Pick<LaporanTambahanRow, "id" | "deskripsi" | "format" | "urutan" | "created_by" | "created_at" | "updated_at">>;
+        Update: Partial<Pick<LaporanTambahanRow, "judul" | "deskripsi" | "format" | "urutan">>;
         Relationships: [];
       };
       laporan_tambahan_bidang: {
@@ -251,8 +257,9 @@ export type Database = {
       };
       laporan_section: {
         Row: LaporanSectionRow;
-        Insert: Pick<LaporanSectionRow, "kode" | "judul">;
-        Update: Partial<Pick<LaporanSectionRow, "judul">>;
+        Insert: Pick<LaporanSectionRow, "kode" | "judul"> &
+          Partial<Pick<LaporanSectionRow, "urutan">>;
+        Update: Partial<Pick<LaporanSectionRow, "judul" | "urutan">>;
         Relationships: [];
       };
       laporan_section_bidang: {

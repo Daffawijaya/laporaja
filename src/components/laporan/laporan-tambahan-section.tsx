@@ -80,9 +80,157 @@ function formatNilai(col: KolomDef, raw: string): string {
   }
 }
 
+// Batas panjang esai: nilai disimpan sebagai teks bebas (kolom DB text).
+const ESAI_MAKS = 10000;
+
+// Kartu isian esai: satu textarea per user (buat sekali, simpan =
+// tambah bila belum ada atau ubah bila sudah ada). Kosongkan lalu
+// Simpan untuk menghapus (kembali belum diisi).
+function EsaiIsian({ userId, item }: { userId: string; item: TugasLaporan }) {
+  const router = useRouter();
+  const toast = useToast();
+  const kolom = item.kolom[0] ?? null;
+  const baris = item.baris[0] ?? null;
+  const [isi, setIsi] = useState(baris && kolom ? (baris.nilai[kolom.id] ?? "") : "");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  function sesiBerakhir(error: unknown): boolean {
+    if (error instanceof SessionExpiredError || isSessionError(error)) {
+      toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
+      router.replace("/login?expired=1");
+      return true;
+    }
+    return false;
+  }
+
+  async function handleSimpan() {
+    if (saving || !kolom) return;
+    const cleaned = isi.trim();
+    if (cleaned.length > ESAI_MAKS) {
+      setError(`Isian maksimal ${ESAI_MAKS} karakter.`);
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      if (cleaned.length === 0) {
+        if (!baris) {
+          setError("Isian wajib diisi.");
+          return;
+        }
+        const { error } = await supabase
+          .from("laporan_tambahan_baris")
+          .delete()
+          .eq("id", baris.id)
+          .eq("user_id", userId);
+        if (error) {
+          if (sesiBerakhir(error)) return;
+          setError("Gagal menghapus isian. Coba lagi.");
+          return;
+        }
+        toast.success("Isian dihapus.");
+        router.refresh();
+        return;
+      }
+      if (baris) {
+        const { error } = await supabase.from("laporan_tambahan_nilai").upsert(
+          [{ baris_id: baris.id, kolom_id: kolom.id, nilai: cleaned }],
+          { onConflict: "baris_id,kolom_id" }
+        );
+        if (error) {
+          if (sesiBerakhir(error)) return;
+          setError("Gagal menyimpan. Coba lagi.");
+          return;
+        }
+        toast.success("Isian diperbarui.");
+      } else {
+        const { data: baru, error: barisError } = await supabase
+          .from("laporan_tambahan_baris")
+          .insert({ laporan_id: item.id, user_id: userId })
+          .select("id")
+          .single();
+        if (barisError || !baru) {
+          if (sesiBerakhir(barisError)) return;
+          setError("Gagal menyimpan. Coba lagi.");
+          return;
+        }
+        const { error: nilaiError } = await supabase
+          .from("laporan_tambahan_nilai")
+          .insert([{ baris_id: baru.id, kolom_id: kolom.id, nilai: cleaned }]);
+        if (nilaiError) {
+          await supabase.from("laporan_tambahan_baris").delete().eq("id", baru.id);
+          setError("Gagal menyimpan. Coba lagi.");
+          return;
+        }
+        toast.success("Isian ditambahkan.");
+      }
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!kolom) return null;
+
+  return (
+    <RefListCard
+      ariaLabel={`Esai ${item.judul}`}
+      title={item.judul}
+      className="mt-4"
+    >
+      <div className="flex items-center justify-between gap-3 px-1 pb-3">
+        <span className="text-xs text-neutral-500">Wajib diisi · satu isian</span>
+        <span
+          className={
+            item.terisi
+              ? "text-xs font-medium text-emerald-700 dark:text-emerald-300"
+              : "text-xs font-medium text-amber-700 dark:text-amber-300"
+          }
+        >
+          {item.terisi ? "Sudah diisi" : "Belum diisi"}
+        </span>
+      </div>
+      {item.deskripsi && (
+        <p className="px-1 pb-3 text-xs whitespace-pre-wrap text-neutral-500">
+          {item.deskripsi}
+        </p>
+      )}
+      <div className="flex flex-col gap-2 px-1">
+        <Label htmlFor={`esai-${item.id}`}>Tulis isian</Label>
+        <Textarea
+          id={`esai-${item.id}`}
+          value={isi}
+          onChange={(event) => {
+            setIsi(event.target.value);
+            setError(null);
+          }}
+          rows={6}
+          placeholder="Tulis isian di sini."
+          disabled={saving}
+        />
+      </div>
+      {error && (
+        <p role="alert" className="mt-2 px-1 text-sm text-danger">
+          {error}
+        </p>
+      )}
+      <div className="mt-3 flex justify-end px-1">
+        <Button onClick={handleSimpan} disabled={saving} className="w-full sm:w-auto">
+          {saving ? "Menyimpan..." : "Simpan isian"}
+        </Button>
+      </div>
+      <p className="mt-2 px-1 text-xs text-neutral-500">
+        Kosongkan lalu Simpan untuk menghapus isian.
+      </p>
+    </RefListCard>
+  );
+}
+
 // Seksi pengisian laporan tambahan di halaman laporan user: daftar tugas
-// wajib + tambah/ubah/hapus baris isian milik sendiri mengikuti kolom
-// yang ditentukan admin.
+// wajib. Tugas tabel = tambah/ubah/hapus baris isian mengikuti kolom
+// admin; tugas esai = satu textarea.
 export function LaporanTambahanSection({
   userId,
   tugas,
@@ -224,7 +372,10 @@ export function LaporanTambahanSection({
 
   return (
     <div className={className}>
-      {tugas.map((item) => (
+      {tugas.map((item) =>
+        item.format === "esai" ? (
+          <EsaiIsian key={item.id} userId={userId} item={item} />
+        ) : (
         <RefListCard
           key={item.id}
           ariaLabel={`Section ${item.judul}`}
@@ -315,7 +466,8 @@ export function LaporanTambahanSection({
             </>
           )}
         </RefListCard>
-      ))}
+        )
+      )}
 
       <Dialog
         open={dialogOpen}

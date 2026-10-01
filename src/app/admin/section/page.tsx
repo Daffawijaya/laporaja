@@ -2,20 +2,18 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
-import { ContentGrid } from "@/components/layout/content-grid";
-import { RefListCard } from "@/components/ui/ref-list-card";
 import {
-  getLaporanSectionListAdmin,
+  getBidangTargetMatrix,
   getLaporanEditData,
-  getLaporanListAdmin,
+  getSectionBuilderData,
   getSectionEditData,
 } from "@/lib/laporan-tambahan/queries";
-import { LaporanTambahanManager } from "@/components/admin/laporan-tambahan-manager";
+import { SectionBuilder } from "@/components/admin/section-builder";
 import { LaporanSectionEdit, LaporanTambahanEdit } from "@/components/admin/laporan-tambahan-form";
 
 // Menu admin: section (tugas isian dinamis + bagian laporan per bidang).
 // Lapis 1 daftar (?tanpa id), lapis 2 detail per laporan (?id=).
-export default async function LaporanTambahanPage({
+export default async function SectionPage({
   searchParams,
 }: {
   searchParams: Promise<{ id?: string }>;
@@ -42,7 +40,7 @@ export default async function LaporanTambahanPage({
             <div className="mb-3 flex items-center gap-3">
               <div className="ref-icon-btn-liquid shrink-0 bg-white/85! dark:bg-[rgb(28_28_30/0.85)]!">
                 <Link
-                  href="/admin/laporan-tambahan"
+                  href="/admin/section"
                   aria-label="Kembali ke daftar section"
                   className="ref-icon-btn-plain"
                 >
@@ -65,7 +63,7 @@ export default async function LaporanTambahanPage({
           <div className="mt-5 md:mt-1">
               <p className="text-sm text-muted-foreground">
                 Section tidak ditemukan.{" "}
-              <Link href="/admin/laporan-tambahan" className="text-accent">
+              <Link href="/admin/section" className="text-accent">
                 Kembali ke daftar.
               </Link>
             </p>
@@ -83,7 +81,7 @@ export default async function LaporanTambahanPage({
           <div className="mb-3 flex items-center gap-3">
             <div className="ref-icon-btn-liquid shrink-0 bg-white/85! dark:bg-[rgb(28_28_30/0.85)]!">
               <Link
-                href="/admin/laporan-tambahan"
+                href="/admin/section"
                 aria-label="Kembali ke daftar section"
                 className="ref-icon-btn-plain"
               >
@@ -100,12 +98,10 @@ export default async function LaporanTambahanPage({
     );
   }
 
-  const [items, section] = await Promise.all([
-    getLaporanListAdmin(supabase),
-    getLaporanSectionListAdmin(supabase),
+  const [semua, matrix] = await Promise.all([
+    getSectionBuilderData(supabase),
+    getBidangTargetMatrix(supabase),
   ]);
-  const semua = [...section, ...items];
-  const belumLengkap = items.filter((item) => item.terisiUser < item.targetUser).length;
 
   return (
     <div className="w-full">
@@ -116,20 +112,11 @@ export default async function LaporanTambahanPage({
         </p>
       </div>
       <div className="mt-5 md:mt-1">
-        <ContentGrid
-          gapClassName="lg:gap-3"
-          aside={
-            <RefListCard
-              ariaLabel="Ringkasan"
-              items={[
-                { key: "total", title: "Total laporan", desc: String(semua.length) },
-                { key: "belum", title: "Belum lengkap", desc: String(belumLengkap) },
-              ]}
-            />
-          }
-        >
-          <LaporanTambahanManager initial={semua} />
-        </ContentGrid>
+        <SectionBuilder
+          initialItems={semua}
+          bidangList={matrix.semuaBidang}
+          userCountByBidang={matrix.userCountByBidang}
+        />
       </div>
     </div>
   );

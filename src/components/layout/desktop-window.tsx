@@ -54,8 +54,8 @@ function refTitle(pathname: string): string {
   if (pathname === "/admin/users") return "Pengguna";
   if (pathname === "/admin/bidang") return "Bidang";
   if (pathname === "/admin/indikator") return "Indikator";
-  if (pathname === "/admin/laporan-tambahan") return "Section";
-  if (pathname === "/admin/laporan-tambahan/baru") return "Buat Section";
+  if (pathname === "/admin/section") return "Section";
+  if (pathname === "/admin/section/baru") return "Buat Section";
   if (pathname === "/admin/laporan") return "Laporan";
   if (pathname.startsWith("/admin/laporan/")) return "Detail Laporan";
   return "Dashboard";
@@ -143,7 +143,7 @@ export function DesktopWindow({
         {
           key: "tambahan",
           label: "Section",
-          href: "/admin/laporan-tambahan",
+          href: "/admin/section",
           ActiveIcon: HiClipboardDocumentCheck,
           IdleIcon: HiOutlineClipboardDocumentCheck,
         },

@@ -1,9 +1,9 @@
 import type { createClient } from "@/lib/supabase/server";
-import type { SectionKode, KolomTipe, LaporanTambahanKolomRow } from "@/lib/supabase/database.types";
+import type { SectionKode, KolomTipe, LaporanFormat, LaporanTambahanKolomRow } from "@/lib/supabase/database.types";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
-export type { KolomTipe };
+export type { KolomTipe, LaporanFormat };
 
 export interface KolomDef {
   id: string;
@@ -21,6 +21,8 @@ export interface TugasLaporan {
   id: string;
   judul: string;
   deskripsi: string | null;
+  /** Bentuk isian: tabel (baris-baris kolom) atau esai (satu teks panjang). */
+  format: LaporanFormat;
   bidang: { id: string; nama: string }[];
   kolom: KolomDef[];
   baris: BarisIsi[];
@@ -86,7 +88,7 @@ export async function getTugasUser(
   if (ids.length === 0) return [];
 
   const [laporanResult, kolomResult, barisResult] = await Promise.all([
-    supabase.from("laporan_tambahan").select("id, judul, deskripsi").in("id", ids).order("judul"),
+    supabase.from("laporan_tambahan").select("id, judul, deskripsi, format, urutan").in("id", ids).order("urutan").order("judul"),
     supabase
       .from("laporan_tambahan_kolom")
       .select("id, laporan_id, label, tipe, wajib")
@@ -156,6 +158,7 @@ export async function getTugasUser(
       id: row.id,
       judul: row.judul,
       deskripsi: row.deskripsi,
+      format: (row.format ?? "tabel") as LaporanFormat,
       bidang: bidangByLaporan.get(row.id) ?? [],
       kolom: kolomByLaporan.get(row.id) ?? [],
       baris,
@@ -180,6 +183,10 @@ export interface LaporanAdminItem {
   /** 'tambahan' = baris laporan_tambahan, 'section' = master laporan_section (id = kode). */
   kind: "tambahan" | "section";
   judul: string;
+  /** Posisi susun di builder admin (antar kedua jenis). */
+  urutan: number;
+  /** Bentuk isian laporan dinamis; null untuk section tetap. */
+  format: LaporanFormat | null;
   bidang: { id: string; nama: string }[];
   jumlahKolom: number;
   jumlahBaris: number;
@@ -193,7 +200,8 @@ export async function getLaporanListAdmin(
 ): Promise<LaporanAdminItem[]> {
   const { data: laporanList, error: laporanError } = await supabase
     .from("laporan_tambahan")
-    .select("id, judul")
+    .select("id, judul, format, urutan")
+    .order("urutan")
     .order("judul");
   if (laporanError) throw new Error("Gagal memuat laporan tambahan. Coba lagi.");
   const list = laporanList ?? [];
@@ -251,6 +259,8 @@ export async function getLaporanListAdmin(
       id: row.id,
       kind: "tambahan" as const,
       judul: row.judul,
+      urutan: row.urutan ?? 0,
+      format: (row.format ?? "tabel") as LaporanFormat,
       bidang,
       jumlahKolom: kolomByLaporan.get(row.id) ?? 0,
       jumlahBaris: jumlahByLaporan.get(row.id) ?? 0,
@@ -271,7 +281,8 @@ export async function getLaporanSectionListAdmin(
 ): Promise<LaporanAdminItem[]> {
   const { data: master, error: masterError } = await supabase
     .from("laporan_section")
-    .select("kode, judul");
+    .select("kode, judul, urutan")
+    .order("urutan");
   if (masterError) throw new Error("Gagal memuat laporan section. Coba lagi.");
   const list = master ?? [];
   if (list.length === 0) return [];
@@ -303,6 +314,8 @@ export async function getLaporanSectionListAdmin(
         id: row.kode,
         kind: "section" as const,
         judul: row.judul,
+        urutan: row.urutan ?? SECTION_ORDER.indexOf(row.kode) * 10,
+        format: null,
         bidang,
         jumlahKolom: 0,
         jumlahBaris: 0,
@@ -310,7 +323,31 @@ export async function getLaporanSectionListAdmin(
         terisiUser: 0,
       };
     })
-    .sort((a, b) => SECTION_ORDER.indexOf(a.id) - SECTION_ORDER.indexOf(b.id));
+    .sort(
+      (a, b) =>
+        a.urutan - b.urutan ||
+        SECTION_ORDER.indexOf(a.id) - SECTION_ORDER.indexOf(b.id)
+    );
+}
+
+// Matriks target builder: semua bidang + jumlah user per bidang (role user)
+// untuk hitung ulang target saat bidang dicentang di panel aside.
+export async function getBidangTargetMatrix(
+  supabase: ServerClient
+): Promise<{ semuaBidang: { id: string; nama: string }[]; userCountByBidang: Record<string, number> }> {
+  const [bidangResult, userResult] = await Promise.all([
+    supabase.from("bidang").select("id, nama").order("nama"),
+    supabase.from("profiles").select("bidang_id").eq("role", "user"),
+  ]);
+  if (bidangResult.error || userResult.error) {
+    throw new Error("Gagal memuat bidang. Coba lagi.");
+  }
+  const userCountByBidang: Record<string, number> = {};
+  for (const user of userResult.data ?? []) {
+    if (!user.bidang_id) continue;
+    userCountByBidang[user.bidang_id] = (userCountByBidang[user.bidang_id] ?? 0) + 1;
+  }
+  return { semuaBidang: bidangResult.data ?? [], userCountByBidang };
 }
 
 // Judul section wajib (bidang user tertaut) yang BELUM tuntas di bulan
@@ -543,6 +580,7 @@ export async function getSectionEditData(
 export interface LaporanEditData {
   id: string;
   judul: string;
+  format: LaporanFormat;
   kolom: { id: string; label: string; tipe: KolomTipe }[];
   bidangList: { id: string; nama: string }[];
   linkedIds: string[];
@@ -555,7 +593,7 @@ export async function getLaporanEditData(
 ): Promise<LaporanEditData | null> {
   const { data: laporan, error: laporanError } = await supabase
     .from("laporan_tambahan")
-    .select("id, judul")
+    .select("id, judul, format")
     .eq("id", laporanId)
     .maybeSingle();
   if (laporanError) throw new Error("Gagal memuat section. Coba lagi.");
@@ -576,8 +614,53 @@ export async function getLaporanEditData(
   return {
     id: laporan.id,
     judul: laporan.judul,
+    format: (laporan.format ?? "tabel") as LaporanFormat,
     kolom: (kolomResult.data ?? []).map((row) => ({ id: row.id, label: row.label, tipe: row.tipe })),
     bidangList: bidangResult.data ?? [],
     linkedIds: (linkResult.data ?? []).map((row) => row.bidang_id),
   };
+}
+
+export interface BuilderKolom {
+  id: string;
+  label: string;
+  tipe: KolomTipe;
+}
+
+export interface BuilderItem extends LaporanAdminItem {
+  /** Definisi kolom laporan dinamis (urut tampil); kosong untuk section tetap. */
+  kolom: BuilderKolom[];
+}
+
+// Semua section untuk editor builder: tetap + dinamis beserta kolomnya,
+// terurut susunan builder. Satu panggilan untuk seluruh kartu form.
+export async function getSectionBuilderData(
+  supabase: ServerClient
+): Promise<BuilderItem[]> {
+  const [dinamis, tetap] = await Promise.all([
+    getLaporanListAdmin(supabase),
+    getLaporanSectionListAdmin(supabase),
+  ]);
+  const ids = dinamis.map((item) => item.id);
+  const kolomByLaporan = new Map<string, BuilderKolom[]>();
+  if (ids.length > 0) {
+    const { data, error } = await supabase
+      .from("laporan_tambahan_kolom")
+      .select("id, laporan_id, label, tipe")
+      .in("laporan_id", ids)
+      .order("laporan_id")
+      .order("urutan");
+    if (error) throw new Error("Gagal memuat section. Coba lagi.");
+    for (const col of data ?? []) {
+      const arr = kolomByLaporan.get(col.laporan_id) ?? [];
+      arr.push({ id: col.id, label: col.label, tipe: col.tipe });
+      kolomByLaporan.set(col.laporan_id, arr);
+    }
+  }
+  return [...tetap, ...dinamis]
+    .map((item) => ({
+      ...item,
+      kolom: item.kind === "tambahan" ? (kolomByLaporan.get(item.id) ?? []) : [],
+    }))
+    .sort((a, b) => a.urutan - b.urutan);
 }
