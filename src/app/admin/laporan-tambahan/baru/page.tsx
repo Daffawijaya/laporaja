@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { LaporanTambahanCreate } from "@/components/admin/laporan-tambahan-create";
 
-// Halaman penuh buat laporan tambahan.
+// Halaman penuh buat section.
 export default async function LaporanTambahanBaruPage() {
   const supabase = await createClient();
   const { data } = await supabase.from("bidang").select("id, nama").order("nama");
@@ -9,7 +9,7 @@ export default async function LaporanTambahanBaruPage() {
   return (
     <div className="w-full">
       <div className="md:hidden">
-        <h1 className="text-xl font-semibold tracking-tight">Buat Laporan Tambahan</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Buat Section</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Judul, kolom isian, dan bidang yang wajib mengisi.
         </p>

@@ -1,5 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
-import type { KolomTipe, LaporanTambahanKolomRow } from "@/lib/supabase/database.types";
+import type { SectionKode, KolomTipe, LaporanTambahanKolomRow } from "@/lib/supabase/database.types";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -177,6 +177,8 @@ export async function getTugasBelumTerisi(
 
 export interface LaporanAdminItem {
   id: string;
+  /** 'tambahan' = baris laporan_tambahan, 'section' = master laporan_section (id = kode). */
+  kind: "tambahan" | "section";
   judul: string;
   bidang: { id: string; nama: string }[];
   jumlahKolom: number;
@@ -247,6 +249,7 @@ export async function getLaporanListAdmin(
     const targetUser = bidang.reduce((sum, item) => sum + (targetByBidang.get(item.id) ?? 0), 0);
     return {
       id: row.id,
+      kind: "tambahan" as const,
       judul: row.judul,
       bidang,
       jumlahKolom: kolomByLaporan.get(row.id) ?? 0,
@@ -255,6 +258,125 @@ export async function getLaporanListAdmin(
       terisiUser: pengisiByLaporan.get(row.id)?.size ?? 0,
     };
   });
+}
+
+// Urutan tampil laporan section yang bermakna (bukan alfabetis).
+const SECTION_ORDER = ["kegiatan", "rekomendasi"];
+
+// Daftar laporan section untuk halaman admin: master + tautan bidang +
+// hitung user target per bidang. Ketuntasan (terisiUser) tidak bermakna
+// tanpa konteks bulan, jadi selalu 0 dan tidak ditampilkan.
+export async function getLaporanSectionListAdmin(
+  supabase: ServerClient
+): Promise<LaporanAdminItem[]> {
+  const { data: master, error: masterError } = await supabase
+    .from("laporan_section")
+    .select("kode, judul");
+  if (masterError) throw new Error("Gagal memuat laporan section. Coba lagi.");
+  const list = master ?? [];
+  if (list.length === 0) return [];
+
+  const [linkResult, bidangResult, userResult] = await Promise.all([
+    supabase.from("laporan_section_bidang").select("kode, bidang_id"),
+    supabase.from("bidang").select("id, nama").order("nama"),
+    supabase.from("profiles").select("bidang_id").eq("role", "user"),
+  ]);
+  if (linkResult.error || bidangResult.error || userResult.error) {
+    throw new Error("Gagal memuat laporan section. Coba lagi.");
+  }
+  const namaByBidang = new Map((bidangResult.data ?? []).map((row) => [row.id, row.nama]));
+  const bidangByKode = new Map<string, { id: string; nama: string }[]>();
+  for (const link of linkResult.data ?? []) {
+    const arr = bidangByKode.get(link.kode) ?? [];
+    arr.push({ id: link.bidang_id, nama: namaByBidang.get(link.bidang_id) ?? "" });
+    bidangByKode.set(link.kode, arr);
+  }
+  const targetByBidang = new Map<string, number>();
+  for (const user of userResult.data ?? []) {
+    if (!user.bidang_id) continue;
+    targetByBidang.set(user.bidang_id, (targetByBidang.get(user.bidang_id) ?? 0) + 1);
+  }
+  return list
+    .map((row) => {
+      const bidang = bidangByKode.get(row.kode) ?? [];
+      return {
+        id: row.kode,
+        kind: "section" as const,
+        judul: row.judul,
+        bidang,
+        jumlahKolom: 0,
+        jumlahBaris: 0,
+        targetUser: bidang.reduce((sum, item) => sum + (targetByBidang.get(item.id) ?? 0), 0),
+        terisiUser: 0,
+      };
+    })
+    .sort((a, b) => SECTION_ORDER.indexOf(a.id) - SECTION_ORDER.indexOf(b.id));
+}
+
+// Judul section wajib (bidang user tertaut) yang BELUM tuntas di bulan
+// itu. Aturan tuntas: kegiatan = ≥1 kegiatan; rekomendasi = rekomendasi
+// terisi. Dipakai pengunci tombol Setujui di review admin.
+export async function getSectionBelumTerisi(
+  supabase: ServerClient,
+  userId: string,
+  bidangId: string | null,
+  tahun: number,
+  bulan: number
+): Promise<string[]> {
+  if (!bidangId) return [];
+  const { data: links, error: linkError } = await supabase
+    .from("laporan_section_bidang")
+    .select("kode")
+    .eq("bidang_id", bidangId);
+  if (linkError) throw new Error("Gagal memuat laporan section. Coba lagi.");
+  const KODE_VALID: ReadonlySet<string> = new Set(["kegiatan", "rekomendasi"]);
+  const kodes: SectionKode[] = [...new Set((links ?? []).map((row) => row.kode))].filter(
+    (kode): kode is SectionKode => KODE_VALID.has(kode)
+  );
+  if (kodes.length === 0) return [];
+
+  const { data: master, error: masterError } = await supabase
+    .from("laporan_section")
+    .select("kode, judul")
+    .in("kode", kodes);
+  if (masterError) throw new Error("Gagal memuat laporan section. Coba lagi.");
+  const judulByKode = new Map<SectionKode, string>((master ?? []).map((row) => [row.kode, row.judul]));
+  const judul = (kode: SectionKode) => judulByKode.get(kode) ?? kode;
+
+  const mm = String(bulan).padStart(2, "0");
+  const firstDay = `${tahun}-${mm}-01`;
+  const lastDay = `${tahun}-${mm}-${String(new Date(tahun, bulan, 0).getDate()).padStart(2, "0")}`;
+
+  const belum: string[] = [];
+  let kegiatanIds: string[] | null = null;
+  async function idsKegiatanBulan(): Promise<string[]> {
+    if (kegiatanIds !== null) return kegiatanIds;
+    const { data, error } = await supabase
+      .from("kegiatan")
+      .select("id")
+      .eq("user_id", userId)
+      .gte("tanggal", firstDay)
+      .lte("tanggal", lastDay);
+    if (error) throw new Error("Gagal memuat laporan section. Coba lagi.");
+    kegiatanIds = (data ?? []).map((row) => row.id);
+    return kegiatanIds;
+  }
+
+  if (kodes.includes("kegiatan") && (await idsKegiatanBulan()).length === 0) {
+    belum.push(judul("kegiatan"));
+  }
+  if (kodes.includes("rekomendasi")) {
+    const { data: review, error: reviewError } = await supabase
+      .from("monthly_reviews")
+      .select("rekomendasi")
+      .eq("user_id", userId)
+      .eq("tahun", tahun)
+      .eq("bulan", bulan)
+      .maybeSingle();
+    if (reviewError) throw new Error("Gagal memuat laporan section. Coba lagi.");
+    if (!review?.rekomendasi?.trim()) belum.push(judul("rekomendasi"));
+  }
+  return belum;
 }
 
 export interface BarisDenganUser {

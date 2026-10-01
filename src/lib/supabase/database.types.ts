@@ -128,6 +128,18 @@ export type LaporanTambahanNilaiRow = {
   nilai: string;
 };
 
+export type SectionKode = "kegiatan" | "rekomendasi";
+
+export type LaporanSectionRow = {
+  kode: SectionKode;
+  judul: string;
+};
+
+export type LaporanSectionBidangRow = {
+  kode: string;
+  bidang_id: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -235,6 +247,18 @@ export type Database = {
         Insert: Pick<LaporanTambahanNilaiRow, "baris_id" | "kolom_id"> &
           Partial<Pick<LaporanTambahanNilaiRow, "nilai">>;
         Update: Partial<Pick<LaporanTambahanNilaiRow, "nilai">>;
+        Relationships: [];
+      };
+      laporan_section: {
+        Row: LaporanSectionRow;
+        Insert: Pick<LaporanSectionRow, "kode" | "judul">;
+        Update: Partial<Pick<LaporanSectionRow, "judul">>;
+        Relationships: [];
+      };
+      laporan_section_bidang: {
+        Row: LaporanSectionBidangRow;
+        Insert: Pick<LaporanSectionBidangRow, "kode" | "bidang_id">;
+        Update: Partial<Pick<LaporanSectionBidangRow, "kode" | "bidang_id">>;
         Relationships: [];
       };
     };

@@ -227,7 +227,7 @@ export function LaporanTambahanSection({
       {tugas.map((item) => (
         <RefListCard
           key={item.id}
-          ariaLabel={`Laporan tambahan ${item.judul}`}
+          ariaLabel={`Section ${item.judul}`}
           title={item.judul}
           className="mt-4"
         >

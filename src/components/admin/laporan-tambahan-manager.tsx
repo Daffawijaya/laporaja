@@ -63,16 +63,23 @@ export function LaporanTambahanManager({
     setBidangLoading(true);
     try {
       const supabase = createClient();
-      const [bidangRes, linkRes] = await Promise.all([
-        supabase.from("bidang").select("id, nama").order("nama"),
-        supabase.from("laporan_tambahan_bidang").select("bidang_id").eq("laporan_id", item.id),
-      ]);
-      if (bidangRes.error || linkRes.error) {
-        if (handleSession(bidangRes.error ?? linkRes.error)) return;
+      const linkRes =
+        item.kind === "section"
+          ? await supabase.from("laporan_section_bidang").select("bidang_id").eq("kode", item.id)
+          : await supabase
+              .from("laporan_tambahan_bidang")
+              .select("bidang_id")
+              .eq("laporan_id", item.id);
+      const { data: semua, error: bidangErrorRes } = await supabase
+        .from("bidang")
+        .select("id, nama")
+        .order("nama");
+      if (bidangErrorRes || linkRes.error) {
+        if (handleSession(bidangErrorRes ?? linkRes.error)) return;
         setBidangError("Gagal memuat bidang. Coba lagi.");
         return;
       }
-      setSemuaBidang(bidangRes.data ?? []);
+      setSemuaBidang(semua ?? []);
       const taut = (linkRes.data ?? []).map((row) => row.bidang_id);
       setAwalIds(taut);
       setCheckedIds(taut);
@@ -99,12 +106,16 @@ export function LaporanTambahanManager({
     setBidangError(null);
     try {
       const supabase = createClient();
+      const section = bidangTarget.kind === "section";
+      const targetId = bidangTarget.id;
       if (hapus.length > 0) {
-        const { error } = await supabase
-          .from("laporan_tambahan_bidang")
-          .delete()
-          .eq("laporan_id", bidangTarget.id)
-          .in("bidang_id", hapus);
+        const { error } = section
+          ? await supabase.from("laporan_section_bidang").delete().eq("kode", targetId).in("bidang_id", hapus)
+          : await supabase
+              .from("laporan_tambahan_bidang")
+              .delete()
+              .eq("laporan_id", targetId)
+              .in("bidang_id", hapus);
         if (error) {
           if (handleSession(error)) return;
           setBidangError("Gagal menyimpan. Coba lagi.");
@@ -112,9 +123,13 @@ export function LaporanTambahanManager({
         }
       }
       if (tambah.length > 0) {
-        const { error } = await supabase.from("laporan_tambahan_bidang").insert(
-          tambah.map((bidang_id) => ({ laporan_id: bidangTarget.id, bidang_id }))
-        );
+        const { error } = section
+          ? await supabase
+              .from("laporan_section_bidang")
+              .insert(tambah.map((bidang_id) => ({ kode: targetId, bidang_id })))
+          : await supabase
+              .from("laporan_tambahan_bidang")
+              .insert(tambah.map((bidang_id) => ({ laporan_id: targetId, bidang_id })));
         if (error) {
           if (handleSession(error)) return;
           setBidangError("Gagal menyimpan. Coba lagi.");
@@ -122,12 +137,15 @@ export function LaporanTambahanManager({
         }
       }
       // Hitung ulang target & pengisi agar angka di daftar langsung benar.
-      const laporanId = bidangTarget.id;
+      // Section tak punya baris isian: ketuntasan dihitung per bulan di
+      // halaman review, jadi terisiUser selalu 0 di daftar ini.
       const [userRes, barisRes] = await Promise.all([
         checkedIds.length > 0
           ? supabase.from("profiles").select("id").eq("role", "user").in("bidang_id", checkedIds)
           : Promise.resolve({ data: [] as { id: string }[], error: null }),
-        supabase.from("laporan_tambahan_baris").select("user_id").eq("laporan_id", laporanId),
+        section
+          ? Promise.resolve({ data: [] as { user_id: string }[], error: null })
+          : supabase.from("laporan_tambahan_baris").select("user_id").eq("laporan_id", targetId),
       ]);
       if (userRes.error || barisRes.error) {
         if (handleSession(userRes.error ?? barisRes.error)) return;
@@ -139,7 +157,9 @@ export function LaporanTambahanManager({
       const bidangBaru = semuaBidang.filter((bidang) => checkedIds.includes(bidang.id));
       setItems((prev) =>
         prev.map((item) =>
-          item.id === laporanId ? { ...item, bidang: bidangBaru, targetUser, terisiUser } : item
+          item.id === targetId && item.kind === bidangTarget.kind
+            ? { ...item, bidang: bidangBaru, targetUser, terisiUser }
+            : item
         )
       );
       setBidangTarget(null);
@@ -150,7 +170,8 @@ export function LaporanTambahanManager({
     }
   }
 
-  async function handleDelete() {    if (!deleteTarget || deleting) return;
+  async function handleDelete() {
+    if (!deleteTarget || deleting) return;
     setDeleting(true);
     setPageError(null);
     try {
@@ -163,7 +184,7 @@ export function LaporanTambahanManager({
       }
       setItems((prev) => prev.filter((item) => item.id !== deleteTarget.id));
       setDeleteTarget(null);
-      toast.success("Laporan tambahan dihapus.");
+      toast.success("Section dihapus.");
       router.refresh();
     } finally {
       setDeleting(false);
@@ -172,7 +193,7 @@ export function LaporanTambahanManager({
 
   return (
     <div className="w-full">
-      <RefListCard ariaLabel="Laporan tambahan">
+      <RefListCard ariaLabel="Section">
         {pageError && (
           <p role="alert" className="mb-3 text-sm text-danger">
             {pageError}
@@ -181,17 +202,17 @@ export function LaporanTambahanManager({
 
         {visibleItems.length === 0 ? (
           <EmptyState
-            title={query ? "Tidak ada hasil" : "Belum ada laporan tambahan"}
+            title={query ? "Tidak ada hasil" : "Belum ada section"}
             description={
               query
                 ? `Tidak ada yang cocok dengan "${query}".`
-                : "Buat laporan tambahan pertama untuk ditugaskan ke bidang."
+                : "Buat section pertama untuk ditugaskan ke bidang."
             }
             action={
               query ? undefined : (
                 <Button onClick={goAdd}>
                   <Plus aria-hidden="true" />
-                  Buat Laporan
+                  Buat Section
                 </Button>
               )
             }
@@ -208,32 +229,57 @@ export function LaporanTambahanManager({
                       ? " pt-3"
                       : " py-3";
               const lengkap = item.targetUser > 0 && item.terisiUser >= item.targetUser;
+              const section = item.kind === "section";
               return (
-                <li key={item.id}>
+                <li key={`${item.kind}-${item.id}`}>
                   <div className={`flex items-center justify-between gap-3 px-1${pad}`}>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium">{item.judul}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="min-w-0 truncate text-sm font-medium">{item.judul}</span>
+                        {section && (
+                          <span className="shrink-0 rounded-full bg-black/[0.075] px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-white/10">
+                            Section
+                          </span>
+                        )}
+                      </span>
                       <span className="mt-0.5 block truncate text-xs text-neutral-500">
-                        {item.jumlahKolom} kolom
-                        {" · "}
-                        {item.bidang.map((bidang) => bidang.nama).join(", ") || "Tanpa bidang"}
-                        {" · "}
-                        {item.targetUser === 0
-                          ? "Belum ada user target"
-                          : lengkap
-                            ? "Semua user sudah mengisi"
-                            : `${item.terisiUser}/${item.targetUser} user mengisi`}
+                        {section ? (
+                          <>
+                            {item.bidang.map((bidang) => bidang.nama).join(", ") || "Tanpa bidang"}
+                            {" · "}
+                            {item.targetUser === 0
+                              ? "Belum ada user target"
+                              : `${item.targetUser} user target`}
+                          </>
+                        ) : (
+                          <>
+                            {item.jumlahKolom} kolom
+                            {" · "}
+                            {item.bidang.map((bidang) => bidang.nama).join(", ") || "Tanpa bidang"}
+                            {" · "}
+                            {item.targetUser === 0
+                              ? "Belum ada user target"
+                              : lengkap
+                                ? "Semua user sudah mengisi"
+                                : `${item.terisiUser}/${item.targetUser} user mengisi`}
+                          </>
+                        )}
                       </span>
                     </span>
                     <GlassMenu
                       label={`Aksi ${item.judul}`}
                       items={[
-                        {
-                          key: "lihat",
-                          label: "Lihat",
-                          icon: <Eye aria-hidden="true" />,
-                          onSelect: () => router.push(`/admin/laporan-tambahan?id=${item.id}`),
-                        },
+                        ...(section
+                          ? []
+                          : [
+                              {
+                                key: "lihat",
+                                label: "Lihat",
+                                icon: <Eye aria-hidden="true" />,
+                                onSelect: () =>
+                                  router.push(`/admin/laporan-tambahan?id=${item.id}`),
+                              },
+                            ]),
                         {
                           key: "bidang",
                           label: "Tambah bidang",
@@ -243,16 +289,20 @@ export function LaporanTambahanManager({
                             openBidang(item);
                           },
                         },
-                        {
-                          key: "delete",
-                          label: "Hapus",
-                          icon: <Trash2 aria-hidden="true" />,
-                          danger: true,
-                          onSelect: () => {
-                            setPageError(null);
-                            setDeleteTarget(item);
-                          },
-                        },
+                        ...(section
+                          ? []
+                          : [
+                              {
+                                key: "delete",
+                                label: "Hapus",
+                                icon: <Trash2 aria-hidden="true" />,
+                                danger: true,
+                                onSelect: () => {
+                                  setPageError(null);
+                                  setDeleteTarget(item);
+                                },
+                              },
+                            ]),
                       ]}
                     />
                   </div>
@@ -339,7 +389,7 @@ export function LaporanTambahanManager({
       <ConfirmDialog
         open={deleteTarget !== null}
         title={
-          deleteTarget ? `Hapus laporan tambahan "${deleteTarget.judul}"?` : "Hapus laporan tambahan"
+          deleteTarget ? `Hapus section "${deleteTarget.judul}"?` : "Hapus section"
         }
         message={
           deleteTarget

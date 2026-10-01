@@ -148,7 +148,7 @@ export function LaporanTambahanForm({
         setFormError("Gagal menyimpan kolom atau bidang. Coba lagi.");
         return;
       }
-      toast.success("Laporan tambahan dibuat.");
+      toast.success("Section dibuat.");
       onSaved();
     } finally {
       setSaving(false);

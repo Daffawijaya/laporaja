@@ -36,7 +36,7 @@ async function saveMonthly(
 
 // Seksi "1. REKOMENDASI DAN TINDAK LANJUT" + tombol Setujui di bawahnya.
 // Setujui terkunci selama masih ada ≥1 revisi (kegiatan maupun rekomendasi)
-// atau ada laporan tambahan wajib yang belum diisi user.
+// atau ada laporan tambahan/section wajib yang belum diisi user.
 export function AdminMonthlyReview({
   userId,
   userNama,
@@ -46,6 +46,7 @@ export function AdminMonthlyReview({
   initial,
   revisiKegiatan,
   tugasBelum,
+  sectionBelum,
 }: {
   userId: string;
   userNama: string;
@@ -55,6 +56,7 @@ export function AdminMonthlyReview({
   initial: MonthlyReviewState;
   revisiKegiatan: number;
   tugasBelum: string[];
+  sectionBelum: string[];
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -62,7 +64,7 @@ export function AdminMonthlyReview({
   const revisiBulanan = initial.status === "revision";
   const disetujui = initial.status === "approved";
   const totalRevisi = revisiKegiatan + (revisiBulanan ? 1 : 0);
-  const tugasWajib = !disetujui && tugasBelum.length > 0;
+  const tugasWajib = !disetujui && (tugasBelum.length > 0 || sectionBelum.length > 0);
   const terkunci = totalRevisi > 0 || tugasWajib;
 
   const [reviseOpen, setReviseOpen] = useState(false);
@@ -122,10 +124,12 @@ export function AdminMonthlyReview({
 
   async function handleApprove() {
     if (approving || terkunci || disetujui) return;
-    if (tugasBelum.length > 0) {
-      setPageError(
-        `Masih ada laporan tambahan yang wajib diisi: ${tugasBelum.join(", ")}.`
-      );
+    if (tugasBelum.length > 0 || sectionBelum.length > 0) {
+      const sisa = [
+        tugasBelum.length > 0 ? `tambahan yang wajib diisi: ${tugasBelum.join(", ")}` : null,
+        sectionBelum.length > 0 ? `section yang wajib diisi: ${sectionBelum.join(", ")}` : null,
+      ].filter(Boolean);
+      setPageError(`Masih ada laporan ${sisa.join("; ")}.`);
       setConfirmApprove(false);
       return;
     }
@@ -227,9 +231,14 @@ export function AdminMonthlyReview({
                 : " (kegiatan)."}
           </p>
         )}
-        {terkunci && !disetujui && tugasWajib && (
+        {terkunci && !disetujui && tugasWajib && tugasBelum.length > 0 && (
           <p className="mt-2 text-right text-xs text-neutral-500">
             Masih ada laporan tambahan yang wajib diisi: {tugasBelum.join(", ")}.
+          </p>
+        )}
+        {terkunci && !disetujui && tugasWajib && sectionBelum.length > 0 && (
+          <p className="mt-2 text-right text-xs text-neutral-500">
+            Masih ada laporan section yang wajib diisi: {sectionBelum.join(", ")}.
           </p>
         )}
       </div>

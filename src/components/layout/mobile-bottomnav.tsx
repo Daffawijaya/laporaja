@@ -81,7 +81,7 @@ const ADMIN_SLOTS: Slot[] = [
   },
   {
     key: "tambahan",
-    label: "Tambahan",
+    label: "Section",
     href: "/admin/laporan-tambahan",
     ActiveIcon: HiClipboardDocumentCheck,
     IdleIcon: HiOutlineClipboardDocumentCheck,
