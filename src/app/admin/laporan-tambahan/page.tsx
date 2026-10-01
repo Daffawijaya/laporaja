@@ -6,11 +6,12 @@ import { ContentGrid } from "@/components/layout/content-grid";
 import { RefListCard } from "@/components/ui/ref-list-card";
 import {
   getLaporanSectionListAdmin,
-  getLaporanDetailAdmin,
+  getLaporanEditData,
   getLaporanListAdmin,
+  getSectionEditData,
 } from "@/lib/laporan-tambahan/queries";
 import { LaporanTambahanManager } from "@/components/admin/laporan-tambahan-manager";
-import { LaporanTambahanDetail } from "@/components/admin/laporan-tambahan-detail";
+import { LaporanSectionEdit, LaporanTambahanEdit } from "@/components/admin/laporan-tambahan-form";
 
 // Menu admin: section (tugas isian dinamis + bagian laporan per bidang).
 // Lapis 1 daftar (?tanpa id), lapis 2 detail per laporan (?id=).
@@ -23,13 +24,47 @@ export default async function LaporanTambahanPage({
   const supabase = await createClient();
 
   if (typeof params.id === "string" && params.id) {
-    const detail = await getLaporanDetailAdmin(supabase, params.id);
+    // Id section tetap berupa kode teks; id dinamis berupa uuid.
+    // Lihat section = buka form isinya (judul + bidang) agar bisa diubah.
+    const section = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      params.id
+    )
+      ? null
+      : await getSectionEditData(supabase, params.id);
+    if (section) {
+      return (
+        <div className="w-full">
+          <div className="md:hidden">
+            <h1 className="text-xl font-semibold tracking-tight">{section.judul}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Section</p>
+          </div>
+          <div className="mt-5 md:mt-1">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="ref-icon-btn-liquid shrink-0 bg-white/85! dark:bg-[rgb(28_28_30/0.85)]!">
+                <Link
+                  href="/admin/laporan-tambahan"
+                  aria-label="Kembali ke daftar section"
+                  className="ref-icon-btn-plain"
+                >
+                  <ChevronLeft aria-hidden="true" className="size-5" />
+                </Link>
+              </div>
+              <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight">
+                {section.judul}
+              </h2>
+            </div>
+            <LaporanSectionEdit key={section.kode} data={section} />
+          </div>
+        </div>
+      );
+    }
+    const detail = await getLaporanEditData(supabase, params.id);
     if (!detail) {
       return (
         <div className="w-full">
           <div className="mt-5 md:mt-1">
-            <p className="text-sm text-muted-foreground">
-              Laporan tidak ditemukan.{" "}
+              <p className="text-sm text-muted-foreground">
+                Section tidak ditemukan.{" "}
               <Link href="/admin/laporan-tambahan" className="text-accent">
                 Kembali ke daftar.
               </Link>
@@ -59,7 +94,7 @@ export default async function LaporanTambahanPage({
               {detail.judul}
             </h2>
           </div>
-          <LaporanTambahanDetail detail={detail} />
+          <LaporanTambahanEdit key={detail.id} data={detail} />
         </div>
       </div>
     );

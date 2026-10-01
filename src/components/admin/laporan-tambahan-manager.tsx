@@ -13,6 +13,7 @@ import { RefListCard } from "@/components/ui/ref-list-card";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
+import type { SectionKode } from "@/lib/supabase/database.types";
 import type { LaporanAdminItem } from "@/lib/laporan-tambahan/queries";
 
 export function LaporanTambahanManager({
@@ -176,13 +177,23 @@ export function LaporanTambahanManager({
     setPageError(null);
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("laporan_tambahan").delete().eq("id", deleteTarget.id);
+      const { error } =
+        deleteTarget.kind === "section"
+          ? await supabase
+              .from("laporan_section")
+              .delete()
+              .eq("kode", deleteTarget.id as SectionKode)
+          : await supabase.from("laporan_tambahan").delete().eq("id", deleteTarget.id);
       if (error) {
         if (handleSession(error)) return;
-        setPageError("Gagal menghapus laporan. Coba lagi.");
+        setPageError("Gagal menghapus section. Coba lagi.");
         return;
       }
-      setItems((prev) => prev.filter((item) => item.id !== deleteTarget.id));
+      const targetId = deleteTarget.id;
+      const targetKind = deleteTarget.kind;
+      setItems((prev) =>
+        prev.filter((item) => !(item.id === targetId && item.kind === targetKind))
+      );
       setDeleteTarget(null);
       toast.success("Section dihapus.");
       router.refresh();
@@ -269,17 +280,13 @@ export function LaporanTambahanManager({
                     <GlassMenu
                       label={`Aksi ${item.judul}`}
                       items={[
-                        ...(section
-                          ? []
-                          : [
-                              {
-                                key: "lihat",
-                                label: "Lihat",
-                                icon: <Eye aria-hidden="true" />,
-                                onSelect: () =>
-                                  router.push(`/admin/laporan-tambahan?id=${item.id}`),
-                              },
-                            ]),
+                        {
+                          key: "lihat",
+                          label: "Lihat",
+                          icon: <Eye aria-hidden="true" />,
+                          onSelect: () =>
+                            router.push(`/admin/laporan-tambahan?id=${item.id}`),
+                        },
                         {
                           key: "bidang",
                           label: "Tambah bidang",
@@ -289,20 +296,16 @@ export function LaporanTambahanManager({
                             openBidang(item);
                           },
                         },
-                        ...(section
-                          ? []
-                          : [
-                              {
-                                key: "delete",
-                                label: "Hapus",
-                                icon: <Trash2 aria-hidden="true" />,
-                                danger: true,
-                                onSelect: () => {
-                                  setPageError(null);
-                                  setDeleteTarget(item);
-                                },
-                              },
-                            ]),
+                        {
+                          key: "delete",
+                          label: "Hapus",
+                          icon: <Trash2 aria-hidden="true" />,
+                          danger: true,
+                          onSelect: () => {
+                            setPageError(null);
+                            setDeleteTarget(item);
+                          },
+                        },
                       ]}
                     />
                   </div>
@@ -393,7 +396,9 @@ export function LaporanTambahanManager({
         }
         message={
           deleteTarget
-            ? "Jika laporan ini dihapus, seluruh baris isiannya ikut terhapus."
+            ? deleteTarget.kind === "section"
+              ? "Jika section tetap ini dihapus, penugasan bidangnya ikut terhapus."
+              : "Jika section ini dihapus, seluruh baris isiannya ikut terhapus."
             : ""
         }
         busy={deleting}

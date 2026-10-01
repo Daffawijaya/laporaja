@@ -504,3 +504,80 @@ export async function getLaporanDetailAdmin(
     })),
   };
 }
+
+export interface SectionEditData {
+  kode: string;
+  judul: string;
+  bidangList: { id: string; nama: string }[];
+  linkedIds: string[];
+}
+
+// Data form ubah section tetap: master + semua bidang + tautan awal.
+export async function getSectionEditData(
+  supabase: ServerClient,
+  kode: string
+): Promise<SectionEditData | null> {
+  const { data: master, error: masterError } = await supabase
+    .from("laporan_section")
+    .select("kode, judul")
+    .eq("kode", kode as SectionKode)
+    .maybeSingle();
+  if (masterError) throw new Error("Gagal memuat section. Coba lagi.");
+  if (!master) return null;
+
+  const [bidangResult, linkResult] = await Promise.all([
+    supabase.from("bidang").select("id, nama").order("nama"),
+    supabase.from("laporan_section_bidang").select("bidang_id").eq("kode", kode as SectionKode),
+  ]);
+  if (bidangResult.error || linkResult.error) {
+    throw new Error("Gagal memuat section. Coba lagi.");
+  }
+  return {
+    kode: master.kode,
+    judul: master.judul,
+    bidangList: bidangResult.data ?? [],
+    linkedIds: (linkResult.data ?? []).map((row) => row.bidang_id),
+  };
+}
+
+export interface LaporanEditData {
+  id: string;
+  judul: string;
+  kolom: { id: string; label: string; tipe: KolomTipe }[];
+  bidangList: { id: string; nama: string }[];
+  linkedIds: string[];
+}
+
+// Data form ubah laporan dinamis: judul + kolom + semua bidang + tautan.
+export async function getLaporanEditData(
+  supabase: ServerClient,
+  laporanId: string
+): Promise<LaporanEditData | null> {
+  const { data: laporan, error: laporanError } = await supabase
+    .from("laporan_tambahan")
+    .select("id, judul")
+    .eq("id", laporanId)
+    .maybeSingle();
+  if (laporanError) throw new Error("Gagal memuat section. Coba lagi.");
+  if (!laporan) return null;
+
+  const [kolomResult, bidangResult, linkResult] = await Promise.all([
+    supabase
+      .from("laporan_tambahan_kolom")
+      .select("id, label, tipe")
+      .eq("laporan_id", laporanId)
+      .order("urutan"),
+    supabase.from("bidang").select("id, nama").order("nama"),
+    supabase.from("laporan_tambahan_bidang").select("bidang_id").eq("laporan_id", laporanId),
+  ]);
+  if (kolomResult.error || bidangResult.error || linkResult.error) {
+    throw new Error("Gagal memuat section. Coba lagi.");
+  }
+  return {
+    id: laporan.id,
+    judul: laporan.judul,
+    kolom: (kolomResult.data ?? []).map((row) => ({ id: row.id, label: row.label, tipe: row.tipe })),
+    bidangList: bidangResult.data ?? [],
+    linkedIds: (linkResult.data ?? []).map((row) => row.bidang_id),
+  };
+}
