@@ -38,15 +38,30 @@ export function AdminIsianView({ tugas }: { tugas: TugasLaporan[] }) {
               <p className="px-1 text-sm text-neutral-500">-</p>
             )
           ) : item.format === "esai" ? (
-            (() => {
-              const kolomId = item.kolom[0]?.id ?? "";
-              const teks = item.baris[0] ? (item.baris[0].nilai[kolomId] ?? "") : "";
-              return teks ? (
-                <p className="px-1 text-sm whitespace-pre-wrap">{teks}</p>
-              ) : (
-                <p className="px-1 text-sm text-neutral-500">Belum diisi.</p>
-              );
-            })()
+            item.kolom.length <= 1 ? (
+              (() => {
+                const kolomId = item.kolom[0]?.id ?? "";
+                const teks = item.baris[0] ? (item.baris[0].nilai[kolomId] ?? "") : "";
+                return teks ? (
+                  <p className="px-1 text-sm whitespace-pre-wrap">{teks}</p>
+                ) : (
+                  <p className="px-1 text-sm text-neutral-500">Belum diisi.</p>
+                );
+              })()
+            ) : item.baris.length === 0 ? (
+              <p className="px-1 text-sm text-neutral-500">Belum diisi.</p>
+            ) : (
+              <div className="flex flex-col gap-3 px-1">
+                {item.kolom.map((col) => (
+                  <div key={col.id}>
+                    <p className="text-sm font-semibold">{col.label}</p>
+                    <p className="mt-0.5 text-sm whitespace-pre-wrap">
+                      {item.baris[0]?.nilai[col.id] || "-"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )
           ) : item.baris.length === 0 ? (
             <p className="px-1 text-sm text-neutral-500">Belum diisi.</p>
           ) : (

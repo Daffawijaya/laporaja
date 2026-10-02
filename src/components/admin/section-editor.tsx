@@ -73,7 +73,8 @@ function sesiBerakhir(
   return false;
 }
 
-// Baris-baris editor kolom ala Google Forms: label + tipe + gandakan/hapus.
+// Baris-baris editor kolom ala Google Forms: label + tipe + hapus.
+// Untuk esai, tipe dikunci (auto esai) dan yang disunting hanya subjudul.
 function KolomRows({
   kolom,
   onPatch,
@@ -81,6 +82,9 @@ function KolomRows({
   onAdd,
   disabled,
   terpilih,
+  satuan = "Kolom",
+  tambahLabel = "Tambah Kolom",
+  kunciTipe = null,
 }: {
   kolom: KolomDraft[];
   onPatch: (key: number, patch: Partial<KolomDraft>) => void;
@@ -88,7 +92,80 @@ function KolomRows({
   onAdd: () => void;
   disabled: boolean;
   terpilih: boolean;
+  satuan?: string;
+  tambahLabel?: string;
+  kunciTipe?: KolomTipe | null;
 }) {
+  if (kunciTipe) {
+    // Esai: subjudul ditumpuk ke bawah, tombol hapus tepat di kanan input.
+    return (
+      <div>
+        <div className="flex flex-col gap-2 px-1">
+          {kolom.map((col, index) => (
+            <div key={col.key} className="flex items-center gap-1">
+              <Label htmlFor={`ekolom-${col.key}`} className="sr-only">
+                {`${satuan} ${index + 1}`}
+              </Label>
+              <Input
+                id={`ekolom-${col.key}`}
+                value={col.label}
+                onChange={(event) => onPatch(col.key, { label: event.target.value })}
+                placeholder={`${satuan} ${index + 1}`}
+                disabled={disabled}
+                className="h-11 min-w-0 flex-1 border-transparent bg-black/[0.075] text-sm hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
+              />
+              <AnimatePresence initial={false}>
+                {terpilih && (
+                  <motion.span
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: "auto" }}
+                    exit={{ opacity: 0, width: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="inline-flex shrink-0 overflow-hidden"
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onRemove(col.key)}
+                      disabled={disabled || kolom.length <= 1}
+                      aria-label={`Hapus ${satuan.toLowerCase()} ${index + 1}`}
+                      className="shrink-0 rounded-full"
+                    >
+                      <X aria-hidden="true" />
+                    </Button>
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+        </div>
+        <AnimatePresence initial={false}>
+          {terpilih && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onAdd}
+                disabled={disabled}
+                className="mt-2 w-full rounded-full"
+              >
+                <Plus aria-hidden="true" />
+                {tambahLabel}
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="overflow-x-auto px-1">
@@ -102,13 +179,13 @@ function KolomRows({
                   className="min-w-36 px-2 py-2 text-left align-top"
                 >
                   <Label htmlFor={`ekolom-${col.key}`} className="sr-only">
-                    {`Kolom ${index + 1}`}
+                    {`${satuan} ${index + 1}`}
                   </Label>
                   <Input
                     id={`ekolom-${col.key}`}
                     value={col.label}
                     onChange={(event) => onPatch(col.key, { label: event.target.value })}
-                    placeholder={`Kolom ${index + 1}`}
+                    placeholder={`${satuan} ${index + 1}`}
                     disabled={disabled}
                     className="h-11 w-full border-transparent bg-black/[0.075] text-sm hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
                   />
@@ -119,14 +196,20 @@ function KolomRows({
               {kolom.map((col, index) => (
                 <td key={col.key} className="px-2 py-2">
                   <span className="flex items-center gap-1">
-                    <GlassSelect
-                      ariaLabel={`Bentuk isian kolom ${index + 1}`}
-                      value={col.tipe}
-                      onChange={(value) => onPatch(col.key, { tipe: value as KolomTipe })}
-                      options={TIPE_OPTIONS}
-                      disabled={disabled}
-                      className="min-w-0 flex-1"
-                    />
+                    {kunciTipe ? (
+                      <span className="min-w-0 flex-1 px-1 text-xs text-neutral-500">
+                        Esai · teks panjang
+                      </span>
+                    ) : (
+                      <GlassSelect
+                        ariaLabel={`Bentuk isian kolom ${index + 1}`}
+                        value={col.tipe}
+                        onChange={(value) => onPatch(col.key, { tipe: value as KolomTipe })}
+                        options={TIPE_OPTIONS}
+                        disabled={disabled}
+                        className="min-w-0 flex-1"
+                      />
+                    )}
                     <AnimatePresence initial={false}>
                       {terpilih && (
                         <motion.span
@@ -142,7 +225,7 @@ function KolomRows({
                             size="icon"
                             onClick={() => onRemove(col.key)}
                             disabled={disabled || kolom.length <= 1}
-                            aria-label={`Hapus kolom ${index + 1}`}
+                            aria-label={`Hapus ${satuan.toLowerCase()} ${index + 1}`}
                             className="shrink-0 rounded-full"
                           >
                             <X aria-hidden="true" />
@@ -174,7 +257,7 @@ function KolomRows({
               className="mt-2 w-full rounded-full"
             >
               <Plus aria-hidden="true" />
-              Tambah Kolom
+              {tambahLabel}
             </Button>
           </motion.div>
         )}
@@ -269,14 +352,14 @@ function InfoIsianCard({
 
   return (
     <div>
-      <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
+      <ul>
         {INFO_BARIS.map((baris, index) => {
           const pad =
             index === 0
-              ? "px-1 pb-3"
+              ? "px-1 pb-1"
               : index === INFO_BARIS.length - 1
-                ? "px-1 pt-3"
-                : "px-1 py-3";
+                ? "px-1 pt-1"
+                : "px-1 py-1";
           const nilai =
             baris.kunci === "jabatan" ? jabatan : baris.kunci === "unit_kerja" ? unit : baris.label;
           return (
@@ -493,21 +576,23 @@ export function SectionCard({
   const esai = item.format === "esai";
   const kepala = item.format === "judul";
   const pakaiKolom = item.format === "tabel";
+  // Esai memakai kolom sebagai daftar subjudul (tipe terkunci esai).
+  const kelolaKolom = pakaiKolom || esai;
 
   // Validasi ringan saat mengetik (ditampilkan, tidak toast).
   let masalah: string | null = null;
   const cj = judul.trim();
   if (cj.length < 2 || cj.length > 120) {
     masalah = "Judul section harus 2-120 karakter.";
-  } else if (pakaiKolom) {
+  } else if (kelolaKolom) {
     if (kolom.length === 0) {
-      masalah = "Tambahkan minimal satu kolom isian.";
+      masalah = esai ? "Tambahkan minimal satu subjudul." : "Tambahkan minimal satu kolom isian.";
     } else {
       const buruk = kolom.find((col) => {
         const label = col.label.trim();
         return label.length < 2 || label.length > 120;
       });
-      if (buruk) masalah = "Judul kolom harus 2-120 karakter.";
+      if (buruk) masalah = esai ? "Judul subjudul harus 2-120 karakter." : "Judul kolom harus 2-120 karakter.";
     }
   }
 
@@ -518,8 +603,14 @@ export function SectionCard({
 
   const simpan = useCallback(async (snapAwal: string) => {
     const cleanedJudul = judul.trim();
-    const cleanedKolom = pakaiKolom
-      ? kolom.map((col, index) => ({ ...col, label: col.label.trim(), urutan: index }))
+    const cleanedKolom = kelolaKolom
+      ? kolom.map((col, index) => ({
+          ...col,
+          label: col.label.trim(),
+          // Subjudul esai selalu tersimpan sebagai teks panjang.
+          tipe: (esai ? "textarea" : col.tipe) as KolomTipe,
+          urutan: index,
+        }))
       : [];
     const awalKolom = item.kolom;
     savingRef.current = true;
@@ -556,7 +647,7 @@ export function SectionCard({
           return;
         }
       }
-      if (pakaiKolom) {
+      if (kelolaKolom) {
         const keptIds = new Set(
           cleanedKolom.filter((col) => col.id !== null).map((col) => col.id as string)
         );
@@ -615,7 +706,7 @@ export function SectionCard({
       savingRef.current = false;
       setSaving(false);
     }
-  }, [item, judul, deskripsi, kepala, kolom, onSaved, pakaiKolom, router, toast]);
+  }, [item, judul, deskripsi, kepala, kolom, onSaved, kelolaKolom, esai, router, toast]);
 
   // Simpan otomatis 800 mdetik sesudah berhenti mengetik.
   useEffect(() => {
@@ -694,7 +785,7 @@ export function SectionCard({
       </div>
 
       <div className="mt-2">
-        {pakaiKolom ? (
+        {kelolaKolom ? (
           <KolomRows
             kolom={kolom}
             onPatch={patchKolom}
@@ -703,16 +794,18 @@ export function SectionCard({
               setError(null);
             }}
             onAdd={() => {
-              setKolom((prev) => [...prev, kolomBaru()]);
+              setKolom((prev) => [
+                ...prev,
+                esai ? kolomBaru("", null, "textarea") : kolomBaru(),
+              ]);
               setError(null);
             }}
             disabled={false}
             terpilih={terpilih}
+            satuan={esai ? "Subjudul" : "Kolom"}
+            tambahLabel={esai ? "Tambah Subjudul" : "Tambah Kolom"}
+            kunciTipe={esai ? "textarea" : null}
           />
-        ) : esai ? (
-          <p className="px-1 text-xs text-neutral-500">
-            Bentuk esai: user mengisi satu teks panjang.
-          </p>
         ) : null}
       </div>
 

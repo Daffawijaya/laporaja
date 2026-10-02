@@ -83,15 +83,20 @@ function formatNilai(col: KolomDef, raw: string): string {
 // Batas panjang esai: nilai disimpan sebagai teks bebas (kolom DB text).
 const ESAI_MAKS = 10000;
 
-// Kartu isian esai: satu textarea per user (buat sekali, simpan =
-// tambah bila belum ada atau ubah bila sudah ada). Kosongkan lalu
-// Simpan untuk menghapus (kembali belum diisi).
+// Kartu isian esai: satu textarea per subjudul dalam satu baris user
+// (buat sekali, simpan = tambah bila belum ada atau ubah bila sudah ada).
+// Semua subjudul wajib diisi; kosongkan semua lalu Simpan untuk menghapus
+// (kembali belum diisi).
 function EsaiIsian({ userId, item }: { userId: string; item: TugasLaporan }) {
   const router = useRouter();
   const toast = useToast();
-  const kolom = item.kolom[0] ?? null;
+  const kolomList = item.kolom;
   const baris = item.baris[0] ?? null;
-  const [isi, setIsi] = useState(baris && kolom ? (baris.nilai[kolom.id] ?? "") : "");
+  const [isi, setIsi] = useState<Record<string, string>>(() => {
+    const awal: Record<string, string> = {};
+    for (const col of kolomList) awal[col.id] = baris?.nilai[col.id] ?? "";
+    return awal;
+  });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -104,22 +109,24 @@ function EsaiIsian({ userId, item }: { userId: string; item: TugasLaporan }) {
     return false;
   }
 
-  async function handleSimpan() {
-    if (saving || !kolom) return;
-    const cleaned = isi.trim();
-    if (cleaned.length > ESAI_MAKS) {
-      setError(`Isian maksimal ${ESAI_MAKS} karakter.`);
-      return;
-    }
-    setSaving(true);
+  function setSatu(kolomId: string, value: string) {
+    setIsi((prev) => ({ ...prev, [kolomId]: value }));
     setError(null);
-    try {
-      const supabase = createClient();
-      if (cleaned.length === 0) {
-        if (!baris) {
-          setError("Isian wajib diisi.");
-          return;
-        }
+  }
+
+  async function handleSimpan() {
+    if (saving || kolomList.length === 0) return;
+    const cleaned = kolomList.map((col) => ({ col, nilai: (isi[col.id] ?? "").trim() }));
+    const adaIsi = cleaned.some(({ nilai }) => nilai.length > 0);
+    if (!adaIsi) {
+      if (!baris) {
+        setError(`Subjudul "${kolomList[0].label}" wajib diisi.`);
+        return;
+      }
+      setSaving(true);
+      setError(null);
+      try {
+        const supabase = createClient();
         const { error } = await supabase
           .from("laporan_tambahan_baris")
           .delete()
@@ -132,11 +139,32 @@ function EsaiIsian({ userId, item }: { userId: string; item: TugasLaporan }) {
         }
         toast.success("Isian dihapus.");
         router.refresh();
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+    for (const { col, nilai } of cleaned) {
+      if (nilai.length === 0) {
+        setError(`Subjudul "${col.label}" wajib diisi.`);
         return;
       }
+      if (nilai.length > ESAI_MAKS) {
+        setError(`Subjudul "${col.label}" maksimal ${ESAI_MAKS} karakter.`);
+        return;
+      }
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const supabase = createClient();
       if (baris) {
         const { error } = await supabase.from("laporan_tambahan_nilai").upsert(
-          [{ baris_id: baris.id, kolom_id: kolom.id, nilai: cleaned }],
+          cleaned.map(({ col, nilai }) => ({
+            baris_id: baris.id,
+            kolom_id: col.id,
+            nilai,
+          })),
           { onConflict: "baris_id,kolom_id" }
         );
         if (error) {
@@ -158,7 +186,13 @@ function EsaiIsian({ userId, item }: { userId: string; item: TugasLaporan }) {
         }
         const { error: nilaiError } = await supabase
           .from("laporan_tambahan_nilai")
-          .insert([{ baris_id: baru.id, kolom_id: kolom.id, nilai: cleaned }]);
+          .insert(
+            cleaned.map(({ col, nilai }) => ({
+              baris_id: baru.id,
+              kolom_id: col.id,
+              nilai,
+            }))
+          );
         if (nilaiError) {
           await supabase.from("laporan_tambahan_baris").delete().eq("id", baru.id);
           setError("Gagal menyimpan. Coba lagi.");
@@ -172,7 +206,7 @@ function EsaiIsian({ userId, item }: { userId: string; item: TugasLaporan }) {
     }
   }
 
-  if (!kolom) return null;
+  if (kolomList.length === 0) return null;
 
   return (
     <RefListCard
@@ -181,7 +215,9 @@ function EsaiIsian({ userId, item }: { userId: string; item: TugasLaporan }) {
       className="mt-4"
     >
       <div className="flex items-center justify-between gap-3 px-1 pb-3">
-        <span className="text-xs text-neutral-500">Wajib diisi · satu isian</span>
+        <span className="text-xs text-neutral-500">
+          Wajib diisi · {kolomList.length} subjudul
+        </span>
         <span
           className={
             item.terisi
@@ -197,19 +233,20 @@ function EsaiIsian({ userId, item }: { userId: string; item: TugasLaporan }) {
           {item.deskripsi}
         </p>
       )}
-      <div className="flex flex-col gap-2 px-1">
-        <Label htmlFor={`esai-${item.id}`}>Tulis isian</Label>
-        <Textarea
-          id={`esai-${item.id}`}
-          value={isi}
-          onChange={(event) => {
-            setIsi(event.target.value);
-            setError(null);
-          }}
-          rows={6}
-          placeholder="Tulis isian di sini."
-          disabled={saving}
-        />
+      <div className="flex flex-col gap-4 px-1">
+        {kolomList.map((col) => (
+          <div key={col.id} className="flex flex-col gap-2">
+            <Label htmlFor={`esai-${item.id}-${col.id}`}>{col.label}</Label>
+            <Textarea
+              id={`esai-${item.id}-${col.id}`}
+              value={isi[col.id] ?? ""}
+              onChange={(event) => setSatu(col.id, event.target.value)}
+              rows={6}
+              placeholder={`Tulis ${col.label.toLowerCase()} di sini.`}
+              disabled={saving}
+            />
+          </div>
+        ))}
       </div>
       {error && (
         <p role="alert" className="mt-2 px-1 text-sm text-danger">
@@ -222,7 +259,7 @@ function EsaiIsian({ userId, item }: { userId: string; item: TugasLaporan }) {
         </Button>
       </div>
       <p className="mt-2 px-1 text-xs text-neutral-500">
-        Kosongkan lalu Simpan untuk menghapus isian.
+        Kosongkan semua lalu Simpan untuk menghapus isian.
       </p>
     </RefListCard>
   );

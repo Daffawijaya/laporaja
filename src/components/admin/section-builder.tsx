@@ -374,7 +374,16 @@ export function SectionBuilder({
         return;
       }
       const targetId = deleteTarget.id;
+      // Pilih section sebelumnya (atau penggantinya) supaya rel bergeser ke sana.
+      const idxHapus = ordered.findIndex((row) => row.id === targetId);
+      const ganti =
+        idxHapus > 0
+          ? ordered[idxHapus - 1]
+          : idxHapus >= 0 && idxHapus < ordered.length - 1
+            ? ordered[idxHapus + 1]
+            : null;
       setItems((prev) => prev.filter((item) => item.id !== targetId));
+      setTerpilih(ganti ? editorKey(ganti) : null);
       setDeleteTarget(null);
       toast.success("Section dihapus.");
       router.refresh();

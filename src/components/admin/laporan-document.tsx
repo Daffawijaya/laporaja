@@ -40,6 +40,7 @@ const styles = StyleSheet.create({
   subItem: { fontSize: 11, marginLeft: 80, marginBottom: 1 },
   divider: { borderBottomWidth: 1, borderBottomColor: "#e5e5ea", marginVertical: 12 },
   paragraph: { fontSize: 11, marginTop: 2 },
+  esaiSub: { fontSize: 11, fontWeight: "bold", marginTop: 8, marginBottom: 2 },
   tambahanJudul: { fontSize: 12, fontWeight: "bold", marginTop: 12, marginBottom: 6 },
   tabelHead: {
     flexDirection: "row",
@@ -113,9 +114,22 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
               <Text style={[styles.paragraph, { color: "#6e6e73" }]}>{laporan.deskripsi}</Text>
             ) : null}
             {laporan.format === "judul" ? null : laporan.format === "esai" ? (
-              <Text style={styles.paragraph}>
-                {laporan.baris[0]?.[0] || "Belum ada isian."}
-              </Text>
+              laporan.kolom.length <= 1 ? (
+                <Text style={styles.paragraph}>
+                  {laporan.baris[0]?.[0] || "Belum ada isian."}
+                </Text>
+              ) : (
+                <View>
+                  {laporan.kolom.map((label, colIndex) => (
+                    <View key={colIndex}>
+                      <Text style={styles.esaiSub}>{label}</Text>
+                      <Text style={styles.paragraph}>
+                        {laporan.baris[0]?.[colIndex] || "-"}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )
             ) : laporan.baris.length === 0 ? (
               <Text style={styles.empty}>Belum ada isian.</Text>
             ) : (
