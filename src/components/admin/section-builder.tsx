@@ -78,6 +78,10 @@ export function SectionBuilder({
     let animTo = 0;
     let animStart = 0;
     let lastKey: string | null | undefined;
+    // Posisi terakhir kartu yang dipilih (koordinat dokumen): dipakai agar
+    // rel diam di tempat saat pilihan dilepas.
+    let lastCardTarget: number | null = null;
+    let lastKunci: string | null = null;
     const tick = (now: number) => {
       const ghost = ghostRef.current;
       const rail = railRef.current;
@@ -95,12 +99,21 @@ export function SectionBuilder({
           lastWidth = gr.width;
           rail.style.width = `${gr.width}px`;
         }
-        let target = daftar ? daftar.getBoundingClientRect().top - rowRect.top : 0;
+        const daftarTop = daftar ? daftar.getBoundingClientRect().top - rowRect.top : 0;
+        let target: number | null = null;
         const kunci = terpilihRef.current;
-        if (kunci && daftar) {
-          const card = daftar.querySelector(`[data-section-key="${CSS.escape(kunci)}"]`);
-          if (card) target = card.getBoundingClientRect().top - rowRect.top;
+        // Saat tak ada pilihan, ikuti posisi live kartu terakhir (masih di
+        // DOM, hanya menciut) supaya rel tetap diam di tempatnya.
+        const cari = kunci ?? lastKunci;
+        if (cari && daftar) {
+          const card = daftar.querySelector(`[data-section-key="${CSS.escape(cari)}"]`);
+          if (card) {
+            target = card.getBoundingClientRect().top - rowRect.top;
+            lastCardTarget = target;
+          }
         }
+        if (kunci) lastKunci = kunci;
+        if (target === null) target = lastCardTarget ?? daftarTop;
         if (pos === null) {
           pos = target;
           animFrom = target;
@@ -133,8 +146,9 @@ export function SectionBuilder({
     };
   }, []);
 
-  // Tambah instan ala Google Forms: kartu langsung jadi di paling bawah,
-  // judulnya terfokus. Bidang diatur sesudahnya di panel kanan.
+  // Tambah instan ala Google Forms: kartu langsung jadi tepat di bawah
+  // kartu yang dipilih (atau paling bawah bila tak ada pilihan), judulnya
+  // terfokus. Bidang diatur sesudahnya di panel kanan.
   async function tambahCepat(format: "tabel" | "esai" | "judul") {
     if (menambah) return;
     setMenambah(true);
@@ -142,8 +156,17 @@ export function SectionBuilder({
     try {
       const supabase = createClient();
       const { data: auth } = await supabase.auth.getUser();
-      const urutan =
-        ordered.length > 0 ? Math.max(...ordered.map((row) => row.urutan)) + 10 : 0;
+      const idxPilih = terpilih
+        ? terpilih === "info"
+          ? -2
+          : ordered.findIndex((row) => editorKey(row) === terpilih)
+        : -1;
+      const idxSisip = idxPilih === -2 ? 0 : idxPilih >= 0 ? idxPilih + 1 : ordered.length;
+      const sebelum = idxSisip > 0 ? ordered[idxSisip - 1].urutan : -10;
+      const sesudah =
+        idxSisip < ordered.length ? ordered[idxSisip].urutan : sebelum + 20;
+      let urutan = Math.floor((sebelum + sesudah) / 2);
+      if (urutan <= sebelum) urutan = sebelum + 1;
       const { data, error } = await supabase
         .from("laporan_tambahan")
         .insert({
@@ -175,6 +198,20 @@ export function SectionBuilder({
           return;
         }
       }
+      // Rapikan urutan (kelipatan 10) sesuai posisi sisip; hanya baris
+      // yang berubah yang ditulis ulang.
+      const urutanLama = new Map(ordered.map((row) => [row.id, row.urutan]));
+      urutanLama.set(data.id, urutan);
+      const idsAkhir = ordered.map((row) => row.id);
+      idsAkhir.splice(idxSisip, 0, data.id);
+      await Promise.all(
+        idsAkhir
+          .map((id, index) => ({ id, urutan: index * 10 }))
+          .filter(({ id, urutan }) => urutanLama.get(id) !== urutan)
+          .map(({ id, urutan }) =>
+            supabase.from("laporan_tambahan").update({ urutan }).eq("id", id)
+          )
+      );
       setFocusId(`tambahan-${data.id}`);
       toast.success("Section ditambahkan.");
       router.refresh();
@@ -402,11 +439,12 @@ export function SectionBuilder({
               </p>
             )}
             <div className="mb-4">
-              <InfoCard
-                judulAwal={infoJudulAwal}
-                jabatanAwal={jabatanAwal}
-                unitAwal={unitKerjaAwal}
-              />
+            <InfoCard
+              judulAwal={infoJudulAwal}
+              jabatanAwal={jabatanAwal}
+              unitAwal={unitKerjaAwal}
+              onPilih={() => setTerpilih("info")}
+            />
             </div>
             <SectionEditor
               ordered={ordered}

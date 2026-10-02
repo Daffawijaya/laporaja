@@ -322,14 +322,18 @@ function InfoIsianCard({
 
 // Kartu Info statis di atas tumpukan (bukan section, tidak bisa
 // digeser/dihapus): jabatan dan unit kerja tersimpan otomatis.
+// Bisa "dipilih" sebagai posisi 0 supaya tambah section jatuh tepat di
+// bawahnya.
 export function InfoCard({
   judulAwal,
   jabatanAwal,
   unitAwal,
+  onPilih,
 }: {
   judulAwal: string;
   jabatanAwal: string;
   unitAwal: string;
+  onPilih: () => void;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -382,7 +386,13 @@ export function InfoCard({
   }, [snap, savedSnap, masalah, saving, simpan]);
 
   return (
-    <div className="ref-card p-4">
+    <div
+      className="ref-card p-4"
+      data-kartu-section
+      data-section-key="info"
+      onPointerDown={onPilih}
+      onFocusCapture={onPilih}
+    >
       <Label htmlFor="info-judul" className="sr-only">
         Judul info
       </Label>
@@ -452,10 +462,13 @@ export function SectionCard({
   const [error, setError] = useState<string | null>(null);
   const savingRef = useRef(false);
   const judulRef = useRef<HTMLInputElement>(null);
+  const kartuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (autoFocusJudul) {
-      judulRef.current?.focus();
+      kartuRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      judulRef.current?.focus({ preventScroll: true });
+      judulRef.current?.select();
       onPilih();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -643,6 +656,7 @@ export function SectionCard({
 
   const card = (
     <div
+      ref={kartuRef}
       className="ref-card px-4 pt-1 pb-4"
       data-kartu-section
       data-section-key={editorKey(item)}
