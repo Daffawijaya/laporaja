@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlignLeft, Table, Type } from "lucide-react";
 
@@ -52,6 +52,86 @@ export function SectionBuilder({
   const [focusId, setFocusId] = useState<string | null>(null);
   const [menambah, setMenambah] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
+  const [terpilih, setTerpilih] = useState<string | null>(null);
+  const terpilihRef = useRef<string | null>(null);
+  terpilihRef.current = terpilih;
+  const [terukur, setTerukur] = useState(false);
+  const daftarRef = useRef<HTMLDivElement>(null);
+  const barisRef = useRef<HTMLDivElement>(null);
+  const ghostRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLDivElement>(null);
+
+  // Rel tambah menempel di tepi atas kartu terpilih. Posisi dihitung
+  // relatif terhadap baris (koordinat dokumen), jadi saat scroll rel ikut
+  // kartu secara natural tanpa perlu update. Pindah kartu: tween 450ms
+  // ease-in-out (pelan-cepat-pelan).
+  useLayoutEffect(() => {
+    let raf = 0;
+    let lastLeft: number | null = null;
+    let lastWidth: number | null = null;
+    let sudah = false;
+    const DUR = 450;
+    const easeInOutCubic = (p: number) =>
+      p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+    let pos: number | null = null;
+    let animFrom = 0;
+    let animTo = 0;
+    let animStart = 0;
+    let lastKey: string | null | undefined;
+    const tick = (now: number) => {
+      const ghost = ghostRef.current;
+      const rail = railRef.current;
+      const daftar = daftarRef.current;
+      const baris = barisRef.current;
+      if (ghost && rail && baris) {
+        const rowRect = baris.getBoundingClientRect();
+        const gr = ghost.getBoundingClientRect();
+        const leftRel = gr.left - rowRect.left;
+        if (lastLeft === null || Math.abs(lastLeft - leftRel) > 0.5) {
+          lastLeft = leftRel;
+          rail.style.left = `${leftRel}px`;
+        }
+        if (lastWidth === null || Math.abs(lastWidth - gr.width) > 0.5) {
+          lastWidth = gr.width;
+          rail.style.width = `${gr.width}px`;
+        }
+        let target = daftar ? daftar.getBoundingClientRect().top - rowRect.top : 0;
+        const kunci = terpilihRef.current;
+        if (kunci && daftar) {
+          const card = daftar.querySelector(`[data-section-key="${CSS.escape(kunci)}"]`);
+          if (card) target = card.getBoundingClientRect().top - rowRect.top;
+        }
+        if (pos === null) {
+          pos = target;
+          animFrom = target;
+          animTo = target;
+          animStart = now;
+          rail.style.transform = `translateY(${target}px)`;
+        } else {
+          if (lastKey !== kunci || Math.abs(target - animTo) > 40) {
+            animFrom = pos;
+            animTo = target;
+            animStart = now;
+          } else {
+            animTo = target;
+          }
+          const p = Math.min(1, (now - animStart) / DUR);
+          pos = animFrom + (animTo - animFrom) * easeInOutCubic(p);
+          rail.style.transform = `translateY(${pos}px)`;
+        }
+        lastKey = kunci;
+        if (!sudah) {
+          sudah = true;
+          setTerukur(true);
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+    };
+  }, []);
 
   // Tambah instan ala Google Forms: kartu langsung jadi di paling bawah,
   // judulnya terfokus. Bidang diatur sesudahnya di panel kanan.
@@ -313,9 +393,9 @@ export function SectionBuilder({
 
   return (
     <div className="w-full">
-      <div className="flex items-start gap-2 sm:gap-3">
+      <div ref={barisRef} className="relative flex items-start gap-2 sm:gap-3">
         <div className="min-w-0 flex-1">
-          <div id="daftar" className="scroll-mt-20">
+          <div id="daftar" className="scroll-mt-20" ref={daftarRef}>
             {pageError && (
               <p role="alert" className="mb-3 text-sm text-danger">
                 {pageError}
@@ -345,12 +425,34 @@ export function SectionBuilder({
               onSaved={() => router.refresh()}
               onTambah={() => tambahCepat("tabel")}
               aksiBusy={duplicating}
+              terpilih={terpilih}
+              setTerpilih={setTerpilih}
             />
           </div>
         </div>
 
-        {/* Rel aksi ala Google Forms: tambah tabel/esai/judul. */}
-        <div className="sticky top-20 shrink-0">
+        {/* Penanda tempat rel aksi: mempertahankan lebar kolom kanan. */}
+        <div className="shrink-0" aria-hidden="true">
+          <div
+            ref={ghostRef}
+            className="ref-card flex flex-col gap-1 rounded-full p-1.5 opacity-0"
+          >
+            <div className="size-11" />
+            <div className="size-11" />
+            <div className="size-11" />
+          </div>
+        </div>
+
+        {/* Rel aksi ala Google Forms: tambah tabel/esai/judul. Absolute
+            terhadap baris, menempel di tepi atas kartu terpilih. */}
+        <div
+          ref={railRef}
+          data-rel-tambah
+          className={`absolute top-0 z-10 shrink-0 ${
+            terukur ? "opacity-100" : "opacity-0"
+          }`}
+          style={{ transform: "translateY(0px)" }}
+        >
           <div
             role="toolbar"
             aria-label="Tambah section"

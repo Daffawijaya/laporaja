@@ -645,6 +645,7 @@ export function SectionCard({
     <div
       className="ref-card px-4 pt-1 pb-4"
       data-kartu-section
+      data-section-key={editorKey(item)}
       onPointerDown={onPilih}
       onFocusCapture={onPilih}
     >
@@ -814,6 +815,8 @@ export function SectionEditor({
   onSaved,
   onTambah,
   aksiBusy,
+  terpilih,
+  setTerpilih,
 }: {
   ordered: BuilderItem[];
   query: string;
@@ -828,21 +831,23 @@ export function SectionEditor({
   onSaved: () => void;
   onTambah: () => void;
   aksiBusy: boolean;
+  terpilih: string | null;
+  setTerpilih: (key: string | null) => void;
 }) {
   const visible = query
     ? ordered.filter((item) => item.judul.toLowerCase().includes(query))
     : ordered;
 
-  const [terpilih, setTerpilih] = useState<string | null>(null);
-
   useEffect(() => {
     function klikLuar(event: PointerEvent) {
       const target = event.target as HTMLElement | null;
-      if (!target?.closest?.("[data-kartu-section]")) setTerpilih(null);
+      if (!target?.closest?.("[data-kartu-section], [data-rel-tambah]")) {
+        setTerpilih(null);
+      }
     }
     document.addEventListener("pointerdown", klikLuar);
     return () => document.removeEventListener("pointerdown", klikLuar);
-  }, []);
+  }, [setTerpilih]);
 
   if (visible.length === 0) {
     return (
