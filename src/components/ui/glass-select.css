@@ -135,8 +135,8 @@
   min-height: 36px;
   padding: 0 12px;
   border-radius: 999px;
-  /* 11px: sama dengan trigger, jadi teks tidak "membesar" saat panel dibuka. */
-  font-size: 11px;
+  /* 14px: sama dengan trigger, jadi teks tidak "membesar" saat panel dibuka. */
+  font-size: 14px;
   line-height: 1.2;
   color: var(--foreground);
   cursor: pointer;

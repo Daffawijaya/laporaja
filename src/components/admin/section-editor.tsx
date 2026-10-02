@@ -90,7 +90,7 @@ function KolomRows({
   return (
     <div>
       <div className="overflow-x-auto px-1">
-        <table className="w-full border-collapse text-xs">
+        <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-neutral-200/70 dark:border-white/10">
               {kolom.map((col, index) => (

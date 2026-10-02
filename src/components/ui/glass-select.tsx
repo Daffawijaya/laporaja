@@ -344,12 +344,12 @@ export function GlassSelect({
         onClick={() => (open ? close() : openPanel())}
         onKeyDown={onKeyDown}
         className={cn(
-          // Trigger pill full-bulat: putih 85% + border putih + shadow,
-          // 11px agar satu baris filter rata dengan tab. Hanya panel
-          // dropdown-nya yang kaca (lihat glass-select.css).
+          // Trigger pill full-bulat: putih 85% + border putih + shadow.
+          // 14px (text-sm) sama dengan Input/Select dan teks baris ref-card.
+          // Hanya panel dropdown-nya yang kaca (lihat glass-select.css).
           // Kelas gsp-trigger mengecualikannya dari aturan tombol modal
           // (.dlg-panel).
-          "gsp-trigger transition-soft flex h-11 w-full items-center justify-between gap-2 rounded-full border border-white bg-[#fafafa]/85 pl-3.5 pr-3 text-left text-[11px] text-foreground shadow-[0_1px_4px_rgb(0_0_0/0.05)]",
+          "gsp-trigger transition-soft flex h-11 w-full items-center justify-between gap-2 rounded-full border border-white bg-[#fafafa]/85 pl-3.5 pr-3 text-left text-sm text-foreground shadow-[0_1px_4px_rgb(0_0_0/0.05)]",
           "hover:border-white focus-visible:border-accent focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/15",
           "disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-60",
           "dark:border-white/12 dark:bg-[#222222]/85 dark:shadow-[0_1px_4px_rgb(0_0_0/0.42)]",
