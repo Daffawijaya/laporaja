@@ -354,7 +354,7 @@ export function SectionBuilder({
           <div
             role="toolbar"
             aria-label="Tambah section"
-            className="ref-card flex flex-col gap-1 p-1.5"
+            className="ref-card flex flex-col gap-1 rounded-full p-1.5"
           >
             {(
               [
@@ -372,6 +372,7 @@ export function SectionBuilder({
                 disabled={menambah}
                 aria-label={label}
                 title={label}
+                className="rounded-full"
               >
                 <Icon aria-hidden="true" />
               </Button>
