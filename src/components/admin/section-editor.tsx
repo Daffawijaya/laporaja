@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Reorder, useDragControls } from "motion/react";
+import { AnimatePresence, Reorder, motion, useDragControls } from "motion/react";
 import { Copy, GripHorizontal, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -80,12 +80,14 @@ function KolomRows({
   onRemove,
   onAdd,
   disabled,
+  terpilih,
 }: {
   kolom: KolomDraft[];
   onPatch: (key: number, patch: Partial<KolomDraft>) => void;
   onRemove: (key: number) => void;
   onAdd: () => void;
   disabled: boolean;
+  terpilih: boolean;
 }) {
   return (
     <div>
@@ -125,17 +127,29 @@ function KolomRows({
                       disabled={disabled}
                       className="min-w-0 flex-1"
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onRemove(col.key)}
-                      disabled={disabled || kolom.length <= 1}
-                      aria-label={`Hapus kolom ${index + 1}`}
-                      className="shrink-0 rounded-full"
-                    >
-                      <X aria-hidden="true" />
-                    </Button>
+                    <AnimatePresence initial={false}>
+                      {terpilih && (
+                        <motion.span
+                          initial={{ opacity: 0, width: 0 }}
+                          animate={{ opacity: 1, width: "auto" }}
+                          exit={{ opacity: 0, width: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="inline-flex shrink-0 overflow-hidden"
+                        >
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onRemove(col.key)}
+                            disabled={disabled || kolom.length <= 1}
+                            aria-label={`Hapus kolom ${index + 1}`}
+                            className="shrink-0 rounded-full"
+                          >
+                            <X aria-hidden="true" />
+                          </Button>
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </span>
                 </td>
               ))}
@@ -143,16 +157,28 @@ function KolomRows({
           </thead>
         </table>
       </div>
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={onAdd}
-        disabled={disabled}
-        className="mt-2 w-full rounded-full"
-      >
-        <Plus aria-hidden="true" />
-        Tambah Kolom
-      </Button>
+      <AnimatePresence initial={false}>
+        {terpilih && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onAdd}
+              disabled={disabled}
+              className="mt-2 w-full rounded-full"
+            >
+              <Plus aria-hidden="true" />
+              Tambah Kolom
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -399,6 +425,8 @@ export function SectionCard({
   onDeleteRequest,
   onSaved,
   aksiBusy,
+  terpilih,
+  onPilih,
 }: {
   item: BuilderItem;
   dragAktif: boolean;
@@ -411,6 +439,8 @@ export function SectionCard({
   onDeleteRequest: (item: BuilderItem) => void;
   onSaved: () => void;
   aksiBusy: boolean;
+  terpilih: boolean;
+  onPilih: () => void;
 }) {
   const controls = useDragControls();
   const router = useRouter();
@@ -424,7 +454,11 @@ export function SectionCard({
   const judulRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (autoFocusJudul) judulRef.current?.focus();
+    if (autoFocusJudul) {
+      judulRef.current?.focus();
+      onPilih();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoFocusJudul]);
 
   const sig = `${item.judul}|${item.deskripsi ?? ""}|${item.kolom.map((col) => col.id).join(",")}`;
@@ -608,7 +642,12 @@ export function SectionCard({
   );
 
   const card = (
-    <div className="ref-card px-4 pt-1 pb-4">
+    <div
+      className="ref-card px-4 pt-1 pb-4"
+      data-kartu-section
+      onPointerDown={onPilih}
+      onFocusCapture={onPilih}
+    >
       {gagang}
       <div className="flex items-center gap-1">
         <div className="min-w-0 flex-1">
@@ -653,6 +692,7 @@ export function SectionCard({
               setError(null);
             }}
             disabled={false}
+            terpilih={terpilih}
           />
         ) : esai ? (
           <p className="px-1 text-xs text-neutral-500">
@@ -661,6 +701,15 @@ export function SectionCard({
         ) : null}
       </div>
 
+      <AnimatePresence initial={false}>
+        {terpilih && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
       <div className="mt-3 border-t border-neutral-200/70 px-1 pt-3 dark:border-white/10">
         <div className="flex items-center gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap gap-2">
@@ -720,6 +769,9 @@ export function SectionCard({
           </span>
         </div>
       </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {(error ?? masalah) && (
         <p role="alert" className="mt-2 px-1 text-sm text-danger">
@@ -781,6 +833,17 @@ export function SectionEditor({
     ? ordered.filter((item) => item.judul.toLowerCase().includes(query))
     : ordered;
 
+  const [terpilih, setTerpilih] = useState<string | null>(null);
+
+  useEffect(() => {
+    function klikLuar(event: PointerEvent) {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest?.("[data-kartu-section]")) setTerpilih(null);
+    }
+    document.addEventListener("pointerdown", klikLuar);
+    return () => document.removeEventListener("pointerdown", klikLuar);
+  }, []);
+
   if (visible.length === 0) {
     return (
       <EmptyState
@@ -820,6 +883,8 @@ export function SectionEditor({
               onDeleteRequest={onDeleteRequest}
               onSaved={onSaved}
               aksiBusy={aksiBusy}
+              terpilih={terpilih === editorKey(item)}
+              onPilih={() => setTerpilih(editorKey(item))}
             />
           ))}
         </div>
@@ -851,6 +916,8 @@ export function SectionEditor({
           onDeleteRequest={onDeleteRequest}
           onSaved={onSaved}
           aksiBusy={aksiBusy}
+          terpilih={terpilih === editorKey(item)}
+          onPilih={() => setTerpilih(editorKey(item))}
         />
       ))}
     </Reorder.Group>
