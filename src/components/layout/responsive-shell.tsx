@@ -26,12 +26,10 @@ function getDesktopServerSnapshot() {
 export function ResponsiveShell({
   username,
   role,
-  badgeCount,
   children,
 }: {
   username: string;
   role: Role;
-  badgeCount: number;
   children: React.ReactNode;
 }) {
   // useSyncExternalStore: server render cabang mobile, hydration pakai
@@ -42,11 +40,10 @@ export function ResponsiveShell({
     getDesktopServerSnapshot
   );
   const initial = (username.charAt(0) || "?").toUpperCase();
-  const bellHref = role === "superadmin" ? "/admin/laporan" : "/laporan/notifikasi";
 
   if (desktop) {
     return (
-      <DesktopWindow role={role} username={username} badgeCount={badgeCount}>
+      <DesktopWindow role={role} username={username}>
         {children}
       </DesktopWindow>
     );
@@ -54,7 +51,7 @@ export function ResponsiveShell({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <MobileTopbar badgeCount={badgeCount} bellHref={bellHref} initial={initial} />
+      <MobileTopbar initial={initial} />
       <main className="flex-1 px-4 pt-6 pb-28">{children}</main>
       <MobileBottomnav role={role} />
     </div>

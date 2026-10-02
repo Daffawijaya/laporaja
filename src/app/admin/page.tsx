@@ -4,73 +4,43 @@ import { ContentGrid } from "@/components/layout/content-grid";
 import { RefListCard } from "@/components/ui/ref-list-card";
 import { assertOk } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
-import { getUserMonthStats } from "@/lib/laporan/queries";
-import { NAMA_BULAN } from "@/components/laporan/types";
+import { getIsianRekap } from "@/lib/laporan-tambahan/queries";
 
-// Dashboard superadmin: 2 card sejajar — card utama (kiri) dan card Kelola (kanan).
+// Dashboard superadmin: angka + kelola + ketuntasan isian per user.
 export default async function AdminPage() {
-  const now = new Date();
-  const tahun = now.getFullYear();
-  const bulan = now.getMonth() + 1;
-  const firstDay = `${tahun}-${String(bulan).padStart(2, "0")}-01`;
-  const lastDate = new Date(tahun, bulan, 0).getDate();
-  const lastDay = `${tahun}-${String(bulan).padStart(2, "0")}-${String(lastDate).padStart(2, "0")}`;
-  const labelBulan = `${NAMA_BULAN[bulan - 1]} ${tahun}`;
-
   const supabase = await createClient();
-  const [profilesResult, bidangResult] = await Promise.all([
-    supabase.from("profiles").select("id, nama, username, bidang_id").eq("role", "user").order("nama"),
-    supabase.from("bidang").select("id, nama"),
+  const [profilesResult, bidangResult, sectionResult, rekap] = await Promise.all([
+    supabase.from("profiles").select("id").eq("role", "user"),
+    supabase.from("bidang").select("id"),
+    supabase.from("laporan_tambahan").select("id"),
+    getIsianRekap(supabase),
   ]);
   assertOk(profilesResult.error, "Gagal memuat data pengguna. Coba lagi.");
   assertOk(bidangResult.error, "Gagal memuat data bidang. Coba lagi.");
+  assertOk(sectionResult.error, "Gagal memuat data section. Coba lagi.");
+
   const users = profilesResult.data ?? [];
-  const bidangList = bidangResult.data;
-  const bidangNama = new Map((bidangList ?? []).map((bidang) => [bidang.id, bidang.nama]));
-  const userIds = users.map((user) => user.id);
-
-  // Status bulanan per user (boolean menunggu per laporan orang).
-  const monthStats = await getUserMonthStats(supabase, users, tahun, bulan);
-  const statByUser = new Map(monthStats.map((stat) => [stat.id, stat]));
-  // Laporan berisi kegiatan yang belum disetujui.
-  const perluReview = monthStats.filter((stat) => stat.total > 0 && stat.status !== "approved");
-
-  const totalKegiatanBulanIni = monthStats.reduce((sum, stat) => sum + stat.total, 0);
-
-  const STATUS_LABEL = {
-    menunggu: "Menunggu review",
-    revision: "Revisi",
-    approved: "Selesai",
-  } as const;
-
-  const ringkasan = users.map((user) => {
-    const stat = statByUser.get(user.id);
-    return {
-      user,
-      total: stat?.total ?? 0,
-      statusLabel: stat ? STATUS_LABEL[stat.status] : "Belum lapor",
-    };
-  });
+  const bidangList = bidangResult.data ?? [];
+  const sectionList = sectionResult.data ?? [];
 
   const stats = [
     { label: "Total User", value: users.length, href: "/admin/users" },
-    { label: "Total Bidang", value: (bidangList ?? []).length, href: "/admin/bidang" },
-    { label: "Laporan Bulan Ini", value: totalKegiatanBulanIni, href: "/admin/laporan" },
-    { label: "Perlu Review", value: perluReview.length, href: "#perlu-review" },
+    { label: "Total Bidang", value: bidangList.length, href: "/admin/bidang" },
+    { label: "Total Section", value: sectionList.length, href: "/admin/section" },
   ];
 
   const kelola = [
     { label: "Pengguna", desc: `${users.length} akun`, href: "/admin/users" },
-    { label: "Bidang", desc: `${(bidangList ?? []).length} bidang`, href: "/admin/bidang" },
-    { label: "Indikator", desc: "Target kinerja", href: "/admin/indikator" },
-    { label: "Laporan", desc: `${totalKegiatanBulanIni} bulan ini`, href: "/admin/laporan" },
+    { label: "Bidang", desc: `${bidangList.length} bidang`, href: "/admin/bidang" },
+    { label: "Section", desc: `${sectionList.length} section`, href: "/admin/section" },
+    { label: "Laporan", desc: "Isian user", href: "/admin/laporan" },
   ];
 
   return (
     <div className="w-full">
       <div className="md:hidden">
         <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="mt-1 text-sm text-neutral-500">{labelBulan}</p>
+        <p className="mt-1 text-sm text-neutral-500">Ringkasan laporan</p>
       </div>
 
       <div className="mt-5 md:mt-1">
@@ -102,31 +72,19 @@ export default async function AdminPage() {
           </div>
 
           <RefListCard
-            id="perlu-review"
-            ariaLabel="Perlu review"
-            title="Perlu Review"
-            className="mt-3 scroll-mt-20"
-            emptyText="Semua laporan bulan ini sudah disetujui."
-            items={perluReview.map((stat) => ({
-              key: stat.id,
-              title: stat.nama,
-              subtitle: `${stat.total} kegiatan · ${STATUS_LABEL[stat.status]}`,
-              actionHref: `/admin/laporan?user=${stat.id}&bulan=${bulan}&tahun=${tahun}`,
-              actionLabel: "Review",
-            }))}
-          />
-
-          <RefListCard
-            ariaLabel="Ringkasan user"
-            title="Ringkasan User"
+            ariaLabel="Ketuntasan user"
+            title="Ketuntasan User"
             className="mt-3"
             emptyText="Belum ada user. Tambahkan lewat halaman Pengguna."
-            items={ringkasan.map((item) => ({
-              key: item.user.id,
-              title: item.user.nama,
-              subtitle: `${item.user.bidang_id ? (bidangNama.get(item.user.bidang_id) ?? "Tanpa bidang") : "Tanpa bidang"} · ${labelBulan}`,
-              meta: item.total === 0 ? "Belum ada laporan" : `${item.total} kegiatan · ${item.statusLabel}`,
-              href: `/admin/laporan?user=${item.user.id}&bulan=${bulan}&tahun=${tahun}`,
+            items={rekap.map((item) => ({
+              key: item.id,
+              title: item.nama,
+              subtitle: item.bidangNama,
+              meta:
+                item.total === 0
+                  ? "Tanpa tugas"
+                  : `${item.terisi}/${item.total} section terisi`,
+              href: `/admin/laporan?user=${item.id}`,
             }))}
           />
         </ContentGrid>

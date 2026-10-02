@@ -1,30 +1,10 @@
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-
-export interface PdfBlock {
-  tipe: "text" | "image";
-  text: string | null;
-  imageUrl: string | null;
-}
-
-export interface PdfKegiatan {
-  nama: string;
-  status: "approved" | "revision" | null;
-  catatan: string | null;
-  blocks: PdfBlock[];
-}
-
-export interface PdfDay {
-  label: string;
-  kegiatan: PdfKegiatan[];
-}
-
-export type StatusBulananPdf = "Menunggu Review" | "Revisi" | "Disetujui";
+import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import type { LaporanFormat } from "@/lib/supabase/database.types";
 
 export interface PdfTambahan {
   judul: string;
   deskripsi: string | null;
-  /** Blok judul hanya cetak judul + deskripsi tanpa tabel isian. */
-  kepalaJudul: boolean;
+  format: LaporanFormat;
   kolom: string[];
   baris: string[][];
 }
@@ -33,10 +13,7 @@ export interface LaporanPdfData {
   ownerNama: string;
   bidangNama: string | null;
   subBidang: string[];
-  periode: string;
-  statusBulanan: StatusBulananPdf;
-  rekomendasi: string | null;
-  days: PdfDay[];
+  unitKerja: string | null;
   tambahan: PdfTambahan[];
 }
 
@@ -62,16 +39,7 @@ const styles = StyleSheet.create({
   metaValue: { fontSize: 11, flex: 1 },
   subItem: { fontSize: 11, marginLeft: 80, marginBottom: 1 },
   divider: { borderBottomWidth: 1, borderBottomColor: "#e5e5ea", marginVertical: 12 },
-  dateHeading: { fontSize: 12, fontWeight: "bold", marginTop: 12, marginBottom: 6 },
-  kegiatanBox: { marginBottom: 10 },
-  fieldLabel: { fontSize: 10, color: "#6e6e73", marginTop: 5 },
-  fieldValue: { fontSize: 11 },
   paragraph: { fontSize: 11, marginTop: 2 },
-  image: { width: "100%", maxHeight: 340, objectFit: "contain", marginTop: 6 },
-  caption: { fontSize: 10, color: "#6e6e73", marginTop: 2 },
-  statusApproved: { fontSize: 11, fontWeight: "bold", color: "#067647" },
-  statusRevision: { fontSize: 11, fontWeight: "bold", color: "#b42318" },
-  statusPending: { fontSize: 11, color: "#6e6e73" },
   tambahanJudul: { fontSize: 12, fontWeight: "bold", marginTop: 12, marginBottom: 6 },
   tabelHead: {
     flexDirection: "row",
@@ -100,31 +68,13 @@ const styles = StyleSheet.create({
   },
 });
 
-function StatusLine({ status, catatan }: { status: PdfKegiatan["status"]; catatan: string | null }) {
-  if (status === "approved") {
-    return <Text style={styles.statusApproved}>Status: Disetujui</Text>;
-  }
-  if (status === "revision") {
-    return (
-      <View>
-        <Text style={styles.statusRevision}>Status: Revisi</Text>
-        {catatan && <Text style={styles.fieldValue}>Catatan: {catatan}</Text>}
-      </View>
-    );
-  }
-  return <Text style={styles.statusPending}>Status: Menunggu Review</Text>;
-}
-
-// Dokumen resmi yang mudah dicetak: A4, teks vektor, gambar proporsional,
-// tanpa dekorasi. Dirender di server lewat Route Handler export.
+// Dokumen isian section satu user: identitas + seluruh section dinamis
+// (tabel, esai, judul) tanpa bulan. Dirender di server lewat Route Handler.
 export function LaporanDocument({ data }: { data: LaporanPdfData }) {
   return (
-    <Document
-      title={`Laporan Kegiatan ${data.ownerNama} ${data.periode}`}
-      author="LaporAja"
-    >
+    <Document title={`Laporan ${data.ownerNama}`} author="LaporAja">
       <Page size="A4" style={styles.page}>
-        <Text style={styles.title}>LAPORAN KEGIATAN</Text>
+        <Text style={styles.title}>LAPORAN</Text>
 
         <View style={styles.metaRow}>
           <Text style={styles.metaLabel}>Nama</Text>
@@ -143,61 +93,18 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
             - {nama}
           </Text>
         ))}
-        <View style={styles.metaRow}>
-          <Text style={styles.metaLabel}>Periode</Text>
-          <Text style={styles.metaValue}>{data.periode}</Text>
-        </View>
-        <View style={styles.metaRow}>
-          <Text style={styles.metaLabel}>Status</Text>
-          <Text
-            style={
-              data.statusBulanan === "Disetujui"
-                ? styles.statusApproved
-                : data.statusBulanan === "Revisi"
-                  ? styles.statusRevision
-                  : styles.statusPending
-            }
-          >
-            {data.statusBulanan}
-          </Text>
-        </View>
+        {data.unitKerja ? (
+          <View style={styles.metaRow}>
+            <Text style={styles.metaLabel}>Unit Kerja</Text>
+            <Text style={styles.metaValue}>{data.unitKerja}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.divider} />
 
-        {data.days.length === 0 && (
-          <Text style={styles.empty}>Belum ada kegiatan pada periode ini.</Text>
+        {data.tambahan.length === 0 && (
+          <Text style={styles.empty}>Belum ada section untuk user ini.</Text>
         )}
-
-        {data.days.map((day) => (
-          <View key={day.label}>
-            <Text style={styles.dateHeading}>{day.label}</Text>
-            {day.kegiatan.map((kegiatan, index) => (
-              <View key={`${day.label}-${index}`} style={styles.kegiatanBox}>
-                <Text style={styles.fieldLabel}>Nama Kegiatan</Text>
-                <Text style={styles.fieldValue}>{kegiatan.nama}</Text>
-                <View style={{ marginTop: 3 }}>
-                  <StatusLine status={kegiatan.status} catatan={kegiatan.catatan} />
-                </View>
-                {kegiatan.blocks.length > 0 && (
-                  <Text style={styles.fieldLabel}>Keterangan</Text>
-                )}
-                {kegiatan.blocks.map((block, blockIndex) =>
-                  block.tipe === "text" ? (
-                    <Text key={blockIndex} style={styles.paragraph}>
-                      {block.text}
-                    </Text>
-                  ) : block.imageUrl ? (
-                    <View key={blockIndex}>
-                      {/* eslint-disable-next-line jsx-a11y/alt-text -- Image react-pdf tidak menerima prop alt */}
-                      <Image src={block.imageUrl} style={styles.image} />
-                      {block.text && <Text style={styles.caption}>{block.text}</Text>}
-                    </View>
-                  ) : null
-                )}
-              </View>
-            ))}
-          </View>
-        ))}
 
         {data.tambahan.map((laporan) => (
           <View key={laporan.judul} break={laporan.baris.length > 6}>
@@ -205,8 +112,11 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
             {laporan.deskripsi ? (
               <Text style={[styles.paragraph, { color: "#6e6e73" }]}>{laporan.deskripsi}</Text>
             ) : null}
-            {!laporan.kepalaJudul &&
-              (laporan.baris.length === 0 ? (
+            {laporan.format === "judul" ? null : laporan.format === "esai" ? (
+              <Text style={styles.paragraph}>
+                {laporan.baris[0]?.[0] || "Belum ada isian."}
+              </Text>
+            ) : laporan.baris.length === 0 ? (
               <Text style={styles.empty}>Belum ada isian.</Text>
             ) : (
               <View>
@@ -229,16 +139,9 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
                   </View>
                 ))}
               </View>
-              )
             )}
           </View>
         ))}
-        <Text style={styles.dateHeading}>REKOMENDASI DAN TINDAK LANJUT</Text>
-        {data.rekomendasi ? (
-          <Text style={styles.paragraph}>{data.rekomendasi}</Text>
-        ) : (
-          <Text style={styles.empty}>Belum ada rekomendasi.</Text>
-        )}
 
         <Text
           style={styles.footer}

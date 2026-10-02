@@ -1,20 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { HiBell } from "react-icons/hi2";
 
-// Topbar mobile ala YouTube: logo kiri, bel badge dan avatar kanan.
+// Topbar mobile ala YouTube: logo kiri, avatar kanan.
 // Hanya tampil di mobile, desktop memakai sidebar kaca kiri.
-export function MobileTopbar({
-  badgeCount,
-  bellHref,
-  initial,
-}: {
-  badgeCount: number;
-  bellHref: string;
-  initial: string;
-}) {
-  const badge = badgeCount > 9 ? "9+" : String(badgeCount);
-
+export function MobileTopbar({ initial }: { initial: string }) {
   return (
     <header className="mchrome-bar sticky top-0 z-30 border-b md:hidden">
       <div className="flex min-h-14 items-center justify-between gap-3 px-4">
@@ -41,23 +30,6 @@ export function MobileTopbar({
         </Link>
 
         <div className="flex items-center gap-1">
-          <Link
-            href={bellHref}
-            aria-label={
-              badgeCount > 0 ? `Notifikasi, ${badgeCount} baru` : "Notifikasi"
-            }
-            className="relative flex size-11 items-center justify-center rounded-full"
-          >
-            <HiBell aria-hidden="true" className="size-6" />
-            {badgeCount > 0 && (
-              <span
-                aria-hidden="true"
-                className="mchrome-badge absolute top-1 right-0.5 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 bg-[#ff0033] px-1 text-[10px] font-semibold text-white"
-              >
-                {badge}
-              </span>
-            )}
-          </Link>
           <Link
             href="/anda"
             aria-label="Akun Anda"

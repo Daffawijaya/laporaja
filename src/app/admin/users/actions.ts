@@ -21,7 +21,6 @@ export interface UserFormInput {
   password: string;
   bidangId: string | null;
   subBidang: string[];
-  indikators: { nama: string; target: number | null }[];
 }
 
 // Galat khusus agar pemanggil dapat membedakan sesi berakhir dari galat lain.
@@ -62,32 +61,6 @@ function cleanNama(nama: unknown): string {
   return cleaned;
 }
 
-function cleanIndikators(list: unknown): { nama: string; target: number | null }[] {
-  if (!Array.isArray(list)) return [];
-  const out: { nama: string; target: number | null }[] = [];
-  for (const item of list) {
-    if (typeof item !== "object" || item === null) continue;
-    const record = item as { nama?: unknown; target?: unknown };
-    const nama = typeof record.nama === "string" ? record.nama.trim() : "";
-    const targetRaw =
-      typeof record.target === "string" ? record.target.trim() : record.target;
-    // Target opsional: kosong = null (tanpa target).
-    const target =
-      targetRaw === undefined || targetRaw === "" || targetRaw === null
-        ? null
-        : Number(targetRaw);
-    if (nama.length === 0 && target === null) continue;
-    if (nama.length < 2 || nama.length > 120) {
-      throw new Error("Setiap indikator harus 2-120 karakter.");
-    }
-    if (target !== null && (!Number.isInteger(target) || target < 1 || target > 100000)) {
-      throw new Error("Target per bulan harus angka bulat 1 sampai 100000.");
-    }
-    out.push({ nama, target });
-  }
-  return out;
-}
-
 function toFailure(error: unknown): UserActionResult {
   if (error instanceof UnauthorizedError) {
     return {
@@ -115,7 +88,6 @@ export async function createUserAction(
     }
     const bidangId = input.bidangId || null;
     const subs = cleanSubBidang(input.subBidang);
-    const indikators = cleanIndikators(input.indikators);
 
     const admin = createAdminClient();
 
@@ -167,19 +139,6 @@ export async function createUserAction(
       }
     }
 
-    if (indikators.length > 0) {
-      const { error: indikatorError } = await admin.from("indikator").insert(
-        indikators.map((indikator) => ({
-          user_id: userId,
-          nama: indikator.nama,
-          target_bulanan: indikator.target,
-        }))
-      );
-      if (indikatorError) {
-        throw new Error("User dibuat, tetapi indikator gagal disimpan. Coba lagi.");
-      }
-    }
-
     revalidatePath("/admin/users");
     return { ok: true, message: `User '${username}' ditambahkan.` };
   } catch (error) {
@@ -202,7 +161,6 @@ export async function updateUserAction(
     }
     const bidangId = input.bidangId || null;
     const subs = cleanSubBidang(input.subBidang);
-    const indikators = cleanIndikators(input.indikators);
 
     const admin = createAdminClient();
 
@@ -265,52 +223,6 @@ export async function updateUserAction(
       );
       if (subError) {
         throw new Error("Gagal menyimpan sub bidang. Coba lagi.");
-      }
-    }
-
-    // Indikator digabung berdasar nama agar tautan kegiatan tidak hilang:
-    // yang sama dipertahankan, yang baru ditambah, yang dibuang dihapus.
-    const { data: indikatorLama, error: indikatorBacaError } = await admin
-      .from("indikator")
-      .select("id, nama, target_bulanan")
-      .eq("user_id", id);
-    if (indikatorBacaError) {
-      throw new Error("Gagal menyimpan indikator. Coba lagi.");
-    }
-    const lamaByNama = new Map(
-      (indikatorLama ?? []).map((row) => [row.nama, row])
-    );
-    const dipertahankan = new Set<string>();
-    for (const indikator of indikators) {
-      const lama = lamaByNama.get(indikator.nama);
-      if (lama) {
-        dipertahankan.add(lama.id);
-        if (lama.target_bulanan !== indikator.target) {
-          const { error: ubahError } = await admin
-            .from("indikator")
-            .update({ nama: indikator.nama, target_bulanan: indikator.target })
-            .eq("id", lama.id);
-          if (ubahError) throw new Error("Gagal menyimpan indikator. Coba lagi.");
-        }
-      } else {
-        const { error: tambahError } = await admin.from("indikator").insert({
-          user_id: id,
-          nama: indikator.nama,
-          target_bulanan: indikator.target,
-        });
-        if (tambahError) throw new Error("Gagal menyimpan indikator. Coba lagi.");
-      }
-    }
-    const dibuang = (indikatorLama ?? [])
-      .map((row) => row.id)
-      .filter((indikatorId) => !dipertahankan.has(indikatorId));
-    if (dibuang.length > 0) {
-      const { error: hapusIndikatorError } = await admin
-        .from("indikator")
-        .delete()
-        .in("id", dibuang);
-      if (hapusIndikatorError) {
-        throw new Error("Gagal menyimpan indikator. Coba lagi.");
       }
     }
 

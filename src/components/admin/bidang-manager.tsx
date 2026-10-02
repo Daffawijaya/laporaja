@@ -2,17 +2,16 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Flag, Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, useModalKey } from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GlassMenu } from "@/components/ui/glass-menu";
 import { RefListCard } from "@/components/ui/ref-list-card";
-import { IndikatorBidangDialog } from "@/components/admin/indikator-bidang-dialog";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
@@ -29,15 +28,6 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
   const [deleteTarget, setDeleteTarget] = useState<BidangWithCount | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
-  const [indikatorBidang, setIndikatorBidang] = useState<BidangWithCount | null>(null);
-
-  // Selalu ke-mount agar exit animation jalan; key diganti tiap dibuka.
-  const [indikatorKey, reopenIndikator] = useModalKey();
-
-  function openIndikator(item: BidangWithCount) {
-    reopenIndikator(`indikator-${item.id}`);
-    setIndikatorBidang(item);
-  }
 
   // Filter dari search global titlebar (?q=).
   const searchParams = useSearchParams();
@@ -209,12 +199,6 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
                       label={`Aksi ${item.nama}`}
                       items={[
                         {
-                          key: "indikator",
-                          label: "Indikator",
-                          icon: <Flag aria-hidden="true" />,
-                          onSelect: () => openIndikator(item),
-                        },
-                        {
                           key: "edit",
                           label: "Ubah",
                           icon: <Pencil aria-hidden="true" />,
@@ -306,13 +290,6 @@ export function BidangManager({ initial }: { initial: BidangWithCount[] }) {
         onConfirm={handleDelete}
       />
 
-      <IndikatorBidangDialog
-        key={indikatorKey}
-        bidangId={indikatorBidang?.id ?? ""}
-        bidangNama={indikatorBidang?.nama ?? ""}
-        open={indikatorBidang !== null}
-        onClose={() => setIndikatorBidang(null)}
-      />
     </div>
   );
 }

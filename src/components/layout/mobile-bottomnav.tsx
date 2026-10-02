@@ -1,27 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  HiChartBar,
   HiClipboardDocumentCheck,
   HiClipboardDocumentList,
-  HiFlag,
   HiHome,
-  HiOutlineChartBar,
   HiOutlineClipboardDocumentCheck,
   HiOutlineClipboardDocumentList,
-  HiOutlineFlag,
   HiOutlineHome,
-  HiOutlinePlus,
   HiOutlineSquares2X2,
+  HiOutlineUserCircle,
   HiOutlineUsers,
-  HiPlus,
   HiSquares2X2,
+  HiUserCircle,
   HiUsers,
 } from "react-icons/hi2";
-import { MdNotifications, MdOutlineNotifications } from "react-icons/md";
 
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/supabase/database.types";
@@ -30,29 +24,13 @@ interface Slot {
   key: string;
   label: string;
   href: string;
-  hash?: string;
   ActiveIcon: React.ComponentType<{ className?: string }>;
   IdleIcon: React.ComponentType<{ className?: string }>;
 }
 
 const USER_SLOTS: Slot[] = [
   { key: "beranda", label: "Beranda", href: "/", ActiveIcon: HiHome, IdleIcon: HiOutlineHome },
-  {
-    key: "indikator",
-    label: "Indikator",
-    href: "/laporan",
-    hash: "#indikator",
-    ActiveIcon: HiFlag,
-    IdleIcon: HiOutlineFlag,
-  },
-  { key: "tambah", label: "Tambah", href: "/laporan", ActiveIcon: HiPlus, IdleIcon: HiOutlinePlus },
-  {
-    key: "notifikasi",
-    label: "Notifikasi",
-    href: "/laporan/notifikasi",
-    ActiveIcon: MdNotifications,
-    IdleIcon: MdOutlineNotifications,
-  },
+  { key: "anda", label: "Anda", href: "/anda", ActiveIcon: HiUserCircle, IdleIcon: HiOutlineUserCircle },
 ];
 
 const ADMIN_SLOTS: Slot[] = [
@@ -73,13 +51,6 @@ const ADMIN_SLOTS: Slot[] = [
     IdleIcon: HiOutlineSquares2X2,
   },
   {
-    key: "indikator",
-    label: "Indikator",
-    href: "/admin/indikator",
-    ActiveIcon: HiFlag,
-    IdleIcon: HiOutlineFlag,
-  },
-  {
     key: "tambahan",
     label: "Section",
     href: "/admin/section",
@@ -94,25 +65,10 @@ const ADMIN_SLOTS: Slot[] = [
 // Hanya tampil di mobile, desktop memakai sidebar kiri.
 export function MobileBottomnav({ role }: { role: Role }) {
   const pathname = usePathname();
-  const [hash, setHash] = useState("");
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setHash(window.location.hash), 0);
-    function onHash() {
-      setHash(window.location.hash);
-    }
-    window.addEventListener("hashchange", onHash);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("hashchange", onHash);
-    };
-  }, [pathname]);
 
   const slots = role === "superadmin" ? ADMIN_SLOTS : USER_SLOTS;
 
   function isActive(slot: Slot): boolean {
-    if (slot.hash) return pathname === slot.href && hash === slot.hash;
-    if (slot.key === "tambah") return pathname === slot.href && hash !== "#indikator";
     if (slot.href === "/" || slot.href === "/admin") return pathname === slot.href;
     return pathname === slot.href || pathname.startsWith(`${slot.href}/`);
   }
@@ -130,7 +86,7 @@ export function MobileBottomnav({ role }: { role: Role }) {
           return (
             <Link
               key={slot.key}
-              href={slot.hash ? `${slot.href}${slot.hash}` : slot.href}
+              href={slot.href}
               aria-current={active ? "page" : undefined}
               className="flex min-h-[60px] flex-1 flex-col items-center justify-center gap-0.5 px-1"
             >

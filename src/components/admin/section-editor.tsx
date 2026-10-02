@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Reorder, useDragControls } from "motion/react";
-import { Copy, GripHorizontal, Plus, Trash2 } from "lucide-react";
+import { Copy, GripHorizontal, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -13,13 +13,19 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
-import type { SectionKode } from "@/lib/supabase/database.types";
 import type { KolomTipe } from "@/lib/laporan-tambahan/queries";
 import type { BuilderItem } from "@/lib/laporan-tambahan/queries";
-import {
-  IsianSectionCard,
-  TIPE_OPTIONS,
-} from "@/components/admin/laporan-tambahan-form";
+
+export const TIPE_OPTIONS: { value: KolomTipe; label: string }[] = [
+  { value: "text", label: "Isian" },
+  { value: "textarea", label: "Paragraf" },
+  { value: "date", label: "Tanggal" },
+  { value: "number", label: "Angka" },
+];
+
+export function labelTipe(tipe: KolomTipe): string {
+  return TIPE_OPTIONS.find((opsi) => opsi.value === tipe)?.label ?? tipe;
+}
 
 export function editorKey(item: Pick<BuilderItem, "kind" | "id">): string {
   return `${item.kind}-${item.id}`;
@@ -71,80 +77,72 @@ function sesiBerakhir(
 function KolomRows({
   kolom,
   onPatch,
-  onDuplicate,
   onRemove,
   onAdd,
   disabled,
 }: {
   kolom: KolomDraft[];
   onPatch: (key: number, patch: Partial<KolomDraft>) => void;
-  onDuplicate: (key: number) => void;
   onRemove: (key: number) => void;
   onAdd: () => void;
   disabled: boolean;
 }) {
   return (
     <div>
-      <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
-        {kolom.map((col, index) => (
-          <li
-            key={col.key}
-            className={
-              kolom.length === 1
-                ? "px-1"
-                : index === 0
-                  ? "px-1 pb-3"
-                  : index === kolom.length - 1
-                    ? "px-1 pt-3"
-                    : "px-1 py-3"
-            }
-          >
-            <div className="flex items-center gap-2">
-              <Label htmlFor={`ekolom-${col.key}`} className="sr-only">
-                {`Kolom ${index + 1}`}
-              </Label>
-              <Input
-                id={`ekolom-${col.key}`}
-                value={col.label}
-                onChange={(event) => onPatch(col.key, { label: event.target.value })}
-                placeholder="Judul kolom"
-                disabled={disabled}
-                className="h-11 min-w-0 flex-1 border-transparent bg-black/[0.075] text-sm hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
-              />
-              <GlassSelect
-                ariaLabel={`Bentuk isian kolom ${index + 1}`}
-                value={col.tipe}
-                onChange={(value) => onPatch(col.key, { tipe: value as KolomTipe })}
-                options={TIPE_OPTIONS}
-                disabled={disabled}
-                className="w-32 shrink-0 sm:w-36"
-              />
-              <span className="flex shrink-0 items-center">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onDuplicate(col.key)}
-                  disabled={disabled}
-                  aria-label={`Gandakan kolom ${index + 1}`}
+      <div className="overflow-x-auto px-1">
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-neutral-200/70 dark:border-white/10">
+              {kolom.map((col, index) => (
+                <th
+                  key={col.key}
+                  scope="col"
+                  className="min-w-36 px-2 py-2 text-left align-top"
                 >
-                  <Copy aria-hidden="true" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onRemove(col.key)}
-                  disabled={disabled || kolom.length <= 1}
-                  aria-label={`Hapus kolom ${index + 1}`}
-                >
-                  <Trash2 aria-hidden="true" />
-                </Button>
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
+                  <Label htmlFor={`ekolom-${col.key}`} className="sr-only">
+                    {`Kolom ${index + 1}`}
+                  </Label>
+                  <Input
+                    id={`ekolom-${col.key}`}
+                    value={col.label}
+                    onChange={(event) => onPatch(col.key, { label: event.target.value })}
+                    placeholder={`Kolom ${index + 1}`}
+                    disabled={disabled}
+                    className="h-11 w-full border-transparent bg-black/[0.075] text-sm hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
+                  />
+                </th>
+              ))}
+            </tr>
+            <tr>
+              {kolom.map((col, index) => (
+                <td key={col.key} className="px-2 py-2">
+                  <span className="flex items-center gap-1">
+                    <GlassSelect
+                      ariaLabel={`Bentuk isian kolom ${index + 1}`}
+                      value={col.tipe}
+                      onChange={(value) => onPatch(col.key, { tipe: value as KolomTipe })}
+                      options={TIPE_OPTIONS}
+                      disabled={disabled}
+                      className="min-w-0 flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onRemove(col.key)}
+                      disabled={disabled || kolom.length <= 1}
+                      aria-label={`Hapus kolom ${index + 1}`}
+                      className="shrink-0 rounded-full"
+                    >
+                      <X aria-hidden="true" />
+                    </Button>
+                  </span>
+                </td>
+              ))}
+            </tr>
+          </thead>
+        </table>
+      </div>
       <Button
         type="button"
         variant="secondary"
@@ -159,12 +157,16 @@ function KolomRows({
   );
 }
 
-const INFO_LABELS = ["Bulan", "Tahun", "Nama"];
+const INFO_BARIS = [
+  { kunci: "bulan", label: "Bulan", sunting: false },
+  { kunci: "tahun", label: "Tahun", sunting: false },
+  { kunci: "nama", label: "Nama", sunting: false },
+  { kunci: "jabatan", label: "Jabatan", sunting: true },
+  { kunci: "unit_kerja", label: "Unit kerja", sunting: true },
+] as const;
 
-// Isian kartu Info: baris dokumentasi (mengikuti data user, tanpa
-// dropdown) + Jabatan dan Unit kerja yang bisa diketik dan tersimpan
-// otomatis. Jabatan di sini hanya awalan; sisanya ikut bidang dan
-// sub bidang user.
+// Isian kartu Info: baris dokumentasi (mengikuti data user) + Jabatan dan
+// Unit kerja yang bisa diketik dan tersimpan otomatis.
 function InfoIsianCard({
   jabatanAwal,
   unitAwal,
@@ -189,6 +191,7 @@ function InfoIsianCard({
     setUnit(unitAwal);
     setSavedSnap(JSON.stringify({ j: jabatanAwal.trim(), u: unitAwal.trim() }));
   }
+
   const masalah = (() => {
     const j = jabatan.trim();
     const u = unit.trim();
@@ -238,40 +241,37 @@ function InfoIsianCard({
     return () => window.clearTimeout(timer);
   }, [snap, savedSnap, masalah, saving, simpan, jabatan, unit]);
 
-  const baris = [...INFO_LABELS, "Jabatan", "Unit kerja"];
   return (
     <div>
       <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
-        {baris.map((label, index) => {
+        {INFO_BARIS.map((baris, index) => {
           const pad =
-            baris.length === 1
-              ? "px-1"
-              : index === 0
-                ? "px-1 pb-3"
-                : index === baris.length - 1
-                  ? "px-1 pt-3"
-                  : "px-1 py-3";
-          const editable = label === "Jabatan" || label === "Unit kerja";
-          const isJabatan = label === "Jabatan";
+            index === 0
+              ? "px-1 pb-3"
+              : index === INFO_BARIS.length - 1
+                ? "px-1 pt-3"
+                : "px-1 py-3";
+          const nilai =
+            baris.kunci === "jabatan" ? jabatan : baris.kunci === "unit_kerja" ? unit : baris.label;
           return (
-            <li key={label} className={pad}>
-              <Label htmlFor={`info-${label}`} className="sr-only">
-                {label}
+            <li key={baris.kunci} className={pad}>
+              <Label htmlFor={`info-${baris.label}`} className="sr-only">
+                {baris.label}
               </Label>
               <Input
-                id={`info-${label}`}
-                value={isJabatan ? jabatan : editable ? unit : label}
+                id={`info-${baris.label}`}
+                value={nilai}
                 onChange={
-                  editable
+                  baris.sunting
                     ? (event) => {
-                        if (isJabatan) setJabatan(event.target.value);
+                        if (baris.kunci === "jabatan") setJabatan(event.target.value);
                         else setUnit(event.target.value);
                         setError(null);
                       }
                     : undefined
                 }
-                disabled={!editable}
-                placeholder={editable ? label : undefined}
+                disabled={!baris.sunting}
+                placeholder={baris.sunting ? baris.label : undefined}
                 className="h-11 w-full min-w-0 flex-1 border-transparent bg-black/[0.075] text-sm hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
               />
             </li>
@@ -291,24 +291,126 @@ function InfoIsianCard({
     </div>
   );
 }
+
+
+
+// Kartu Info statis di atas tumpukan (bukan section, tidak bisa
+// digeser/dihapus): jabatan dan unit kerja tersimpan otomatis.
+export function InfoCard({
+  judulAwal,
+  jabatanAwal,
+  unitAwal,
+}: {
+  judulAwal: string;
+  jabatanAwal: string;
+  unitAwal: string;
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const [judul, setJudul] = useState(judulAwal);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [prev, setPrev] = useState(judulAwal);
+  if (prev !== judulAwal) {
+    setPrev(judulAwal);
+    setJudul(judulAwal);
+  }
+  const snap = judul.trim();
+  const [savedSnap, setSavedSnap] = useState(judulAwal.trim());
+  const masalah =
+    snap.length < 2 || snap.length > 120 ? "Judul harus 2-120 karakter." : null;
+
+  const simpan = useCallback(
+    async (nilai: string) => {
+      setSaving(true);
+      setError(null);
+      try {
+        const supabase = createClient();
+        const { error } = await supabase
+          .from("pengaturan")
+          .upsert({ kunci: "info_judul", nilai }, { onConflict: "kunci" });
+        if (error) {
+          if (error instanceof SessionExpiredError || isSessionError(error)) {
+            toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
+            router.replace("/login?expired=1");
+            return;
+          }
+          setError("Gagal menyimpan. Coba lagi.");
+          return;
+        }
+        setSavedSnap(nilai);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [router, toast]
+  );
+
+  useEffect(() => {
+    if (snap === savedSnap || masalah || saving) return;
+    const timer = window.setTimeout(() => {
+      void simpan(snap);
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [snap, savedSnap, masalah, saving, simpan]);
+
+  return (
+    <div className="ref-card p-4">
+      <Label htmlFor="info-judul" className="sr-only">
+        Judul info
+      </Label>
+      <Input
+        id="info-judul"
+        value={judul}
+        onChange={(event) => {
+          setJudul(event.target.value);
+          setError(null);
+        }}
+        placeholder="Judul info"
+        className="h-auto rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 pt-0 pb-1 text-[17px] leading-none font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 focus-visible:border-accent focus-visible:ring-0 dark:border-white/15"
+      />
+      {(error ?? masalah) && (
+        <p role="alert" className="mt-2 px-1 text-sm text-danger">
+          {error ?? masalah}
+        </p>
+      )}
+      {saving && (
+        <p aria-live="polite" className="mt-2 px-1 text-xs text-neutral-500">
+          Menyimpan…
+        </p>
+      )}
+      <div className="mt-2">
+        <InfoIsianCard jabatanAwal={jabatanAwal} unitAwal={unitAwal} />
+      </div>
+    </div>
+  );
+}
+
 export function SectionCard({
   item,
   dragAktif,
   autoFocusJudul,
-  jabatanAwal,
-  unitKerjaAwal,
+  bidangList,
+  bidangBusy,
+  onToggleBidang,
   onMoveKey,
+  onDuplicateRequest,
   onDeleteRequest,
   onSaved,
+  aksiBusy,
 }: {
   item: BuilderItem;
   dragAktif: boolean;
   autoFocusJudul?: boolean;
-  jabatanAwal: string;
-  unitKerjaAwal: string;
+  bidangList: { id: string; nama: string }[];
+  bidangBusy: string | null;
+  onToggleBidang: (item: BuilderItem, bidangId: string) => void;
   onMoveKey: (item: BuilderItem, arah: -1 | 1) => void;
+  onDuplicateRequest: (item: BuilderItem) => void;
   onDeleteRequest: (item: BuilderItem) => void;
   onSaved: () => void;
+  aksiBusy: boolean;
 }) {
   const controls = useDragControls();
   const router = useRouter();
@@ -341,42 +443,29 @@ export function SectionCard({
     setSavedSnap(snapOf(item.judul, item.deskripsi ?? "", segar));
   }
 
-  const dinamis = item.kind === "tambahan";
-  const esai = dinamis && item.format === "esai";
-  const kepala = dinamis && item.format === "judul";
-  const pakaiKolom = dinamis && item.format === "tabel";
-  const infoRingkas = item.kind === "section" && item.id === "info";
+  const esai = item.format === "esai";
+  const kepala = item.format === "judul";
+  const pakaiKolom = item.format === "tabel";
 
   // Validasi ringan saat mengetik (ditampilkan, tidak toast).
   let masalah: string | null = null;
   const cj = judul.trim();
-  if (!infoRingkas) {
-    if (cj.length < 2 || cj.length > 120) {
-      masalah = "Judul section harus 2-120 karakter.";
-    } else if (pakaiKolom) {
-      if (kolom.length === 0) {
-        masalah = "Tambahkan minimal satu kolom isian.";
-      } else {
-        const buruk = kolom.find((col) => {
-          const label = col.label.trim();
-          return label.length < 2 || label.length > 120;
-        });
-        if (buruk) masalah = "Judul kolom harus 2-120 karakter.";
-      }
+  if (cj.length < 2 || cj.length > 120) {
+    masalah = "Judul section harus 2-120 karakter.";
+  } else if (pakaiKolom) {
+    if (kolom.length === 0) {
+      masalah = "Tambahkan minimal satu kolom isian.";
+    } else {
+      const buruk = kolom.find((col) => {
+        const label = col.label.trim();
+        return label.length < 2 || label.length > 120;
+      });
+      if (buruk) masalah = "Judul kolom harus 2-120 karakter.";
     }
   }
 
   function patchKolom(key: number, patch: Partial<KolomDraft>) {
     setKolom((prev) => prev.map((col) => (col.key === key ? { ...col, ...patch } : col)));
-    setError(null);
-  }
-
-  function duplicateKolom(key: number) {
-    setKolom((prev) => {
-      const index = prev.findIndex((col) => col.key === key);
-      if (index < 0) return prev;
-      return [...prev.slice(0, index + 1), kolomBaru(prev[index].label), ...prev.slice(index + 1)];
-    });
     setError(null);
   }
 
@@ -391,7 +480,7 @@ export function SectionCard({
     setError(null);
     try {
       const supabase = createClient();
-      if (kepala && dinamis) {
+      if (kepala) {
         const patch: { judul?: string; deskripsi?: string | null } = {};
         if (cleanedJudul !== item.judul) patch.judul = cleanedJudul;
         const cleanedDesc = deskripsi.trim();
@@ -410,23 +499,17 @@ export function SectionCard({
           }
         }
       } else if (cleanedJudul !== item.judul) {
-        const { error } =
-          item.kind === "section"
-            ? await supabase
-                .from("laporan_section")
-                .update({ judul: cleanedJudul })
-                .eq("kode", item.id as SectionKode)
-            : await supabase
-                .from("laporan_tambahan")
-                .update({ judul: cleanedJudul })
-                .eq("id", item.id);
+        const { error } = await supabase
+          .from("laporan_tambahan")
+          .update({ judul: cleanedJudul })
+          .eq("id", item.id);
         if (error) {
           if (sesiBerakhir(toast, router, error)) return;
           setError("Gagal menyimpan. Coba lagi.");
           return;
         }
       }
-      if (pakaiKolom && dinamis) {
+      if (pakaiKolom) {
         const keptIds = new Set(
           cleanedKolom.filter((col) => col.id !== null).map((col) => col.id as string)
         );
@@ -485,16 +568,16 @@ export function SectionCard({
       savingRef.current = false;
       setSaving(false);
     }
-  }, [dinamis, item, judul, deskripsi, kepala, kolom, onSaved, pakaiKolom, router, toast]);
+  }, [item, judul, deskripsi, kepala, kolom, onSaved, pakaiKolom, router, toast]);
 
   // Simpan otomatis 800 mdetik sesudah berhenti mengetik.
   useEffect(() => {
-    if (infoRingkas || snap === savedSnap || masalah || saving) return;
+    if (snap === savedSnap || masalah || saving) return;
     const timer = window.setTimeout(() => {
       void simpan(snap);
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [snap, savedSnap, masalah, saving, infoRingkas, simpan]);
+  }, [snap, savedSnap, masalah, saving, simpan]);
 
   const gagang = (
     <div className="flex justify-center">
@@ -524,34 +607,17 @@ export function SectionCard({
     </div>
   );
 
-  // Kartu Info ringkas: hanya gagang + isian (jabatan dan unit kerja
-  // tersimpan otomatis, sisanya mengikuti data user).
-  if (infoRingkas) {
-    const minimal = (
-      <div className="ref-card px-4 pt-1 pb-4">
-        {gagang}
-        <InfoIsianCard jabatanAwal={jabatanAwal} unitAwal={unitKerjaAwal} />
-      </div>
-    );
-    if (!dragAktif) return minimal;
-    return (
-      <Reorder.Item value={editorKey(item)} as="div" dragListener={false} dragControls={controls}>
-        {minimal}
-      </Reorder.Item>
-    );
-  }
-
   const card = (
     <div className="ref-card px-4 pt-1 pb-4">
       {gagang}
       <div className="flex items-center gap-1">
         <div className="min-w-0 flex-1">
-          <Label htmlFor={`ejudul-${item.kind}-${item.id}`} className="sr-only">
+          <Label htmlFor={`ejudul-${item.id}`} className="sr-only">
             Judul section
           </Label>
           <Input
             ref={judulRef}
-            id={`ejudul-${item.kind}-${item.id}`}
+            id={`ejudul-${item.id}`}
             value={judul}
             onChange={(event) => {
               setJudul(event.target.value);
@@ -561,11 +627,6 @@ export function SectionCard({
             className="h-auto rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 pt-0 pb-1 text-[17px] leading-none font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 focus-visible:border-accent focus-visible:ring-0 dark:border-white/15"
           />
         </div>
-        {item.kind === "section" && (
-          <span className="shrink-0 rounded-full bg-black/[0.075] px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-white/10">
-            Section
-          </span>
-        )}
         {esai && (
           <span className="shrink-0 rounded-full bg-black/[0.075] px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-white/10">
             Esai
@@ -576,15 +637,6 @@ export function SectionCard({
             Judul
           </span>
         )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => onDeleteRequest(item)}
-          aria-label={`Hapus ${item.judul}`}
-        >
-          <Trash2 aria-hidden="true" />
-        </Button>
       </div>
 
       <div className="mt-2">
@@ -592,7 +644,6 @@ export function SectionCard({
           <KolomRows
             kolom={kolom}
             onPatch={patchKolom}
-            onDuplicate={duplicateKolom}
             onRemove={(key) => {
               setKolom((prev) => prev.filter((col) => col.key !== key));
               setError(null);
@@ -603,13 +654,71 @@ export function SectionCard({
             }}
             disabled={false}
           />
-        ) : item.kind === "section" ? (
-          <IsianSectionCard kode={item.id} />
         ) : esai ? (
           <p className="px-1 text-xs text-neutral-500">
             Bentuk esai: user mengisi satu teks panjang.
           </p>
         ) : null}
+      </div>
+
+      <div className="mt-3 border-t border-neutral-200/70 px-1 pt-3 dark:border-white/10">
+        <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap gap-2">
+            {bidangList.length === 0 ? (
+              <p className="text-xs text-neutral-500">
+                Belum ada bidang. Tambahkan dulu di menu Bidang.
+              </p>
+            ) : (
+              bidangList.map((bidang) => {
+                const aktif = item.bidang.some((row) => row.id === bidang.id);
+                const kunci = `${editorKey(item)}-${bidang.id}`;
+                return (
+                  <button
+                    key={bidang.id}
+                    type="button"
+                    aria-pressed={aktif}
+                    aria-label={`${aktif ? "Hapus" : "Tambah"} bidang ${bidang.nama} untuk ${item.judul}`}
+                    disabled={bidangBusy !== null}
+                    onClick={() => onToggleBidang(item, bidang.id)}
+                    className={
+                      aktif
+                        ? "inline-flex min-h-[44px] items-center rounded-full border border-transparent bg-foreground px-4 text-xs font-medium text-background transition-soft disabled:opacity-50"
+                        : "inline-flex min-h-[44px] items-center rounded-full border border-border px-4 text-xs text-muted-foreground transition-soft hover:text-foreground disabled:opacity-50"
+                    }
+                  >
+                    {bidangBusy === kunci ? "..." : bidang.nama}
+                  </button>
+                );
+              })
+            )}
+          </div>
+          <span className="flex shrink-0 items-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onDuplicateRequest(item)}
+              disabled={aksiBusy}
+              aria-label={`Salin ${item.judul}`}
+              title={`Salin ${item.judul}`}
+              className="rounded-full"
+            >
+              <Copy aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onDeleteRequest(item)}
+              disabled={aksiBusy}
+              aria-label={`Hapus ${item.judul}`}
+              title={`Hapus ${item.judul}`}
+              className="rounded-full"
+            >
+              <Trash2 aria-hidden="true" />
+            </Button>
+          </span>
+        </div>
       </div>
 
       {(error ?? masalah) && (
@@ -643,24 +752,30 @@ export function SectionEditor({
   ordered,
   query,
   focusId,
-  jabatanAwal,
-  unitKerjaAwal,
+  bidangList,
+  bidangBusy,
+  onToggleBidang,
   onReorder,
   onMoveKey,
+  onDuplicateRequest,
   onDeleteRequest,
   onSaved,
   onTambah,
+  aksiBusy,
 }: {
   ordered: BuilderItem[];
   query: string;
   focusId: string | null;
-  jabatanAwal: string;
-  unitKerjaAwal: string;
+  bidangList: { id: string; nama: string }[];
+  bidangBusy: string | null;
+  onToggleBidang: (item: BuilderItem, bidangId: string) => void;
   onReorder: (keys: string[]) => void;
   onMoveKey: (item: BuilderItem, arah: -1 | 1) => void;
+  onDuplicateRequest: (item: BuilderItem) => void;
   onDeleteRequest: (item: BuilderItem) => void;
   onSaved: () => void;
   onTambah: () => void;
+  aksiBusy: boolean;
 }) {
   const visible = query
     ? ordered.filter((item) => item.judul.toLowerCase().includes(query))
@@ -697,11 +812,14 @@ export function SectionEditor({
               item={item}
               dragAktif={false}
               autoFocusJudul={focusId === editorKey(item)}
-              jabatanAwal={jabatanAwal}
-              unitKerjaAwal={unitKerjaAwal}
+              bidangList={bidangList}
+              bidangBusy={bidangBusy}
+              onToggleBidang={onToggleBidang}
               onMoveKey={onMoveKey}
+              onDuplicateRequest={onDuplicateRequest}
               onDeleteRequest={onDeleteRequest}
               onSaved={onSaved}
+              aksiBusy={aksiBusy}
             />
           ))}
         </div>
@@ -725,11 +843,14 @@ export function SectionEditor({
           item={item}
           dragAktif
           autoFocusJudul={focusId === editorKey(item)}
-          jabatanAwal={jabatanAwal}
-          unitKerjaAwal={unitKerjaAwal}
+          bidangList={bidangList}
+          bidangBusy={bidangBusy}
+          onToggleBidang={onToggleBidang}
           onMoveKey={onMoveKey}
+          onDuplicateRequest={onDuplicateRequest}
           onDeleteRequest={onDeleteRequest}
           onSaved={onSaved}
+          aksiBusy={aksiBusy}
         />
       ))}
     </Reorder.Group>

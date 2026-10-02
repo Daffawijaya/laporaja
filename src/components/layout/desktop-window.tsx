@@ -7,15 +7,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Moon, Search, Sun } from "lucide-react";
 import {
-  HiBell,
-  HiOutlineBell,
   HiClipboardDocumentCheck,
   HiClipboardDocumentList,
-  HiFlag,
   HiHome,
   HiOutlineClipboardDocumentCheck,
   HiOutlineClipboardDocumentList,
-  HiOutlineFlag,
   HiOutlineHome,
   HiOutlineSquares2X2,
   HiOutlineUserCircle,
@@ -24,7 +20,6 @@ import {
   HiUserCircle,
   HiUsers,
 } from "react-icons/hi2";
-import { MdNotifications, MdOutlineNotifications } from "react-icons/md";
 
 import {
   LiquidGlassSidebar,
@@ -38,7 +33,6 @@ interface SideItem {
   key: string;
   label: string;
   href: string;
-  badge?: boolean;
   ActiveIcon: Icon;
   IdleIcon: Icon;
 }
@@ -46,18 +40,14 @@ interface SideItem {
 // Judul topbar per halaman (gaya referensi: satu judul besar di kiri).
 function refTitle(pathname: string): string {
   if (pathname === "/") return "Beranda";
-  if (pathname === "/laporan/notifikasi") return "Notifikasi";
-  if (pathname.startsWith("/laporan/")) return "Detail Kegiatan";
   if (pathname === "/laporan") return "Laporan";
   if (pathname === "/anda") return "Anda";
   if (pathname === "/admin") return "Dashboard";
   if (pathname === "/admin/users") return "Pengguna";
   if (pathname === "/admin/bidang") return "Bidang";
-  if (pathname === "/admin/indikator") return "Indikator";
   if (pathname === "/admin/section") return "Section";
   if (pathname === "/admin/section/baru") return "Buat Section";
   if (pathname === "/admin/laporan") return "Laporan";
-  if (pathname.startsWith("/admin/laporan/")) return "Detail Laporan";
   return "Dashboard";
 }
 
@@ -67,12 +57,10 @@ function refTitle(pathname: string): string {
 export function DesktopWindow({
   role,
   username,
-  badgeCount,
   children,
 }: {
   role: Role;
   username: string;
-  badgeCount: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -108,9 +96,7 @@ export function DesktopWindow({
   }, [q, urlQ, pathname, router, searchParams]);
 
   const isAdmin = role === "superadmin";
-  const bellHref = isAdmin ? "/admin/laporan" : "/laporan/notifikasi";
   const initial = (username.charAt(0) || "?").toUpperCase();
-  const badge = badgeCount > 9 ? "9+" : String(badgeCount);
   const dark = mounted && resolvedTheme === "dark";
   const title = refTitle(pathname);
 
@@ -121,7 +107,6 @@ export function DesktopWindow({
           key: "laporan",
           label: "Laporan",
           href: "/admin/laporan",
-          badge: true,
           ActiveIcon: HiClipboardDocumentList,
           IdleIcon: HiOutlineClipboardDocumentList,
         },
@@ -134,13 +119,6 @@ export function DesktopWindow({
           IdleIcon: HiOutlineSquares2X2,
         },
         {
-          key: "indikator",
-          label: "Indikator",
-          href: "/admin/indikator",
-          ActiveIcon: HiFlag,
-          IdleIcon: HiOutlineFlag,
-        },
-        {
           key: "tambahan",
           label: "Section",
           href: "/admin/section",
@@ -150,14 +128,6 @@ export function DesktopWindow({
       ]
     : [
         { key: "beranda", label: "Beranda", href: "/", ActiveIcon: HiHome, IdleIcon: HiOutlineHome },
-        {
-          key: "notifikasi",
-          label: "Notifikasi",
-          href: "/laporan/notifikasi",
-          badge: true,
-          ActiveIcon: MdNotifications,
-          IdleIcon: MdOutlineNotifications,
-        },
         { key: "anda", label: "Anda", href: "/anda", ActiveIcon: HiUserCircle, IdleIcon: HiOutlineUserCircle },
       ];
 
@@ -173,7 +143,6 @@ export function DesktopWindow({
     href: item.href,
     IdleIcon: item.IdleIcon,
     ActiveIcon: item.ActiveIcon,
-    badge: item.badge && badgeCount > 0 ? badge : undefined,
   }));
 
   return (
@@ -248,27 +217,6 @@ export function DesktopWindow({
             />
           </div>
 
-          <div className="ref-icon-btn-liquid">
-          <Link
-            href={bellHref}
-            aria-label={badgeCount > 0 ? `Notifikasi, ${badgeCount} baru` : "Notifikasi"}
-            className="ref-icon-btn-plain relative"
-          >
-            {badgeCount > 0 ? (
-              <HiBell aria-hidden="true" className="size-5" />
-            ) : (
-              <HiOutlineBell aria-hidden="true" className="size-5" />
-            )}
-            {badgeCount > 0 && (
-              <span
-                aria-hidden="true"
-                className="absolute top-1 right-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-black px-0.5 text-[9px] font-semibold text-white dark:bg-white dark:text-black"
-              >
-                {badge}
-              </span>
-            )}
-          </Link>
-          </div>
           <div className="ref-icon-btn-liquid">
           <button
             type="button"

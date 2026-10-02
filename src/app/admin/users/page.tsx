@@ -6,16 +6,14 @@ import { UserManager, type AdminUserRow } from "@/components/admin/user-manager"
 
 export default async function UsersPage() {
   const supabase = await createClient();
-  const [profilesResult, bidangResult, subsResult, indikatorResult] = await Promise.all([
+  const [profilesResult, bidangResult, subsResult] = await Promise.all([
     supabase.from("profiles").select("*").order("nama"),
     supabase.from("bidang").select("*").order("nama"),
     supabase.from("user_sub_bidang").select("*").order("nama"),
-    supabase.from("indikator").select("user_id, nama, target_bulanan").order("nama"),
   ]);
   assertOk(profilesResult.error, "Gagal memuat data pengguna. Coba lagi.");
   assertOk(bidangResult.error, "Gagal memuat data bidang. Coba lagi.");
   assertOk(subsResult.error, "Gagal memuat sub bidang. Coba lagi.");
-  assertOk(indikatorResult.error, "Gagal memuat indikator. Coba lagi.");
   const profiles = profilesResult.data;
   const bidangList = bidangResult.data;
   const subs = subsResult.data;
@@ -26,13 +24,6 @@ export default async function UsersPage() {
     const list = subsByUser.get(sub.user_id) ?? [];
     list.push(sub.nama);
     subsByUser.set(sub.user_id, list);
-  }
-  const indikatorsByUser = new Map<string, { nama: string; target: number | null }[]>();
-  for (const row of indikatorResult.data ?? []) {
-    if (!row.user_id) continue;
-    const list = indikatorsByUser.get(row.user_id) ?? [];
-    list.push({ nama: row.nama, target: row.target_bulanan });
-    indikatorsByUser.set(row.user_id, list);
   }
 
   const users: AdminUserRow[] = (profiles ?? []).map((profile) => ({
@@ -79,7 +70,6 @@ export default async function UsersPage() {
               id: bidang.id,
               nama: bidang.nama,
             }))}
-            indikatorsByUser={indikatorsByUser}
           />
         </ContentGrid>
       </div>
