@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, Reorder, motion, useDragControls } from "motion/react";
-import { Copy, GripHorizontal, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, Copy, GripHorizontal, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -423,6 +423,7 @@ export function InfoCard({
   const [judul, setJudul] = useState(judulAwal);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [terbuka, setTerbuka] = useState(true);
 
   const [prev, setPrev] = useState(judulAwal);
   if (prev !== judulAwal) {
@@ -476,32 +477,63 @@ export function InfoCard({
       onPointerDown={onPilih}
       onFocusCapture={onPilih}
     >
-      <Label htmlFor="info-judul" className="sr-only">
-        Judul info
-      </Label>
-      <Input
-        id="info-judul"
-        value={judul}
-        onChange={(event) => {
-          setJudul(event.target.value);
-          setError(null);
-        }}
-        placeholder="Judul info"
-        className="h-auto rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 pt-0 pb-1 text-[17px] leading-none font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 focus-visible:border-accent focus-visible:ring-0 dark:border-white/15"
-      />
-      {(error ?? masalah) && (
-        <p role="alert" className="mt-2 px-1 text-sm text-danger">
-          {error ?? masalah}
-        </p>
-      )}
-      {saving && (
-        <p aria-live="polite" className="mt-2 px-1 text-xs text-neutral-500">
-          Menyimpan…
-        </p>
-      )}
-      <div className="mt-2">
-        <InfoIsianCard jabatanAwal={jabatanAwal} unitAwal={unitAwal} />
+      <div className="flex items-center gap-2">
+        <Label htmlFor="info-judul" className="sr-only">
+          Judul info
+        </Label>
+        <Input
+          id="info-judul"
+          value={judul}
+          onChange={(event) => {
+            setJudul(event.target.value);
+            setError(null);
+          }}
+          placeholder="Judul info"
+          className="h-auto min-w-0 flex-1 rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 pt-0 pb-1 text-[17px] leading-none font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 focus-visible:border-accent focus-visible:ring-0 dark:border-white/15"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => setTerbuka((v) => !v)}
+          aria-expanded={terbuka}
+          aria-label={terbuka ? "Tutup isian info" : "Buka isian info"}
+          className="shrink-0 rounded-full"
+        >
+          <motion.span
+            animate={{ rotate: terbuka ? 180 : 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            className="flex items-center justify-center"
+          >
+            <ChevronDown aria-hidden="true" />
+          </motion.span>
+        </Button>
       </div>
+      <AnimatePresence initial={false}>
+        {terbuka && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden"
+          >
+            {(error ?? masalah) && (
+              <p role="alert" className="mt-2 px-1 text-sm text-danger">
+                {error ?? masalah}
+              </p>
+            )}
+            {saving && (
+              <p aria-live="polite" className="mt-2 px-1 text-xs text-neutral-500">
+                Menyimpan…
+              </p>
+            )}
+            <div className="mt-2">
+              <InfoIsianCard jabatanAwal={jabatanAwal} unitAwal={unitAwal} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -775,6 +807,11 @@ export function SectionCard({
         {esai && (
           <span className="shrink-0 rounded-full bg-black/[0.075] px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-white/10">
             Esai
+          </span>
+        )}
+        {pakaiKolom && (
+          <span className="shrink-0 rounded-full bg-black/[0.075] px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-white/10">
+            Tabel
           </span>
         )}
         {kepala && (
