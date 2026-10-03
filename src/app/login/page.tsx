@@ -42,7 +42,6 @@ export default async function LoginPage({
             priority
             className="hidden h-7 w-auto dark:block"
           />
-          <p className="mt-3 text-sm text-muted-foreground">Masuk untuk melanjutkan</p>
         </div>
 
         {expired && (
@@ -56,7 +55,6 @@ export default async function LoginPage({
 
         <RefListCard
           ariaLabel="Form masuk"
-          title="Masuk"
           className={expired ? "mt-4" : "mt-5"}
         >
           <LoginForm />

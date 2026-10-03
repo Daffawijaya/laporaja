@@ -103,7 +103,7 @@ export function LoginForm() {
         </p>
       )}
 
-      <Button type="submit" className="mt-1 w-full" disabled={loading}>
+      <Button type="submit" className="mt-1 w-full rounded-full" disabled={loading}>
         {loading ? "Memeriksa..." : "Masuk"}
       </Button>
     </form>
