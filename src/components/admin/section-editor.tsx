@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
 import { setSimpanStatus } from "@/lib/simpan-status";
+import { useSectionPending } from "@/lib/section-pending";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import type { KolomTipe } from "@/lib/laporan-tambahan/queries";
@@ -151,16 +152,17 @@ function KolomRows({
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onAdd}
-                disabled={disabled}
-                className="mt-2 w-full rounded-full"
-              >
-                <Plus aria-hidden="true" />
-                {tambahLabel}
-              </Button>
+              <div className="mt-2 flex justify-end px-1">
+                <Button
+                  type="button"
+                  onClick={onAdd}
+                  disabled={disabled}
+                  className="rounded-full"
+                >
+                  <Plus aria-hidden="true" />
+                  {tambahLabel}
+                </Button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -251,16 +253,17 @@ function KolomRows({
             transition={{ duration: 0.25, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onAdd}
-              disabled={disabled}
-              className="mt-2 w-full rounded-full"
-            >
-              <Plus aria-hidden="true" />
-              {tambahLabel}
-            </Button>
+            <div className="mt-2 flex justify-end px-1">
+              <Button
+                type="button"
+                onClick={onAdd}
+                disabled={disabled}
+                className="rounded-full"
+              >
+                <Plus aria-hidden="true" />
+                {tambahLabel}
+              </Button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -543,13 +546,11 @@ export function SectionCard({
   dragAktif,
   autoFocusJudul,
   bidangList,
-  bidangBusy,
   onToggleBidang,
   onMoveKey,
   onDuplicateRequest,
   onDeleteRequest,
   onSaved,
-  aksiBusy,
   terpilih,
   onPilih,
 }: {
@@ -557,13 +558,11 @@ export function SectionCard({
   dragAktif: boolean;
   autoFocusJudul?: boolean;
   bidangList: { id: string; nama: string }[];
-  bidangBusy: string | null;
   onToggleBidang: (item: BuilderItem, bidangId: string) => void;
   onMoveKey: (item: BuilderItem, arah: -1 | 1) => void;
   onDuplicateRequest: (item: BuilderItem) => void;
   onDeleteRequest: (item: BuilderItem) => void;
   onSaved: () => void;
-  aksiBusy: boolean;
   terpilih: boolean;
   onPilih: () => void;
 }) {
@@ -751,14 +750,17 @@ export function SectionCard({
     }
   }, [item, judul, deskripsi, kepala, kolom, onSaved, kelolaKolom, esai, router, toast]);
 
-  // Simpan otomatis 800 mdetik sesudah berhenti mengetik.
+  // Simpan otomatis 800 mdetik sesudah berhenti mengetik. Kartu yang
+  // baris DB-nya belum rampung ditulis menunggu dulu (efek jalan lagi
+  // otomatis saat status pending berubah).
+  const menungguTulis = useSectionPending(item.id);
   useEffect(() => {
-    if (snap === savedSnap || masalah || saving) return;
+    if (snap === savedSnap || masalah || saving || menungguTulis) return;
     const timer = window.setTimeout(() => {
       void simpan(snap);
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [snap, savedSnap, masalah, saving, simpan]);
+  }, [snap, savedSnap, masalah, saving, menungguTulis, simpan]);
 
   const gagang = (
     <div className="flex justify-center">
@@ -876,22 +878,20 @@ export function SectionCard({
             ) : (
               bidangList.map((bidang) => {
                 const aktif = item.bidang.some((row) => row.id === bidang.id);
-                const kunci = `${editorKey(item)}-${bidang.id}`;
                 return (
                   <button
                     key={bidang.id}
                     type="button"
                     aria-pressed={aktif}
                     aria-label={`${aktif ? "Hapus" : "Tambah"} bidang ${bidang.nama} untuk ${item.judul}`}
-                    disabled={bidangBusy !== null}
                     onClick={() => onToggleBidang(item, bidang.id)}
                     className={
                       aktif
                         ? "inline-flex min-h-[44px] items-center rounded-full border border-transparent bg-foreground px-4 text-xs font-medium text-background transition-soft disabled:opacity-50"
-                        : "inline-flex min-h-[44px] items-center rounded-full border border-border px-4 text-xs text-muted-foreground transition-soft hover:text-foreground disabled:opacity-50"
+                        : "inline-flex min-h-[44px] items-center rounded-full border border-border px-4 text-xs font-medium text-muted-foreground transition-soft hover:text-foreground disabled:opacity-50"
                     }
                   >
-                    {bidangBusy === kunci ? "..." : bidang.nama}
+                    {bidang.nama}
                   </button>
                 );
               })
@@ -903,7 +903,6 @@ export function SectionCard({
               variant="ghost"
               size="icon"
               onClick={() => onDuplicateRequest(item)}
-              disabled={aksiBusy}
               aria-label={`Salin ${item.judul}`}
               title={`Salin ${item.judul}`}
               className="rounded-full"
@@ -915,7 +914,6 @@ export function SectionCard({
               variant="ghost"
               size="icon"
               onClick={() => onDeleteRequest(item)}
-              disabled={aksiBusy}
               aria-label={`Hapus ${item.judul}`}
               title={`Hapus ${item.judul}`}
               className="rounded-full"
@@ -956,7 +954,6 @@ export function SectionEditor({
   query,
   focusId,
   bidangList,
-  bidangBusy,
   onToggleBidang,
   onReorder,
   onMoveKey,
@@ -964,7 +961,6 @@ export function SectionEditor({
   onDeleteRequest,
   onSaved,
   onTambah,
-  aksiBusy,
   terpilih,
   setTerpilih,
 }: {
@@ -972,7 +968,6 @@ export function SectionEditor({
   query: string;
   focusId: string | null;
   bidangList: { id: string; nama: string }[];
-  bidangBusy: string | null;
   onToggleBidang: (item: BuilderItem, bidangId: string) => void;
   onReorder: (keys: string[]) => void;
   onMoveKey: (item: BuilderItem, arah: -1 | 1) => void;
@@ -980,7 +975,6 @@ export function SectionEditor({
   onDeleteRequest: (item: BuilderItem) => void;
   onSaved: () => void;
   onTambah: () => void;
-  aksiBusy: boolean;
   terpilih: string | null;
   setTerpilih: (key: string | null) => void;
 }) {
@@ -1031,13 +1025,11 @@ export function SectionEditor({
               dragAktif={false}
               autoFocusJudul={focusId === editorKey(item)}
               bidangList={bidangList}
-              bidangBusy={bidangBusy}
               onToggleBidang={onToggleBidang}
               onMoveKey={onMoveKey}
               onDuplicateRequest={onDuplicateRequest}
               onDeleteRequest={onDeleteRequest}
               onSaved={onSaved}
-              aksiBusy={aksiBusy}
               terpilih={terpilih === editorKey(item)}
               onPilih={() => setTerpilih(editorKey(item))}
             />
@@ -1064,13 +1056,11 @@ export function SectionEditor({
           dragAktif
           autoFocusJudul={focusId === editorKey(item)}
           bidangList={bidangList}
-          bidangBusy={bidangBusy}
           onToggleBidang={onToggleBidang}
           onMoveKey={onMoveKey}
           onDuplicateRequest={onDuplicateRequest}
           onDeleteRequest={onDeleteRequest}
           onSaved={onSaved}
-          aksiBusy={aksiBusy}
           terpilih={terpilih === editorKey(item)}
           onPilih={() => setTerpilih(editorKey(item))}
         />

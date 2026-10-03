@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { setSimpanStatus } from "@/lib/simpan-status";
+import { hapusPending, isPending, tambahPending } from "@/lib/section-pending";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import type { BuilderItem } from "@/lib/laporan-tambahan/queries";
@@ -55,6 +56,9 @@ export function SectionBuilder({
   const [duplicating, setDuplicating] = useState(false);
   const [terpilih, setTerpilih] = useState<string | null>(null);
   const terpilihRef = useRef<string | null>(null);
+  // Kunci kartu yang sedang ditempeli rel (terpilih, atau terakhir saat
+  // pilihan dilepas): posisi sisip tambah selalu mengikutinya.
+  const relKunciRef = useRef<string | null>(null);
   useEffect(() => {
     terpilihRef.current = terpilih;
   }, [terpilih]);
@@ -108,6 +112,7 @@ export function SectionBuilder({
         // Saat tak ada pilihan, ikuti posisi live kartu terakhir (masih di
         // DOM, hanya menciut) supaya rel tetap diam di tempatnya.
         const cari = kunci ?? lastKunci;
+        relKunciRef.current = cari;
         if (cari && daftar) {
           const card = daftar.querySelector(`[data-section-key="${CSS.escape(cari)}"]`);
           if (card) {
@@ -149,74 +154,107 @@ export function SectionBuilder({
     };
   }, []);
 
-  // Tambah instan ala Google Forms: kartu langsung jadi tepat di bawah
-  // kartu yang dipilih (atau paling bawah bila tak ada pilihan), judulnya
-  // terfokus. Bidang diatur sesudahnya di panel kanan.
+  // Tambah instan ala Google Forms: kartu langsung tampil tepat di bawah
+  // kartu yang ditempeli rel (terpilih, atau terakhir bila pilihan dilepas),
+  // judulnya langsung terfokus — tanpa menunggu database. Tulis DB jalan di
+  // belakang; navbar yang menunjukkan Menyimpan/Tersimpan. Id dibuat di
+  // client supaya kartu tidak perlu remount saat data server tiba.
   async function tambahCepat(format: "tabel" | "esai" | "judul") {
     if (menambah) return;
     setMenambah(true);
     setPageError(null);
     setSimpanStatus("saving");
+    const prev = items;
+    // Posisi sisip selalu mengikuti rel: kartu terpilih, atau kartu terakhir
+    // yang ditempeli rel bila pilihan sedang dilepas.
+    const kunciAktif = terpilih ?? relKunciRef.current;
+    const idxPilih = kunciAktif
+      ? kunciAktif === "info"
+        ? -2
+        : ordered.findIndex((row) => editorKey(row) === kunciAktif)
+      : -1;
+    const idxSisip = idxPilih === -2 ? 0 : idxPilih >= 0 ? idxPilih + 1 : ordered.length;
+    const idBaru = crypto.randomUUID();
+    const kolomIdBaru = crypto.randomUUID();
+    const itemBaru: BuilderItem = {
+      id: idBaru,
+      kind: "tambahan",
+      judul: "Section tanpa judul",
+      deskripsi: null,
+      format,
+      urutan: 0,
+      bidang: [],
+      jumlahKolom: format === "judul" ? 0 : 1,
+      jumlahBaris: 0,
+      targetUser: 0,
+      terisiUser: 0,
+      kolom:
+        format === "judul"
+          ? []
+          : [
+              {
+                id: kolomIdBaru,
+                label: format === "esai" ? "Isian" : "Kolom 1",
+                tipe: format === "esai" ? "textarea" : "text",
+              },
+            ],
+    };
+    const next = [...ordered];
+    next.splice(idxSisip, 0, itemBaru);
+    setItems(next.map((row, index) => ({ ...row, urutan: index * 10 })));
+    const kunciBaru = editorKey(itemBaru);
+    setTerpilih(kunciBaru);
+    setFocusId(kunciBaru);
+    tambahPending(idBaru);
     try {
       const supabase = createClient();
       const { data: auth } = await supabase.auth.getUser();
-      const idxPilih = terpilih
-        ? terpilih === "info"
-          ? -2
-          : ordered.findIndex((row) => editorKey(row) === terpilih)
-        : -1;
-      const idxSisip = idxPilih === -2 ? 0 : idxPilih >= 0 ? idxPilih + 1 : ordered.length;
-      const sebelum = idxSisip > 0 ? ordered[idxSisip - 1].urutan : -10;
-      const sesudah =
-        idxSisip < ordered.length ? ordered[idxSisip].urutan : sebelum + 20;
-      let urutan = Math.floor((sebelum + sesudah) / 2);
-      if (urutan <= sebelum) urutan = sebelum + 1;
-      const { data, error } = await supabase
-        .from("laporan_tambahan")
-        .insert({
-          judul: "Section tanpa judul",
-          deskripsi: null,
-          format,
-          urutan,
-          created_by: auth.user?.id ?? null,
-        })
-        .select("id")
-        .single();
-      if (error || !data) {
-        if (handleSession(error)) return;
-        gagalSimpan("Gagal menambah section. Coba lagi.");
+      const { error } = await supabase.from("laporan_tambahan").insert({
+        id: idBaru,
+        judul: itemBaru.judul,
+        deskripsi: null,
+        format,
+        urutan: idxSisip * 10,
+        created_by: auth.user?.id ?? null,
+      });
+      if (error) {
+        if (!handleSession(error)) gagalSimpan("Gagal menambah section. Coba lagi.");
+        setItems((cur) => cur.filter((row) => row.id !== idBaru));
+        hapusPending(idBaru);
         return;
       }
       if (format !== "judul") {
         const { error: kolomError } = await supabase
           .from("laporan_tambahan_kolom")
-          .insert(
-            format === "esai"
-              ? [{ laporan_id: data.id, label: "Isian", tipe: "textarea" as const, wajib: true, urutan: 0 }]
-              : [{ laporan_id: data.id, label: "Kolom 1", tipe: "text" as const, wajib: true, urutan: 0 }]
-          );
+          .insert({
+            id: kolomIdBaru,
+            laporan_id: idBaru,
+            label: itemBaru.kolom[0]?.label ?? "Kolom 1",
+            tipe: itemBaru.kolom[0]?.tipe ?? "text",
+            wajib: true,
+            urutan: 0,
+          });
         if (kolomError) {
-          await supabase.from("laporan_tambahan").delete().eq("id", data.id);
-          if (handleSession(kolomError)) return;
-          gagalSimpan("Gagal menambah section. Coba lagi.");
+          await supabase.from("laporan_tambahan").delete().eq("id", idBaru);
+          if (!handleSession(kolomError)) gagalSimpan("Gagal menambah section. Coba lagi.");
+          setItems((cur) => cur.filter((row) => row.id !== idBaru));
+          hapusPending(idBaru);
           return;
         }
       }
       // Rapikan urutan (kelipatan 10) sesuai posisi sisip; hanya baris
-      // yang berubah yang ditulis ulang.
-      const urutanLama = new Map(ordered.map((row) => [row.id, row.urutan]));
-      urutanLama.set(data.id, urutan);
-      const idsAkhir = ordered.map((row) => row.id);
-      idsAkhir.splice(idxSisip, 0, data.id);
+      // yang berubah yang ditulis ulang. Kegagalan di sini non-fatal
+      // (refresh berikut merapikannya dari server).
+      const urutanLama = new Map(prev.map((row) => [row.id, row.urutan]));
       await Promise.all(
-        idsAkhir
-          .map((id, index) => ({ id, urutan: index * 10 }))
-          .filter(({ id, urutan }) => urutanLama.get(id) !== urutan)
+        next
+          .map((row, index) => ({ id: row.id, urutan: index * 10 }))
+          .filter(({ id, urutan }) => id !== idBaru && urutanLama.get(id) !== urutan)
           .map(({ id, urutan }) =>
             supabase.from("laporan_tambahan").update({ urutan }).eq("id", id)
           )
       );
-      setFocusId(`tambahan-${data.id}`);
+      hapusPending(idBaru);
       setSimpanStatus("saved");
       router.refresh();
     } finally {
@@ -227,7 +265,7 @@ export function SectionBuilder({
   // Gandakan section: judul + bentuk + kolom + bidang, jadi di paling
   // bawah dan langsung terfokus.
   async function duplicateSection(item: BuilderItem) {
-    if (duplicating) return;
+    if (duplicating || isPending(item.id)) return;
     setDuplicating(true);
     setPageError(null);
     setSimpanStatus("saving");
@@ -376,18 +414,36 @@ export function SectionBuilder({
 
   async function handleDelete() {
     if (!deleteTarget || deleting) return;
+    if (isPending(deleteTarget.id)) {
+      // Kartu baru belum selesai tersimpan: tutup dialog, hapus beneran
+      // segera setelah tulis rampung (navbar tetap menunjukkan Menyimpan).
+      const target = deleteTarget;
+      setDeleteTarget(null);
+      const tunggu = window.setInterval(() => {
+        if (isPending(target.id)) return;
+        window.clearInterval(tunggu);
+        setDeleteTarget(target);
+        void eksekusiHapus(target);
+      }, 250);
+      return;
+    }
+    void eksekusiHapus(deleteTarget);
+  }
+
+  async function eksekusiHapus(target: BuilderItem) {
+    if (deleting) return;
     setDeleting(true);
     setPageError(null);
     setSimpanStatus("saving");
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("laporan_tambahan").delete().eq("id", deleteTarget.id);
+      const { error } = await supabase.from("laporan_tambahan").delete().eq("id", target.id);
       if (error) {
         if (handleSession(error)) return;
         gagalSimpan("Gagal menghapus section. Coba lagi.");
         return;
       }
-      const targetId = deleteTarget.id;
+      const targetId = target.id;
       // Pilih section sebelumnya (atau penggantinya) supaya rel bergeser ke sana.
       const idxHapus = ordered.findIndex((row) => row.id === targetId);
       const ganti =
@@ -410,7 +466,7 @@ export function SectionBuilder({
   // ulang daftar bidang dan target user dari matriks.
   async function toggleBidang(item: BuilderItem, bidangId: string) {
     const kunci = `${editorKey(item)}-${bidangId}`;
-    if (bidangBusy) return;
+    if (bidangBusy || isPending(item.id)) return;
     const punya = item.bidang.some((bidang) => bidang.id === bidangId);
     const idsBaru = punya
       ? item.bidang.map((bidang) => bidang.id).filter((id) => id !== bidangId)
@@ -475,7 +531,6 @@ export function SectionBuilder({
               query={query}
               focusId={focusId}
               bidangList={bidangList}
-              bidangBusy={bidangBusy}
               onToggleBidang={toggleBidang}
               onReorder={handleReorder}
               onMoveKey={handleMoveKey}
@@ -486,7 +541,6 @@ export function SectionBuilder({
               }}
               onSaved={() => router.refresh()}
               onTambah={() => tambahCepat("tabel")}
-              aksiBusy={duplicating}
               terpilih={terpilih}
               setTerpilih={setTerpilih}
             />
@@ -533,7 +587,6 @@ export function SectionBuilder({
                 variant="ghost"
                 size="icon"
                 onClick={() => tambahCepat(nilai)}
-                disabled={menambah}
                 aria-label={label}
                 title={label}
                 className="rounded-full"
@@ -555,7 +608,6 @@ export function SectionBuilder({
             ? "Jika section ini dihapus, seluruh baris isiannya ikut terhapus."
             : ""
         }
-        busy={deleting}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
       />
