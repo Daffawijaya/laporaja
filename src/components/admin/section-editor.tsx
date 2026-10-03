@@ -172,7 +172,7 @@ function KolomRows({
 
   return (
     <div>
-      <div className="overflow-x-auto px-1">
+      <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-neutral-200/70 dark:border-white/10">
@@ -180,7 +180,7 @@ function KolomRows({
                 <th
                   key={col.key}
                   scope="col"
-                  className="min-w-36 px-2 py-2 text-left align-top"
+                  className="min-w-36 px-1 py-2 text-left align-top"
                 >
                   <Label htmlFor={`ekolom-${col.key}`} className="sr-only">
                     {`${satuan} ${index + 1}`}
@@ -198,7 +198,7 @@ function KolomRows({
             </tr>
             <tr>
               {kolom.map((col, index) => (
-                <td key={col.key} className="px-2 py-2">
+                <td key={col.key} className="px-1 py-2">
                   <span className="flex items-center gap-1">
                     {kunciTipe ? (
                       <span className="min-w-0 flex-1 px-1 text-xs text-neutral-500">
