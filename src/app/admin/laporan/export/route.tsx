@@ -1,7 +1,7 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { getTugasUser } from "@/lib/laporan-tambahan/queries";
+import { getTugasUser, parseGambarNilai } from "@/lib/laporan-tambahan/queries";
 import { LaporanDocument, type PdfTambahan } from "@/components/admin/laporan-document";
 import { formatTanggalPanjang } from "@/components/laporan/types";
 
@@ -54,23 +54,49 @@ export async function GET(request: Request) {
     );
   }
 
-  const tambahan: PdfTambahan[] = tugas.map((item) => ({
-    judul: item.judul,
-    deskripsi: item.deskripsi,
-    format: item.format,
-    kolom: item.kolom.map((col) => col.label),
-    baris: item.baris.map((row) =>
-      item.kolom.map((col) => {
-        const raw = row.nilai[col.id] ?? "";
-        if (!raw || col.tipe !== "date" || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-        try {
-          return formatTanggalPanjang(raw);
-        } catch {
-          return raw;
-        }
-      })
-    ),
-  }));
+  const tambahan: PdfTambahan[] = await Promise.all(
+    tugas.map(async (item) => {
+      const gambarUrl: Record<string, string> = {};
+      const baris = item.baris.map((row) =>
+        item.kolom.map((col) => {
+          const raw = row.nilai[col.id] ?? "";
+          if (!raw || col.tipe !== "date" || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+          try {
+            return formatTanggalPanjang(raw);
+          } catch {
+            return raw;
+          }
+        })
+      );
+      // URL bertanda untuk sel gambar (superadmin boleh baca semua berkas).
+      const jobs: Promise<void>[] = [];
+      item.baris.forEach((row, rowIdx) => {
+        item.kolom.forEach((col, colIdx) => {
+          if (col.tipe !== "image") return;
+          const parsed = parseGambarNilai(row.nilai[col.id] ?? "");
+          if (!parsed?.gambar) return;
+          jobs.push(
+            supabase.storage
+              .from("kegiatan-images")
+              .createSignedUrl(parsed.gambar, 3600)
+              .then(({ data }) => {
+                if (data?.signedUrl) gambarUrl[`${rowIdx}:${colIdx}`] = data.signedUrl;
+              })
+          );
+        });
+      });
+      await Promise.all(jobs);
+      return {
+        judul: item.judul,
+        deskripsi: item.deskripsi,
+        format: item.format,
+        kolom: item.kolom.map((col) => col.label),
+        kolomTipe: item.kolom.map((col) => col.tipe),
+        baris,
+        gambarUrl,
+      };
+    })
+  );
 
   const buffer = await renderToBuffer(
     <LaporanDocument

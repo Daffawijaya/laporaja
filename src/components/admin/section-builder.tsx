@@ -1,12 +1,13 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlignLeft, Table, Type } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { setSimpanStatus } from "@/lib/simpan-status";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import type { BuilderItem } from "@/lib/laporan-tambahan/queries";
@@ -54,7 +55,9 @@ export function SectionBuilder({
   const [duplicating, setDuplicating] = useState(false);
   const [terpilih, setTerpilih] = useState<string | null>(null);
   const terpilihRef = useRef<string | null>(null);
-  terpilihRef.current = terpilih;
+  useEffect(() => {
+    terpilihRef.current = terpilih;
+  }, [terpilih]);
   const [terukur, setTerukur] = useState(false);
   const daftarRef = useRef<HTMLDivElement>(null);
   const barisRef = useRef<HTMLDivElement>(null);
@@ -153,6 +156,7 @@ export function SectionBuilder({
     if (menambah) return;
     setMenambah(true);
     setPageError(null);
+    setSimpanStatus("saving");
     try {
       const supabase = createClient();
       const { data: auth } = await supabase.auth.getUser();
@@ -180,7 +184,7 @@ export function SectionBuilder({
         .single();
       if (error || !data) {
         if (handleSession(error)) return;
-        setPageError("Gagal menambah section. Coba lagi.");
+        gagalSimpan("Gagal menambah section. Coba lagi.");
         return;
       }
       if (format !== "judul") {
@@ -194,7 +198,7 @@ export function SectionBuilder({
         if (kolomError) {
           await supabase.from("laporan_tambahan").delete().eq("id", data.id);
           if (handleSession(kolomError)) return;
-          setPageError("Gagal menambah section. Coba lagi.");
+          gagalSimpan("Gagal menambah section. Coba lagi.");
           return;
         }
       }
@@ -213,7 +217,7 @@ export function SectionBuilder({
           )
       );
       setFocusId(`tambahan-${data.id}`);
-      toast.success("Section ditambahkan.");
+      setSimpanStatus("saved");
       router.refresh();
     } finally {
       setMenambah(false);
@@ -226,6 +230,7 @@ export function SectionBuilder({
     if (duplicating) return;
     setDuplicating(true);
     setPageError(null);
+    setSimpanStatus("saving");
     try {
       const supabase = createClient();
       const { data: auth } = await supabase.auth.getUser();
@@ -238,7 +243,7 @@ export function SectionBuilder({
         .order("urutan");
       if (kolomErr) {
         if (handleSession(kolomErr)) return;
-        setPageError("Gagal menyalin section. Coba lagi.");
+        gagalSimpan("Gagal menyalin section. Coba lagi.");
         return;
       }
       const { data, error } = await supabase
@@ -254,7 +259,7 @@ export function SectionBuilder({
         .single();
       if (error || !data) {
         if (handleSession(error)) return;
-        setPageError("Gagal menyalin section. Coba lagi.");
+        gagalSimpan("Gagal menyalin section. Coba lagi.");
         return;
       }
       const kolomRows = (kolomSrc ?? []).map((col) => ({
@@ -271,7 +276,7 @@ export function SectionBuilder({
         if (kolomError) {
           await supabase.from("laporan_tambahan").delete().eq("id", data.id);
           if (handleSession(kolomError)) return;
-          setPageError("Gagal menyalin section. Coba lagi.");
+          gagalSimpan("Gagal menyalin section. Coba lagi.");
           return;
         }
       }
@@ -283,12 +288,12 @@ export function SectionBuilder({
         if (linkError) {
           await supabase.from("laporan_tambahan").delete().eq("id", data.id);
           if (handleSession(linkError)) return;
-          setPageError("Gagal menyalin section. Coba lagi.");
+          gagalSimpan("Gagal menyalin section. Coba lagi.");
           return;
         }
       }
       setFocusId(`tambahan-${data.id}`);
-      toast.success("Section disalin.");
+      setSimpanStatus("saved");
       router.refresh();
     } finally {
       setDuplicating(false);
@@ -310,6 +315,12 @@ export function SectionBuilder({
     return false;
   }
 
+  // Galat simpan: pesan inline di daftar + status di navbar.
+  function gagalSimpan(pesan: string) {
+    setPageError(pesan);
+    setSimpanStatus("error");
+  }
+
   // Terapkan susunan baru: urutan = posisi x 10, simpan yang berubah.
   async function applyOrder(next: BuilderItem[]) {
     if (orderBusy) return;
@@ -317,6 +328,7 @@ export function SectionBuilder({
     const denganUrutan = next.map((row, index) => ({ ...row, urutan: index * 10 }));
     setOrderBusy(true);
     setPageError(null);
+    setSimpanStatus("saving");
     setItems(denganUrutan);
     try {
       const supabase = createClient();
@@ -333,9 +345,10 @@ export function SectionBuilder({
       if (gagal) {
         if (handleSession(gagal)) return;
         setItems(prev);
-        setPageError("Gagal menyimpan urutan. Coba lagi.");
+        gagalSimpan("Gagal menyimpan urutan. Coba lagi.");
         return;
       }
+      setSimpanStatus("saved");
       router.refresh();
     } finally {
       setOrderBusy(false);
@@ -365,12 +378,13 @@ export function SectionBuilder({
     if (!deleteTarget || deleting) return;
     setDeleting(true);
     setPageError(null);
+    setSimpanStatus("saving");
     try {
       const supabase = createClient();
       const { error } = await supabase.from("laporan_tambahan").delete().eq("id", deleteTarget.id);
       if (error) {
         if (handleSession(error)) return;
-        setPageError("Gagal menghapus section. Coba lagi.");
+        gagalSimpan("Gagal menghapus section. Coba lagi.");
         return;
       }
       const targetId = deleteTarget.id;
@@ -385,7 +399,7 @@ export function SectionBuilder({
       setItems((prev) => prev.filter((item) => item.id !== targetId));
       setTerpilih(ganti ? editorKey(ganti) : null);
       setDeleteTarget(null);
-      toast.success("Section dihapus.");
+      setSimpanStatus("saved");
       router.refresh();
     } finally {
       setDeleting(false);
@@ -405,6 +419,7 @@ export function SectionBuilder({
     const targetBaru = idsBaru.reduce((sum, id) => sum + (userCountByBidang[id] ?? 0), 0);
     setBidangBusy(kunci);
     setPageError(null);
+    setSimpanStatus("saving");
     const prev = items;
     setItems((cur) =>
       cur.map((row) =>
@@ -427,10 +442,10 @@ export function SectionBuilder({
       if (error) {
         if (handleSession(error)) return;
         setItems(prev);
-        setPageError("Gagal menyimpan bidang. Coba lagi.");
+        gagalSimpan("Gagal menyimpan bidang. Coba lagi.");
         return;
       }
-      toast.success("Bidang diperbarui.");
+      setSimpanStatus("saved");
       router.refresh();
     } finally {
       setBidangBusy(null);

@@ -30,8 +30,35 @@ export interface TugasLaporan {
   terisi: boolean;
 }
 
+// Nilai kolom gambar disimpan sebagai JSON: {"gambar": path storage,
+// "deskripsi": teks}. Keduanya wajib diisi.
+export const GAMBAR_DESKRIPSI_MAKS = 1000;
+
+export interface GambarNilai {
+  gambar: string;
+  deskripsi: string;
+}
+
+// Urai nilai JSON kolom gambar; null bila kosong/rusak.
+export function parseGambarNilai(raw: string): GambarNilai | null {
+  const teks = (raw ?? "").trim();
+  if (!teks) return null;
+  try {
+    const parsed: unknown = JSON.parse(teks);
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const record = parsed as Record<string, unknown>;
+    const gambar = typeof record.gambar === "string" ? record.gambar.trim() : "";
+    const deskripsi = typeof record.deskripsi === "string" ? record.deskripsi.trim() : "";
+    if (!gambar && !deskripsi) return null;
+    return { gambar, deskripsi };
+  } catch {
+    return null;
+  }
+}
+
 // Validasi nilai satu baris mengikuti definisi kolom admin.
-// Kolom wajib harus terisi; tanggal YYYY-MM-DD; angka numerik.
+// Kolom wajib harus terisi; tanggal YYYY-MM-DD; angka numerik;
+// gambar = JSON {gambar, deskripsi} yang keduanya wajib.
 export function cleanNilai(
   kolom: Pick<LaporanTambahanKolomRow, "id" | "label" | "tipe" | "wajib">[],
   input: Record<string, string>
@@ -39,6 +66,23 @@ export function cleanNilai(
   const cleaned: Record<string, string> = {};
   for (const col of kolom) {
     const value = (input[col.id] ?? "").trim();
+    if (col.tipe === "image") {
+      const gambar = parseGambarNilai(value);
+      if (!gambar) {
+        if (col.wajib) throw new Error(`Kolom "${col.label}" wajib diisi (gambar + deskripsi).`);
+        cleaned[col.id] = "";
+        continue;
+      }
+      if (!gambar.gambar || !gambar.deskripsi) {
+        const kurang = !gambar.gambar ? "gambar" : "deskripsi";
+        throw new Error(`Kolom "${col.label}": ${kurang} wajib diisi.`);
+      }
+      if (gambar.deskripsi.length > GAMBAR_DESKRIPSI_MAKS) {
+        throw new Error(`Kolom "${col.label}" deskripsi maksimal ${GAMBAR_DESKRIPSI_MAKS} karakter.`);
+      }
+      cleaned[col.id] = JSON.stringify({ gambar: gambar.gambar, deskripsi: gambar.deskripsi });
+      continue;
+    }
     if (col.wajib && value.length === 0) {
       throw new Error(`Kolom "${col.label}" wajib diisi.`);
     }

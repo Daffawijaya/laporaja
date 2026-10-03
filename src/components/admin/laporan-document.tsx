@@ -1,12 +1,16 @@
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { LaporanFormat } from "@/lib/supabase/database.types";
+import { parseGambarNilai } from "@/lib/laporan-tambahan/queries";
 
 export interface PdfTambahan {
   judul: string;
   deskripsi: string | null;
   format: LaporanFormat;
   kolom: string[];
+  kolomTipe: string[];
   baris: string[][];
+  /** URL gambar per sel "barisIdx:kolomIdx" untuk kolom tipe image. */
+  gambarUrl: Record<string, string>;
 }
 
 export interface LaporanPdfData {
@@ -57,6 +61,7 @@ const styles = StyleSheet.create({
   },
   selHead: { fontSize: 8, fontWeight: "bold", color: "#6e6e73", paddingRight: 4 },
   sel: { fontSize: 8, paddingRight: 4 },
+  gambar: { width: 140, marginBottom: 4 },
   empty: { fontSize: 11, color: "#6e6e73", marginTop: 8 },
   footer: {
     position: "absolute",
@@ -145,11 +150,26 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
                 {laporan.baris.map((cells, index) => (
                   <View key={index} style={styles.tabelRow}>
                     <Text style={[styles.sel, { width: 18 }]}>{index + 1}</Text>
-                    {cells.map((cell, colIndex) => (
-                      <Text key={colIndex} style={[styles.sel, { flex: 1 }]}>
-                        {cell || "-"}
-                      </Text>
-                    ))}
+                    {cells.map((cell, colIndex) =>
+                      laporan.kolomTipe[colIndex] === "image" ? (
+                        <View key={colIndex} style={[styles.sel, { flex: 1 }]}>
+                          {laporan.gambarUrl[`${index}:${colIndex}`] ? (
+                            // eslint-disable-next-line jsx-a11y/alt-text -- Image react-pdf tidak punya prop alt
+                            <Image
+                              src={laporan.gambarUrl[`${index}:${colIndex}`]}
+                              style={styles.gambar}
+                            />
+                          ) : null}
+                          <Text>
+                            {parseGambarNilai(cell)?.deskripsi || "-"}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text key={colIndex} style={[styles.sel, { flex: 1 }]}>
+                          {cell || "-"}
+                        </Text>
+                      )
+                    )}
                   </View>
                 ))}
               </View>

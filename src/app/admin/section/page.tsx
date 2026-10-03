@@ -5,6 +5,7 @@ import {
   getSectionBuilderData,
 } from "@/lib/laporan-tambahan/queries";
 import { SectionBuilder } from "@/components/admin/section-builder";
+import { SimpanTeks } from "@/components/ui/simpan-teks";
 
 // Builder section dinamis: susun + ubah langsung di kartu, tambah lewat
 // rel, bidang pengisi di panel kanan.
@@ -22,7 +23,10 @@ export default async function SectionPage() {
   return (
     <div className="w-full">
       <div className="md:hidden">
+        <div className="flex items-center gap-2">
           <h1 className="text-xl font-semibold tracking-tight">Section</h1>
+          <SimpanTeks />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Susun format laporan dinamis per bidang.
         </p>

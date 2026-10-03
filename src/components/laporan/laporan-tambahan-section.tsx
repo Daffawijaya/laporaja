@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
@@ -15,9 +15,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
+import {
+  MAX_IMAGE_BYTES,
+  getSignedImageUrl,
+  removeStoragePaths,
+  uploadKegiatanImage,
+} from "@/lib/supabase/storage";
 import { formatTanggalPanjang } from "@/components/laporan/types";
+import { GambarNilaiTampil } from "@/components/laporan/gambar-nilai";
 import {
   cleanNilai,
+  parseGambarNilai,
   type BarisIsi,
   type KolomDef,
   type TugasLaporan,
@@ -29,15 +37,32 @@ function FieldInput({
   value,
   onChange,
   disabled,
+  userId,
+  folderId,
 }: {
   kolom: KolomDef;
   index: number;
   value: string;
   onChange: (value: string) => void;
   disabled: boolean;
+  userId: string;
+  folderId: string;
 }) {
   const id = `baris-${kolom.id}-${index}`;
   const label = `${kolom.label}${kolom.wajib ? "" : " (opsional)"}`;
+  if (kolom.tipe === "image") {
+    return (
+      <GambarField
+        userId={userId}
+        folderId={folderId}
+        kolom={kolom}
+        index={index}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+      />
+    );
+  }
   if (kolom.tipe === "textarea") {
     return (
       <div className="flex flex-col gap-2">
@@ -67,10 +92,172 @@ function FieldInput({
   );
 }
 
+// Isian kolom gambar: satu upload berkas + satu deskripsi. Nilai disimpan
+// sebagai JSON {"gambar": path storage, "deskripsi": teks}; keduanya wajib.
+function GambarField({
+  userId,
+  folderId,
+  kolom,
+  index,
+  value,
+  onChange,
+  disabled,
+}: {
+  userId: string;
+  folderId: string;
+  kolom: KolomDef;
+  index: number;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const parsed = parseGambarNilai(value);
+  const path = parsed?.gambar ?? "";
+  const deskripsi = parsed?.deskripsi ?? "";
+  const [url, setUrl] = useState<string | null>(null);
+  const [prevPath, setPrevPath] = useState(path);
+  // Reset pratinjau saat path berganti (pola render-phase sync).
+  if (prevPath !== path) {
+    setPrevPath(path);
+    setUrl(null);
+  }
+  const [mengunggah, setMengunggah] = useState(false);
+  const [galat, setGalat] = useState<string | null>(null);
+
+  useEffect(() => {
+    let hidup = true;
+    if (!path) return;
+    const supabase = createClient();
+    void getSignedImageUrl(supabase, path).then((signed) => {
+      if (hidup) setUrl(signed);
+    });
+    return () => {
+      hidup = false;
+    };
+  }, [path]);
+
+  function tulis(gambarBaru: string, deskripsiBaru: string) {
+    if (!gambarBaru && !deskripsiBaru) {
+      onChange("");
+      return;
+    }
+    onChange(JSON.stringify({ gambar: gambarBaru, deskripsi: deskripsiBaru }));
+  }
+
+  async function pilihBerkas(file: File | undefined) {
+    if (!file || mengunggah || disabled) return;
+    if (!file.type.startsWith("image/")) {
+      setGalat("Berkas harus berupa gambar.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setGalat(`Ukuran gambar maksimal ${MAX_IMAGE_BYTES / 1024 / 1024} MB.`);
+      return;
+    }
+    setMengunggah(true);
+    setGalat(null);
+    try {
+      const supabase = createClient();
+      const pathBaru = await uploadKegiatanImage(supabase, userId, folderId, file);
+      // Best effort: berkas lama dibuang saat diganti.
+      if (path && path !== pathBaru) {
+        await removeStoragePaths(supabase, [path]);
+      }
+      tulis(pathBaru, deskripsi);
+    } catch (err) {
+      if (err instanceof SessionExpiredError || isSessionError(err)) {
+        toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
+        router.replace("/login?expired=1");
+        return;
+      }
+      setGalat(err instanceof Error ? err.message : "Gagal mengunggah gambar. Coba lagi.");
+    } finally {
+      setMengunggah(false);
+    }
+  }
+
+  async function hapusGambar() {
+    if (!path || mengunggah || disabled) return;
+    setMengunggah(true);
+    try {
+      const supabase = createClient();
+      await removeStoragePaths(supabase, [path]);
+    } finally {
+      tulis("", deskripsi);
+      setMengunggah(false);
+    }
+  }
+
+  const sibuk = disabled || mengunggah;
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>{kolom.label}</Label>
+      {path ? (
+        <div className="flex items-start gap-3">
+          {url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={url}
+              alt={deskripsi || kolom.label}
+              className="h-24 w-32 rounded-md object-cover"
+            />
+          ) : (
+            <span className="text-xs text-neutral-500">Memuat gambar…</span>
+          )}
+          <span className="flex gap-1">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={sibuk}
+              onClick={() => document.getElementById(`gambar-${kolom.id}-${index}`)?.click()}
+            >
+              Ganti
+            </Button>
+            <Button type="button" variant="ghost" disabled={sibuk} onClick={hapusGambar}>
+              <Trash2 aria-hidden="true" />
+              <span className="sr-only">Hapus gambar</span>
+            </Button>
+          </span>
+        </div>
+      ) : (
+        <p className="text-xs text-neutral-500">Belum ada gambar.</p>
+      )}
+      <Input
+        id={`gambar-${kolom.id}-${index}`}
+        type="file"
+        accept="image/*"
+        disabled={sibuk}
+        onChange={(event) => {
+          void pilihBerkas(event.target.files?.[0]);
+          event.target.value = "";
+        }}
+        className={path ? "hidden" : undefined}
+      />
+      <Label htmlFor={`gambar-deskripsi-${kolom.id}-${index}`}>Deskripsi gambar</Label>
+      <Input
+        id={`gambar-deskripsi-${kolom.id}-${index}`}
+        value={deskripsi}
+        onChange={(event) => tulis(path, event.target.value)}
+        placeholder="Tulis deskripsi gambar."
+        disabled={sibuk}
+      />
+      {galat && (
+        <p role="alert" className="text-sm text-danger">
+          {galat}
+        </p>
+      )}
+      {mengunggah && <p className="text-xs text-neutral-500">Mengunggah…</p>}
+    </div>
+  );
+}
+
 // Nilai tanggal (YYYY-MM-DD) ditampilkan sebagai "hari, tanggal bulan tahun"
 // cth: "Senin, 12 Januari 2026". Nilai lain/non-ISO dikembalikan apa adanya.
 function formatNilai(col: KolomDef, raw: string): string {
   if (!raw) return "-";
+  if (col.tipe === "image") return parseGambarNilai(raw)?.deskripsi || "Gambar";
   if (col.tipe !== "date") return raw;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   try {
@@ -284,7 +471,11 @@ export function LaporanTambahanSection({
   const [form, setForm] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ judul: string; baris: BarisIsi } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    judul: string;
+    baris: BarisIsi;
+    kolom: KolomDef[];
+  } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   if (tugas.length === 0) return null;
@@ -399,6 +590,14 @@ export function LaporanTambahanSection({
         toast.error("Gagal menghapus isian. Coba lagi.");
         return;
       }
+      // Best effort: berkas gambar ikut dibuang agar tidak yatim.
+      const paths = deleteTarget.kolom
+        .filter((col) => col.tipe === "image")
+        .map((col) => parseGambarNilai(deleteTarget.baris.nilai[col.id] ?? "")?.gambar ?? "")
+        .filter((path) => path.length > 0);
+      if (paths.length > 0) {
+        await removeStoragePaths(createClient(), paths);
+      }
       setDeleteTarget(null);
       toast.success("Isian dihapus.");
       router.refresh();
@@ -463,8 +662,12 @@ export function LaporanTambahanSection({
             <>
               <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
                 {item.baris.map((row, index) => {
-                  const ringkas =
-                    row.nilai[item.kolom[0]?.id ?? ""] || `Baris ${index + 1}`;
+                  const kolomPertama = item.kolom[0];
+                  const ringkas = kolomPertama
+                    ? kolomPertama.tipe === "image"
+                      ? (parseGambarNilai(row.nilai[kolomPertama.id] ?? "")?.deskripsi || "Gambar")
+                      : row.nilai[kolomPertama.id] || `Baris ${index + 1}`
+                    : `Baris ${index + 1}`;
                   return (
                     <li key={row.id} className="px-1 py-3 first:pt-0 last:pb-0">
                       <div className="flex items-start justify-between gap-3">
@@ -482,7 +685,7 @@ export function LaporanTambahanSection({
                           </Button>
                           <Button
                             variant="ghost"
-                            onClick={() => setDeleteTarget({ judul: item.judul, baris: row })}
+                            onClick={() => setDeleteTarget({ judul: item.judul, baris: row, kolom: item.kolom })}
                             aria-label={`Hapus isian ${index + 1}`}
                           >
                             <Trash2 aria-hidden="true" />
@@ -494,7 +697,21 @@ export function LaporanTambahanSection({
                           <div key={col.id} className="contents">
                             <dt className="text-neutral-500">{col.label}</dt>
                             <dd className="whitespace-pre-wrap">
-                              {formatNilai(col, row.nilai[col.id] ?? "")}
+                              {col.tipe === "image" ? (
+                                (() => {
+                                  const parsed = parseGambarNilai(row.nilai[col.id] ?? "");
+                                  return parsed ? (
+                                    <GambarNilaiTampil
+                                      path={parsed.gambar}
+                                      deskripsi={parsed.deskripsi}
+                                    />
+                                  ) : (
+                                    "-"
+                                  );
+                                })()
+                              ) : (
+                                formatNilai(col, row.nilai[col.id] ?? "")
+                              )}
                             </dd>
                           </div>
                         ))}
@@ -529,6 +746,8 @@ export function LaporanTambahanSection({
               value={form[col.id] ?? ""}
               onChange={(value) => setField(col.id, value)}
               disabled={saving}
+              userId={userId}
+              folderId={aktif.id}
             />
           ))}
           {formError && (

@@ -11,6 +11,7 @@ import { GlassSelect } from "@/components/ui/glass-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
+import { setSimpanStatus } from "@/lib/simpan-status";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import type { KolomTipe } from "@/lib/laporan-tambahan/queries";
@@ -21,6 +22,7 @@ export const TIPE_OPTIONS: { value: KolomTipe; label: string }[] = [
   { value: "textarea", label: "Paragraf" },
   { value: "date", label: "Tanggal" },
   { value: "number", label: "Angka" },
+  { value: "image", label: "Gambar" },
 ];
 
 export function labelTipe(tipe: KolomTipe): string {
@@ -233,8 +235,8 @@ function KolomRows({
                         </motion.span>
                       )}
                     </AnimatePresence>
-                  </span>
-                </td>
+                    </span>
+                  </td>
               ))}
             </tr>
           </thead>
@@ -304,7 +306,7 @@ function InfoIsianCard({
   const masalah = (() => {
     const j = jabatan.trim();
     const u = unit.trim();
-    if (j.length < 2 || j.length > 120) return "Jabatan harus 2-120 karakter.";
+    if (j.length < 1 || j.length > 120) return "Jabatan harus 1-120 karakter.";
     if (u.length === 0) return "Unit kerja wajib diisi.";
     if (u.length > 200) return "Unit kerja maksimal 200 karakter.";
     return null;
@@ -314,6 +316,8 @@ function InfoIsianCard({
     async (snapAwal: { j: string; u: string }) => {
       setSaving(true);
       setError(null);
+      setSimpanStatus("saving");
+      let berhasil = false;
       try {
         const supabase = createClient();
         const [r1, r2] = await Promise.all([
@@ -335,8 +339,10 @@ function InfoIsianCard({
           return;
         }
         setSavedSnap(JSON.stringify(snapAwal));
+        berhasil = true;
       } finally {
         setSaving(false);
+        setSimpanStatus(berhasil ? "saved" : "error");
       }
     },
     [router, toast]
@@ -392,11 +398,6 @@ function InfoIsianCard({
           {error ?? masalah}
         </p>
       )}
-      {saving && (
-        <p aria-live="polite" className="mt-2 px-1 text-xs text-neutral-500">
-          Menyimpan…
-        </p>
-      )}
     </div>
   );
 }
@@ -433,12 +434,14 @@ export function InfoCard({
   const snap = judul.trim();
   const [savedSnap, setSavedSnap] = useState(judulAwal.trim());
   const masalah =
-    snap.length < 2 || snap.length > 120 ? "Judul harus 2-120 karakter." : null;
+    snap.length < 1 || snap.length > 120 ? "Judul harus 1-120 karakter." : null;
 
   const simpan = useCallback(
     async (nilai: string) => {
       setSaving(true);
       setError(null);
+      setSimpanStatus("saving");
+      let berhasil = false;
       try {
         const supabase = createClient();
         const { error } = await supabase
@@ -454,8 +457,10 @@ export function InfoCard({
           return;
         }
         setSavedSnap(nilai);
+        berhasil = true;
       } finally {
         setSaving(false);
+        setSimpanStatus(berhasil ? "saved" : "error");
       }
     },
     [router, toast]
@@ -521,11 +526,6 @@ export function InfoCard({
             {(error ?? masalah) && (
               <p role="alert" className="mt-2 px-1 text-sm text-danger">
                 {error ?? masalah}
-              </p>
-            )}
-            {saving && (
-              <p aria-live="polite" className="mt-2 px-1 text-xs text-neutral-500">
-                Menyimpan…
               </p>
             )}
             <div className="mt-2">
@@ -614,17 +614,20 @@ export function SectionCard({
   // Validasi ringan saat mengetik (ditampilkan, tidak toast).
   let masalah: string | null = null;
   const cj = judul.trim();
-  if (cj.length < 2 || cj.length > 120) {
-    masalah = "Judul section harus 2-120 karakter.";
+  if (cj.length < 1 || cj.length > 120) {
+    masalah = "Judul section harus 1-120 karakter.";
   } else if (kelolaKolom) {
     if (kolom.length === 0) {
       masalah = esai ? "Tambahkan minimal satu subjudul." : "Tambahkan minimal satu kolom isian.";
     } else {
       const buruk = kolom.find((col) => {
         const label = col.label.trim();
-        return label.length < 2 || label.length > 120;
+        // Baris yang baru ditambah (belum diketik apa-apa) tidak dianggap
+        // salah — kosongnya diisi default "Kolom N" saat menyimpan.
+        if (label.length === 0) return false;
+        return label.length > 120;
       });
-      if (buruk) masalah = esai ? "Judul subjudul harus 2-120 karakter." : "Judul kolom harus 2-120 karakter.";
+      if (buruk) masalah = esai ? "Judul subjudul harus 1-120 karakter." : "Judul kolom harus 1-120 karakter.";
     }
   }
 
@@ -636,18 +639,24 @@ export function SectionCard({
   const simpan = useCallback(async (snapAwal: string) => {
     const cleanedJudul = judul.trim();
     const cleanedKolom = kelolaKolom
-      ? kolom.map((col, index) => ({
-          ...col,
-          label: col.label.trim(),
-          // Subjudul esai selalu tersimpan sebagai teks panjang.
-          tipe: (esai ? "textarea" : col.tipe) as KolomTipe,
-          urutan: index,
-        }))
+      ? kolom.map((col, index) => {
+          const label = col.label.trim();
+          return {
+            ...col,
+            // Label kosong diisi default supaya tetap valid di DB.
+            label: label.length > 0 ? label : `${esai ? "Subjudul" : "Kolom"} ${index + 1}`,
+            // Subjudul esai selalu tersimpan sebagai teks panjang.
+            tipe: (esai ? "textarea" : col.tipe) as KolomTipe,
+            urutan: index,
+          };
+        })
       : [];
     const awalKolom = item.kolom;
     savingRef.current = true;
     setSaving(true);
     setError(null);
+    setSimpanStatus("saving");
+    let berhasil = false;
     try {
       const supabase = createClient();
       if (kepala) {
@@ -733,10 +742,12 @@ export function SectionCard({
         }
       }
       setSavedSnap(snapAwal);
+      berhasil = true;
       onSaved();
     } finally {
       savingRef.current = false;
       setSaving(false);
+      setSimpanStatus(berhasil ? "saved" : "error");
     }
   }, [item, judul, deskripsi, kepala, kolom, onSaved, kelolaKolom, esai, router, toast]);
 
@@ -921,11 +932,6 @@ export function SectionCard({
       {(error ?? masalah) && (
         <p role="alert" className="mt-2 px-1 text-sm text-danger">
           {error ?? masalah}
-        </p>
-      )}
-      {saving && (
-        <p aria-live="polite" className="mt-2 px-1 text-xs text-neutral-500">
-          Menyimpan…
         </p>
       )}
     </div>

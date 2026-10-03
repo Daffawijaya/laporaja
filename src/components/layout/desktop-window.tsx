@@ -25,6 +25,7 @@ import {
   LiquidGlassSidebar,
   type LiquidGlassSidebarItem,
 } from "@/components/ui/liquid-glass-sidebar";
+import { SimpanTeks } from "@/components/ui/simpan-teks";
 import type { Role } from "@/lib/supabase/database.types";
 
 type Icon = React.ComponentType<{ className?: string }>;
@@ -199,7 +200,10 @@ export function DesktopWindow({
             }}
           />
           <div className="relative flex items-center gap-3 px-4 pt-4 pb-4">
-          <h1 className="min-w-0 flex-1 truncate text-[26px] font-semibold tracking-tight">{title}</h1>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <h1 className="min-w-0 truncate text-[26px] font-semibold tracking-tight">{title}</h1>
+            <SimpanTeks />
+          </div>
 
           <div className="ref-search-wrap relative w-56 shrink-0 lg:w-72">
             <Search

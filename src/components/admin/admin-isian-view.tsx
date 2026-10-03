@@ -1,11 +1,14 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import { RefListCard } from "@/components/ui/ref-list-card";
 import { formatTanggalPanjang } from "@/components/laporan/types";
+import { GambarNilaiTampil } from "@/components/laporan/gambar-nilai";
+import { parseGambarNilai } from "@/lib/laporan-tambahan/queries";
 import type { TugasLaporan } from "@/lib/laporan-tambahan/queries";
 
 // Nilai tanggal (YYYY-MM-DD) ditampilkan sebagai "hari, tanggal bulan tahun".
 function formatSel(tipe: string, raw: string): string {
   if (!raw) return "-";
+  if (tipe === "image") return parseGambarNilai(raw)?.deskripsi || "Gambar";
   if (tipe !== "date") return raw;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   try {
@@ -83,11 +86,26 @@ export function AdminIsianView({ tugas }: { tugas: TugasLaporan[] }) {
                   {item.baris.map((row, index) => (
                     <tr key={row.id} className="align-top">
                       <td className="px-2 py-1.5 text-neutral-500">{index + 1}</td>
-                      {item.kolom.map((col) => (
-                        <td key={col.id} className="px-2 py-1.5 whitespace-pre-wrap">
-                          {formatSel(col.tipe, row.nilai[col.id] ?? "")}
-                        </td>
-                      ))}
+                    {item.kolom.map((col) => (
+                      <td key={col.id} className="px-2 py-1.5 whitespace-pre-wrap">
+                        {col.tipe === "image" ? (
+                          (() => {
+                            const parsed = parseGambarNilai(row.nilai[col.id] ?? "");
+                            return parsed ? (
+                              <GambarNilaiTampil
+                                path={parsed.gambar}
+                                deskripsi={parsed.deskripsi}
+                                ukuran="md"
+                              />
+                            ) : (
+                              "-"
+                            );
+                          })()
+                        ) : (
+                          formatSel(col.tipe, row.nilai[col.id] ?? "")
+                        )}
+                      </td>
+                    ))}
                     </tr>
                   ))}
                 </tbody>
