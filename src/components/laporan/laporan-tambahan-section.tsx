@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ImagePlus, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RefListCard } from "@/components/ui/ref-list-card";
@@ -32,85 +30,83 @@ import {
   type TugasLaporan,
 } from "@/lib/laporan-tambahan/queries";
 
-function FieldInput({
+// Sel input tabel ala admin/section: tanpa label (label sudah jadi TH),
+// kontrol langsung di dalam TD. Lebar minimum mengikuti kolom admin.
+function SelInput({
   kolom,
-  index,
   value,
   onChange,
   disabled,
   userId,
   folderId,
+  uniq,
 }: {
   kolom: KolomDef;
-  index: number;
   value: string;
   onChange: (value: string) => void;
   disabled: boolean;
   userId: string;
   folderId: string;
+  uniq: string;
 }) {
-  const id = `baris-${kolom.id}-${index}`;
-  const label = `${kolom.label}${kolom.wajib ? "" : " (opsional)"}`;
   if (kolom.tipe === "image") {
     return (
-      <GambarField
+      <SelGambar
         userId={userId}
         folderId={folderId}
         kolom={kolom}
-        index={index}
         value={value}
         onChange={onChange}
         disabled={disabled}
+        uniq={uniq}
       />
     );
   }
   if (kolom.tipe === "textarea") {
     return (
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={id}>{label}</Label>
-        <Textarea
-          id={id}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          rows={3}
-          disabled={disabled}
-        />
-      </div>
+      <Textarea
+        aria-label={kolom.label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        rows={2}
+        disabled={disabled}
+        placeholder={kolom.label}
+        className="min-h-11 border-transparent bg-black/[0.075] text-sm hover:border-transparent hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
+      />
     );
   }
   return (
-    <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        type={kolom.tipe === "date" ? "date" : kolom.tipe === "number" ? "number" : "text"}
-        inputMode={kolom.tipe === "number" ? "decimal" : undefined}
-        disabled={disabled}
-      />
-    </div>
+    <Input
+      aria-label={kolom.label}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      type={kolom.tipe === "date" ? "date" : kolom.tipe === "number" ? "number" : "text"}
+      inputMode={kolom.tipe === "number" ? "decimal" : undefined}
+      disabled={disabled}
+      placeholder={kolom.label}
+      className="h-11 min-w-[128px] border-transparent bg-black/[0.075] text-sm hover:border-transparent hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
+    />
   );
 }
 
-// Isian kolom gambar: satu upload berkas + satu deskripsi. Nilai disimpan
-// sebagai JSON {"gambar": path storage, "deskripsi": teks}; keduanya wajib.
-function GambarField({
+// Isian gambar ringkas untuk sel tabel: pratinjau kecil + berkas +
+// deskripsi. Nilai JSON {"gambar": path, "deskripsi": teks}.
+function SelGambar({
   userId,
   folderId,
   kolom,
-  index,
   value,
   onChange,
   disabled,
+  uniq,
 }: {
   userId: string;
   folderId: string;
   kolom: KolomDef;
-  index: number;
   value: string;
   onChange: (value: string) => void;
   disabled: boolean;
+  uniq: string;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -119,13 +115,15 @@ function GambarField({
   const deskripsi = parsed?.deskripsi ?? "";
   const [url, setUrl] = useState<string | null>(null);
   const [prevPath, setPrevPath] = useState(path);
-  // Reset pratinjau saat path berganti (pola render-phase sync).
   if (prevPath !== path) {
     setPrevPath(path);
     setUrl(null);
   }
   const [mengunggah, setMengunggah] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const fileId = useId();
+  const descId = useId();
 
   useEffect(() => {
     let hidup = true;
@@ -162,7 +160,6 @@ function GambarField({
     try {
       const supabase = createClient();
       const pathBaru = await uploadKegiatanImage(supabase, userId, folderId, file);
-      // Best effort: berkas lama dibuang saat diganti.
       if (path && path !== pathBaru) {
         await removeStoragePaths(supabase, [path]);
       }
@@ -192,41 +189,100 @@ function GambarField({
   }
 
   const sibuk = disabled || mengunggah;
+  const [seret, setSeret] = useState(false);
+  const maksMb = MAX_IMAGE_BYTES / 1024 / 1024;
   return (
-    <div className="flex flex-col gap-2">
-      <Label>{kolom.label}</Label>
+    <div className="flex min-w-[200px] flex-col gap-2">
       {path ? (
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-2.5 rounded-2xl bg-black/[0.075] p-2.5 dark:bg-white/[0.075]">
           {url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={url}
               alt={deskripsi || kolom.label}
-              className="h-24 w-32 rounded-md object-cover"
+              className="h-16 w-24 shrink-0 rounded-xl object-cover"
             />
           ) : (
-            <span className="text-xs text-neutral-500">Memuat gambar…</span>
+            <span className="flex h-16 w-24 shrink-0 items-center justify-center rounded-xl bg-black/[0.075] text-[11px] text-neutral-500 dark:bg-white/10">
+              Memuat…
+            </span>
           )}
-          <span className="flex gap-1">
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={sibuk}
-              onClick={() => document.getElementById(`gambar-${kolom.id}-${index}`)?.click()}
-            >
-              Ganti
-            </Button>
-            <Button type="button" variant="ghost" disabled={sibuk} onClick={hapusGambar}>
-              <Trash2 aria-hidden="true" />
-              <span className="sr-only">Hapus gambar</span>
-            </Button>
+          <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className="flex items-center gap-1.5 text-xs font-medium">
+              <Check aria-hidden="true" className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+              Gambar terpilih
+            </span>
+            <span className="flex gap-1">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={sibuk}
+                onClick={() => fileRef.current?.click()}
+                className="min-h-10 px-3 text-xs"
+              >
+                Ganti
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={sibuk}
+                onClick={() => void hapusGambar()}
+                aria-label={`Hapus gambar ${kolom.label}`}
+                className="min-h-10 w-10"
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </span>
           </span>
         </div>
       ) : (
-        <p className="text-xs text-neutral-500">Belum ada gambar.</p>
+        <div
+          role="button"
+          tabIndex={sibuk ? -1 : 0}
+          aria-label={`Unggah ${kolom.label}`}
+          aria-disabled={sibuk}
+          onClick={() => {
+            if (!sibuk) fileRef.current?.click();
+          }}
+          onKeyDown={(event) => {
+            if ((event.key === "Enter" || event.key === " ") && !sibuk) {
+              event.preventDefault();
+              fileRef.current?.click();
+            }
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            if (!sibuk) setSeret(true);
+          }}
+          onDragLeave={() => setSeret(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setSeret(false);
+            if (!sibuk) void pilihBerkas(event.dataTransfer.files?.[0]);
+          }}
+          className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed px-4 py-5 text-center transition-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/15 ${
+            seret
+              ? "border-accent bg-accent/10"
+              : "border-neutral-300 bg-black/[0.03] hover:border-neutral-400 hover:bg-black/[0.06] dark:border-white/15 dark:bg-white/[0.04] dark:hover:bg-white/[0.08]"
+          } ${sibuk ? "pointer-events-none opacity-60" : ""}`}
+        >
+          {mengunggah ? (
+            <Loader2 aria-hidden="true" className="size-6 animate-spin text-neutral-500" />
+          ) : (
+            <span className="flex size-10 items-center justify-center rounded-full bg-black/[0.075] dark:bg-white/10">
+              <ImagePlus aria-hidden="true" className="size-5" />
+            </span>
+          )}
+          <span className="text-xs font-medium">
+            {mengunggah ? "Mengunggah…" : "Klik atau seret gambar ke sini"}
+          </span>
+          <span className="text-[11px] text-neutral-500">PNG/JPG · maks {maksMb} MB</span>
+        </div>
       )}
       <Input
-        id={`gambar-${kolom.id}-${index}`}
+        ref={fileRef}
+        id={`${fileId}-${uniq}-${kolom.id}`}
         type="file"
         accept="image/*"
         disabled={sibuk}
@@ -234,22 +290,23 @@ function GambarField({
           void pilihBerkas(event.target.files?.[0]);
           event.target.value = "";
         }}
-        className={path ? "hidden" : undefined}
+        className="hidden"
+        aria-label={`Berkas ${kolom.label}`}
       />
-      <Label htmlFor={`gambar-deskripsi-${kolom.id}-${index}`}>Deskripsi gambar</Label>
       <Input
-        id={`gambar-deskripsi-${kolom.id}-${index}`}
+        id={`${descId}-${uniq}-${kolom.id}`}
         value={deskripsi}
         onChange={(event) => tulis(path, event.target.value)}
-        placeholder="Tulis deskripsi gambar."
+        placeholder="Deskripsi gambar"
+        aria-label={`Deskripsi ${kolom.label}`}
         disabled={sibuk}
+        className="h-11 border-transparent bg-black/[0.075] text-sm hover:border-transparent hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
       />
       {galat && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-xs text-danger">
           {galat}
         </p>
       )}
-      {mengunggah && <p className="text-xs text-neutral-500">Mengunggah…</p>}
     </div>
   );
 }
@@ -454,16 +511,358 @@ function EsaiIsian({
           {saving ? "Menyimpan..." : "Simpan isian"}
         </Button>
       </div>
-      <p className="mt-2 px-1 text-xs text-neutral-500">
-        Kosongkan semua lalu Simpan untuk menghapus isian.
-      </p>
+    </RefListCard>
+  );
+}
+
+// Kartu tabel user: tampil + input langsung berbentuk tabel ala
+// admin/section (TH = nama kolom, baris = isian). Baris terakhir selalu
+// input tambah (+), ubah langsung di barisnya. Tanpa dropdown/dialog.
+function TabelIsianCard({
+  userId,
+  item,
+  periode,
+}: {
+  userId: string;
+  item: TugasLaporan;
+  periode: Periode;
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const [tambah, setTambah] = useState<Record<string, string>>({});
+  const [tambahError, setTambahError] = useState<string | null>(null);
+  const [tambahSaving, setTambahSaving] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editVals, setEditVals] = useState<Record<string, string>>({});
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [hapus, setHapus] = useState<BarisIsi | null>(null);
+  const [hapusBusy, setHapusBusy] = useState(false);
+
+  function sesiBerakhir(error: unknown): boolean {
+    if (error instanceof SessionExpiredError || isSessionError(error)) {
+      toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
+      router.replace("/login?expired=1");
+      return true;
+    }
+    return false;
+  }
+
+  function ubahTambah(kolomId: string, value: string) {
+    setTambah((prev) => ({ ...prev, [kolomId]: value }));
+    setTambahError(null);
+  }
+
+  function ubahEdit(kolomId: string, value: string) {
+    setEditVals((prev) => ({ ...prev, [kolomId]: value }));
+    setEditError(null);
+  }
+
+  function mulaiUbah(row: BarisIsi) {
+    setEditId(row.id);
+    setEditVals({ ...row.nilai });
+    setEditError(null);
+    setTambahError(null);
+  }
+
+  async function simpanTambah() {
+    if (tambahSaving || editSaving) return;
+    let cleaned: Record<string, string>;
+    try {
+      cleaned = cleanNilai(item.kolom, tambah);
+    } catch (err) {
+      setTambahError(err instanceof Error ? err.message : "Isian belum valid.");
+      return;
+    }
+    if (!Object.values(cleaned).some((nilai) => nilai.length > 0)) {
+      setTambahError(`Kolom "${item.kolom[0]?.label ?? "isian"}" wajib diisi.`);
+      return;
+    }
+    setTambahSaving(true);
+    setTambahError(null);
+    try {
+      const supabase = createClient();
+      const { data: baris, error: barisError } = await supabase
+        .from("laporan_tambahan_baris")
+        .insert({ laporan_id: item.id, user_id: userId, bulan: periode.bulan, tahun: periode.tahun })
+        .select("id")
+        .single();
+      if (barisError || !baris) {
+        if (sesiBerakhir(barisError)) return;
+        setTambahError("Gagal menyimpan. Coba lagi.");
+        return;
+      }
+      const { error: nilaiError } = await supabase.from("laporan_tambahan_nilai").insert(
+        item.kolom.map((col) => ({
+          baris_id: baris.id,
+          kolom_id: col.id,
+          nilai: cleaned[col.id] ?? "",
+        }))
+      );
+      if (nilaiError) {
+        await supabase.from("laporan_tambahan_baris").delete().eq("id", baris.id);
+        setTambahError("Gagal menyimpan. Coba lagi.");
+        return;
+      }
+      setTambah({});
+      toast.success("Isian ditambahkan.");
+      router.refresh();
+    } finally {
+      setTambahSaving(false);
+    }
+  }
+
+  async function simpanUbah(rowId: string) {
+    if (editSaving) return;
+    let cleaned: Record<string, string>;
+    try {
+      cleaned = cleanNilai(item.kolom, editVals);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Isian belum valid.");
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("laporan_tambahan_nilai")
+        .upsert(
+          item.kolom.map((col) => ({
+            baris_id: rowId,
+            kolom_id: col.id,
+            nilai: cleaned[col.id] ?? "",
+          })),
+          { onConflict: "baris_id,kolom_id" }
+        );
+      if (error) {
+        if (sesiBerakhir(error)) return;
+        setEditError("Gagal menyimpan. Coba lagi.");
+        return;
+      }
+      setEditId(null);
+      toast.success("Isian diperbarui.");
+      router.refresh();
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function jalankanHapus() {
+    if (!hapus || hapusBusy) return;
+    setHapusBusy(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("laporan_tambahan_baris")
+        .delete()
+        .eq("id", hapus.id)
+        .eq("user_id", userId);
+      if (error) {
+        if (sesiBerakhir(error)) return;
+        toast.error("Gagal menghapus isian. Coba lagi.");
+        return;
+      }
+      const paths = item.kolom
+        .filter((col) => col.tipe === "image")
+        .map((col) => parseGambarNilai(hapus.nilai[col.id] ?? "")?.gambar ?? "")
+        .filter((path) => path.length > 0);
+      if (paths.length > 0) {
+        await removeStoragePaths(createClient(), paths);
+      }
+      if (editId === hapus.id) setEditId(null);
+      setHapus(null);
+      toast.success("Isian dihapus.");
+      router.refresh();
+    } finally {
+      setHapusBusy(false);
+    }
+  }
+
+  if (item.kolom.length === 0) {
+    return (
+      <RefListCard ariaLabel={`Section ${item.judul}`} title={item.judul} className="mt-4">
+        <p className="px-1 text-sm text-neutral-500">
+          Belum ada kolom untuk section ini. Hubungi admin.
+        </p>
+      </RefListCard>
+    );
+  }
+
+  const galat = editError ?? tambahError;
+
+  return (
+    <RefListCard
+      ariaLabel={`Section ${item.judul}`}
+      title={item.judul}
+      className="mt-4"
+    >
+      {item.deskripsi && (
+        <p className="px-1 pb-3 text-xs whitespace-pre-wrap text-neutral-500">
+          {item.deskripsi}
+        </p>
+      )}
+
+      <div className="overflow-x-auto px-1">
+        <table className="w-full min-w-[560px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-neutral-200/70 text-left dark:border-white/10">
+              {item.kolom.map((col) => (
+                <th
+                  key={col.id}
+                  scope="col"
+                  className="min-w-[160px] px-2 py-2 align-bottom"
+                >
+                  <span className="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                    {col.label}
+                  </span>
+                </th>
+              ))}
+              <th
+                scope="col"
+                className="w-24 px-2 py-2 text-right text-xs font-medium text-neutral-500"
+              >
+                Aksi
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {item.baris.map((row) =>
+              editId === row.id ? (
+                <tr key={row.id} className="border-b border-neutral-200/70 bg-accent/5 align-middle dark:border-white/10">
+                  {item.kolom.map((col) => (
+                    <td key={col.id} className="px-2 py-2 align-middle">
+                      <SelInput
+                        kolom={col}
+                        value={editVals[col.id] ?? ""}
+                        onChange={(value) => ubahEdit(col.id, value)}
+                        disabled={editSaving}
+                        userId={userId}
+                        folderId={item.id}
+                        uniq={`edit-${row.id}`}
+                      />
+                    </td>
+                  ))}
+                  <td className="px-2 py-2 align-middle">
+                    <span className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => void simpanUbah(row.id)}
+                        disabled={editSaving}
+                        aria-label="Simpan perubahan"
+                      >
+                        <Check aria-hidden="true" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setEditId(null)}
+                        disabled={editSaving}
+                        aria-label="Batal ubah"
+                      >
+                        <X aria-hidden="true" />
+                      </Button>
+                    </span>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={row.id} className="border-b border-neutral-200/70 align-middle dark:border-white/10">
+                  {item.kolom.map((col) => (
+                    <td key={col.id} className="px-2 py-2 align-middle whitespace-pre-wrap">
+                      {col.tipe === "image" ? (
+                        (() => {
+                          const parsed = parseGambarNilai(row.nilai[col.id] ?? "");
+                          return parsed ? (
+                            <GambarNilaiTampil
+                              path={parsed.gambar}
+                              deskripsi={parsed.deskripsi}
+                            />
+                          ) : (
+                            "-"
+                          );
+                        })()
+                      ) : (
+                        formatNilai(col, row.nilai[col.id] ?? "")
+                      )}
+                    </td>
+                  ))}
+                  <td className="px-2 py-2 align-middle">
+                    <span className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => mulaiUbah(row)}
+                        aria-label="Ubah isian"
+                      >
+                        <Pencil aria-hidden="true" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setHapus(row)}
+                        aria-label="Hapus isian"
+                      >
+                        <Trash2 aria-hidden="true" />
+                      </Button>
+                    </span>
+                  </td>
+                </tr>
+              )
+            )}
+            <tr aria-hidden="true" className="border-0">
+              <td colSpan={item.kolom.length + 1} className="border-0 p-0 pt-2" />
+            </tr>
+            <tr className="border-0 align-middle">
+              {item.kolom.map((col) => (
+                <td key={col.id} className="border-0 px-2 py-2 align-middle">
+                  <SelInput
+                    kolom={col}
+                    value={tambah[col.id] ?? ""}
+                    onChange={(value) => ubahTambah(col.id, value)}
+                    disabled={tambahSaving}
+                    userId={userId}
+                    folderId={item.id}
+                    uniq="tambah"
+                  />
+                </td>
+              ))}
+              <td className="border-0 px-2 py-2 align-middle">
+                <Button
+                  onClick={() => void simpanTambah()}
+                  disabled={tambahSaving}
+                  className="rounded-full"
+                  aria-label="Tambah baris"
+                >
+                  <Plus aria-hidden="true" />
+                  {tambahSaving ? "Menyimpan…" : "Tambah"}
+                </Button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {galat && (
+        <p role="alert" className="mt-2 px-1 text-sm text-danger">
+          {galat}
+        </p>
+      )}
+      <ConfirmDialog
+        open={hapus !== null}
+        title="Hapus isian?"
+        message="Jika isian ini dihapus, datanya hilang dan tidak ikut export."
+        busy={hapusBusy}
+        onCancel={() => setHapus(null)}
+        onConfirm={() => void jalankanHapus()}
+      />
     </RefListCard>
   );
 }
 
 // Seksi pengisian laporan tambahan di halaman laporan user: daftar tugas
-// wajib untuk satu periode bulan. Tugas tabel = tambah/ubah/hapus baris
-// isian mengikuti kolom admin; tugas esai = satu textarea.
+// wajib untuk satu periode bulan. Tugas tabel = tabel langsung
+// (tambah/ubah/hapus baris mengikuti kolom admin); tugas esai = textarea.
 export function LaporanTambahanSection({
   userId,
   tugas,
@@ -475,181 +874,7 @@ export function LaporanTambahanSection({
   periode: Periode;
   className?: string;
 }) {
-  const router = useRouter();
-  const toast = useToast();
-  const reduceMotion = !!useReducedMotion();
-  const [laporanId, setLaporanId] = useState<string | null>(null);
-  const [editTarget, setEditTarget] = useState<BarisIsi | null>(null);
-  const [form, setForm] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{
-    judul: string;
-    baris: BarisIsi;
-    kolom: KolomDef[];
-  } | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  // Tutup form inline pakai Escape.
-  useEffect(() => {
-    if (!laporanId) return;
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setLaporanId(null);
-        setEditTarget(null);
-      }
-    }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [laporanId]);
-
   if (tugas.length === 0) return null;
-
-  const aktif = tugas.find((item) => item.id === laporanId) ?? null;
-
-  function setField(kolomId: string, value: string) {
-    setForm((prev) => ({ ...prev, [kolomId]: value }));
-    setFormError(null);
-  }
-
-  function scrollToForm(id: string) {
-    window.setTimeout(() => {
-      document
-        .getElementById(`laporan-form-${id}`)
-        ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
-    }, 60);
-  }
-
-  function closeForm() {
-    setLaporanId(null);
-    setEditTarget(null);
-    setFormError(null);
-  }
-
-  function openAdd(item: TugasLaporan) {
-    // Toggle: klik lagi saat form tambah sudah terbuka = tutup.
-    if (laporanId === item.id && editTarget === null) {
-      closeForm();
-      return;
-    }
-    setLaporanId(item.id);
-    setEditTarget(null);
-    setForm({});
-    setFormError(null);
-    scrollToForm(item.id);
-  }
-
-  function openEdit(item: TugasLaporan, row: BarisIsi) {
-    setLaporanId(item.id);
-    setEditTarget(row);
-    setForm({ ...row.nilai });
-    setFormError(null);
-    scrollToForm(item.id);
-  }
-
-  function handleSession(error: unknown): boolean {
-    if (error instanceof SessionExpiredError || isSessionError(error)) {
-      toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
-      router.replace("/login?expired=1");
-      return true;
-    }
-    return false;
-  }
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (saving || !aktif) return;
-    let cleaned: Record<string, string>;
-    try {
-      cleaned = cleanNilai(aktif.kolom, form);
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Isian belum valid.");
-      return;
-    }
-    setSaving(true);
-    setFormError(null);
-    try {
-      const supabase = createClient();
-      if (editTarget) {
-        const { error } = await supabase
-          .from("laporan_tambahan_nilai")
-          .upsert(
-            aktif.kolom.map((col) => ({
-              baris_id: editTarget.id,
-              kolom_id: col.id,
-              nilai: cleaned[col.id] ?? "",
-            })),
-            { onConflict: "baris_id,kolom_id" }
-          );
-        if (error) {
-          if (handleSession(error)) return;
-          setFormError("Gagal menyimpan. Coba lagi.");
-          return;
-        }
-        toast.success("Isian diperbarui.");
-      } else {
-        const { data: baris, error: barisError } = await supabase
-          .from("laporan_tambahan_baris")
-          .insert({ laporan_id: aktif.id, user_id: userId, bulan: periode.bulan, tahun: periode.tahun })
-          .select("id")
-          .single();
-        if (barisError || !baris) {
-          if (handleSession(barisError)) return;
-          setFormError("Gagal menyimpan. Coba lagi.");
-          return;
-        }
-        const { error: nilaiError } = await supabase.from("laporan_tambahan_nilai").insert(
-          aktif.kolom.map((col) => ({
-            baris_id: baris.id,
-            kolom_id: col.id,
-            nilai: cleaned[col.id] ?? "",
-          }))
-        );
-        if (nilaiError) {
-          await supabase.from("laporan_tambahan_baris").delete().eq("id", baris.id);
-          setFormError("Gagal menyimpan. Coba lagi.");
-          return;
-        }
-        toast.success("Isian ditambahkan.");
-      }
-      setLaporanId(null);
-      setEditTarget(null);
-      router.refresh();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete() {
-    if (!deleteTarget || deleting) return;
-    setDeleting(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("laporan_tambahan_baris")
-        .delete()
-        .eq("id", deleteTarget.baris.id)
-        .eq("user_id", userId);
-      if (error) {
-        if (handleSession(error)) return;
-        toast.error("Gagal menghapus isian. Coba lagi.");
-        return;
-      }
-      // Best effort: berkas gambar ikut dibuang agar tidak yatim.
-      const paths = deleteTarget.kolom
-        .filter((col) => col.tipe === "image")
-        .map((col) => parseGambarNilai(deleteTarget.baris.nilai[col.id] ?? "")?.gambar ?? "")
-        .filter((path) => path.length > 0);
-      if (paths.length > 0) {
-        await removeStoragePaths(createClient(), paths);
-      }
-      setDeleteTarget(null);
-      toast.success("Isian dihapus.");
-      router.refresh();
-    } finally {
-      setDeleting(false);
-    }
-  }
 
   return (
     <div className={className}>
@@ -669,190 +894,8 @@ export function LaporanTambahanSection({
         if (item.format === "esai") {
           return <EsaiIsian key={item.id} userId={userId} item={item} periode={periode} />;
         }
-        const isOpen = aktif?.id === item.id;
-        const isEditing = isOpen && editTarget !== null;
-        return (
-          <RefListCard
-            key={item.id}
-            ariaLabel={`Section ${item.judul}`}
-            title={item.judul}
-            className="mt-4"
-          >
-            <div className="flex items-center justify-between gap-3 px-1 pb-3">
-              <span className="text-xs text-neutral-500">
-                Wajib diisi · {item.baris.length} baris
-              </span>
-              <span
-                className={
-                  item.terisi
-                    ? "text-xs font-medium text-emerald-700 dark:text-emerald-300"
-                    : "text-xs font-medium text-amber-700 dark:text-amber-300"
-                }
-              >
-                {item.terisi ? "Sudah diisi" : "Belum diisi"}
-              </span>
-            </div>
-            {item.deskripsi && (
-              <p className="px-1 pb-3 text-xs whitespace-pre-wrap text-neutral-500">
-                {item.deskripsi}
-              </p>
-            )}
-
-            {item.baris.length === 0 ? (
-              <EmptyState
-                title="Belum ada isian"
-                description="Tambahkan baris pertama isian."
-                action={
-                  <Button onClick={() => openAdd(item)}>
-                    <Plus aria-hidden="true" />
-                    {isOpen ? "Tutup" : "Tambah Isian"}
-                  </Button>
-                }
-              />
-            ) : (
-              <>
-                <ul className="divide-y divide-neutral-200/70 dark:divide-white/10">
-                  {item.baris.map((row, index) => {
-                    const kolomPertama = item.kolom[0];
-                    const ringkas = kolomPertama
-                      ? kolomPertama.tipe === "image"
-                        ? (parseGambarNilai(row.nilai[kolomPertama.id] ?? "")?.deskripsi || "Gambar")
-                        : row.nilai[kolomPertama.id] || `Baris ${index + 1}`
-                      : `Baris ${index + 1}`;
-                    return (
-                      <li key={row.id} className="px-1 py-3 first:pt-0 last:pb-0">
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="min-w-0 truncate text-sm font-medium">
-                            <span className="mr-2 text-neutral-500">{index + 1}.</span>
-                            {ringkas}
-                          </p>
-                          <span className="flex shrink-0 items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              onClick={() => openEdit(item, row)}
-                              aria-label={`Ubah isian ${index + 1}`}
-                            >
-                              <Pencil aria-hidden="true" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              onClick={() => setDeleteTarget({ judul: item.judul, baris: row, kolom: item.kolom })}
-                              aria-label={`Hapus isian ${index + 1}`}
-                            >
-                              <Trash2 aria-hidden="true" />
-                            </Button>
-                          </span>
-                        </div>
-                        <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-                          {item.kolom.map((col) => (
-                            <div key={col.id} className="contents">
-                              <dt className="text-neutral-500">{col.label}</dt>
-                              <dd className="whitespace-pre-wrap">
-                                {col.tipe === "image" ? (
-                                  (() => {
-                                    const parsed = parseGambarNilai(row.nilai[col.id] ?? "");
-                                    return parsed ? (
-                                      <GambarNilaiTampil
-                                        path={parsed.gambar}
-                                        deskripsi={parsed.deskripsi}
-                                      />
-                                    ) : (
-                                      "-"
-                                    );
-                                  })()
-                                ) : (
-                                  formatNilai(col, row.nilai[col.id] ?? "")
-                                )}
-                              </dd>
-                            </div>
-                          ))}
-                        </dl>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {!isOpen && (
-                  <div className="mt-3 flex justify-end">
-                    <Button onClick={() => openAdd(item)} className="rounded-full">
-                      <Plus aria-hidden="true" />
-                      Tambah
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-
-            <AnimatePresence initial={false}>
-              {isOpen && (
-                <motion.div
-                  key={`form-${item.id}`}
-                  id={`laporan-form-${item.id}`}
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{
-                    duration: reduceMotion ? 0.15 : 0.28,
-                    ease: [0.32, 0.72, 0, 1],
-                  }}
-                  className="overflow-hidden"
-                >
-                  <div className="mt-3 rounded-2xl border border-neutral-200/70 bg-black/[0.03] p-4 dark:border-white/10 dark:bg-white/5">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <p className="text-sm font-medium">
-                        {isEditing ? "Ubah isian" : "Tambah isian"}
-                      </p>
-                      <span className="text-xs text-neutral-500">
-                        {item.kolom.length} kolom
-                      </span>
-                    </div>
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                      {item.kolom.map((col, index) => (
-                        <FieldInput
-                          key={col.id}
-                          kolom={col}
-                          index={index}
-                          value={form[col.id] ?? ""}
-                          onChange={(value) => setField(col.id, value)}
-                          disabled={saving}
-                          userId={userId}
-                          folderId={item.id}
-                        />
-                      ))}
-                      {formError && (
-                        <p role="alert" className="text-sm text-danger">
-                          {formError}
-                        </p>
-                      )}
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={closeForm}
-                          disabled={saving}
-                        >
-                          Batal
-                        </Button>
-                        <Button type="submit" disabled={saving}>
-                          {saving ? "Menyimpan..." : "Simpan"}
-                        </Button>
-                      </div>
-                    </form>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </RefListCard>
-        );
+        return <TabelIsianCard key={item.id} userId={userId} item={item} periode={periode} />;
       })}
-
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        title="Hapus isian?"
-        message="Jika isian ini dihapus, datanya hilang dan tidak ikut export."
-        busy={deleting}
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-      />
     </div>
   );
 }
