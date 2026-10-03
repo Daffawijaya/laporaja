@@ -1,0 +1,47 @@
+/* Nav bawah mobile: memakai sistem liquid glass filter tab (lgt-*) apa
+   adanya — kaca, pill geser, dan timing animasi identik. Berkas ini hanya
+   override posisi mengambang + tata letak slot ikon-teks. */
+
+.mgn-nav.lgt-nav {
+  position: fixed;
+  inset-inline: 12px;
+  top: auto;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 30;
+  width: auto;
+  max-width: none;
+  height: 68px;
+}
+
+.mgn-nav .lgt-nav-inner {
+  grid-template-columns: repeat(3, 1fr);
+  height: 100%;
+  gap: 2px;
+}
+
+.mgn-nav .lgt-item {
+  height: 100%;
+  min-height: 0;
+  padding: 6px 4px;
+  /* Bar boleh jadi awal scroll halaman (tanpa drag antar slot). */
+  touch-action: pan-y;
+}
+
+.mgn-nav .lgt-indicator {
+  top: 4px;
+  height: calc(100% - 8px);
+}
+
+/* Label slot: ikon di atas, teks di bawah. */
+.mgn-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+@media (min-width: 768px) {
+  .mgn-nav {
+    display: none;
+  }
+}

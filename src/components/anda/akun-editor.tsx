@@ -6,10 +6,12 @@ import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
+import { usernameToEmail } from "@/lib/auth/username";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import {
   MAX_IMAGE_BYTES,
@@ -215,31 +217,67 @@ export function FotoEditor({
   );
 }
 
-// Reset kata sandi milik sendiri: sandi baru + konfirmasi, langsung
-// tersimpan ke akun yang sedang masuk.
-export function PasswordEditor() {
+// Ganti kata sandi milik sendiri dua langkah: isi sandi lama dulu, bila
+// benar dibuka modal berisi sandi baru + konfirmasi.
+export function PasswordEditor({ username }: { username: string }) {
   const router = useRouter();
   const toast = useToast();
+  const [lama, setLama] = useState("");
   const [baru, setBaru] = useState("");
   const [konfirmasi, setKonfirmasi] = useState("");
+  const [memeriksa, setMemeriksa] = useState(false);
   const [saving, setSaving] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
-  const [berhasil, setBerhasil] = useState(false);
+  const [galatModal, setGalatModal] = useState<string | null>(null);
+  const [buka, setBuka] = useState(false);
 
+  // Langkah 1: pastikan sandi lama benar lewat masuk ulang.
+  async function periksaLama() {
+    if (memeriksa || saving) return;
+    if (lama.length === 0) {
+      setGalat("Isi kata sandi lama dulu.");
+      return;
+    }
+    setMemeriksa(true);
+    setGalat(null);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email: usernameToEmail(username),
+        password: lama,
+      });
+      if (error) {
+        if (error instanceof SessionExpiredError || isSessionError(error)) {
+          toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
+          router.replace("/login?expired=1");
+          return;
+        }
+        setGalat("Kata sandi lama salah.");
+        return;
+      }
+      setBaru("");
+      setKonfirmasi("");
+      setGalatModal(null);
+      setBuka(true);
+    } finally {
+      setMemeriksa(false);
+    }
+  }
+
+  // Langkah 2 (di modal): simpan sandi baru + konfirmasi.
   async function simpan() {
     if (saving) return;
     const sandi = baru.trim();
     if (sandi.length < 6) {
-      setGalat("Kata sandi minimal 6 karakter.");
+      setGalatModal("Kata sandi minimal 6 karakter.");
       return;
     }
     if (sandi !== konfirmasi.trim()) {
-      setGalat("Konfirmasi tidak sama dengan kata sandi baru.");
+      setGalatModal("Konfirmasi tidak sama dengan kata sandi baru.");
       return;
     }
     setSaving(true);
-    setGalat(null);
-    setBerhasil(false);
+    setGalatModal(null);
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.updateUser({ password: sandi });
@@ -249,12 +287,13 @@ export function PasswordEditor() {
           router.replace("/login?expired=1");
           return;
         }
-        setGalat("Gagal memperbarui kata sandi. Coba lagi.");
+        setGalatModal("Gagal memperbarui kata sandi. Coba lagi.");
         return;
       }
+      setLama("");
       setBaru("");
       setKonfirmasi("");
-      setBerhasil(true);
+      setBuka(false);
       toast.success("Kata sandi diperbarui.");
     } finally {
       setSaving(false);
@@ -264,38 +303,22 @@ export function PasswordEditor() {
   return (
     <div className="flex flex-col gap-3 px-1">
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="sandi-baru">Kata sandi baru</Label>
+        <Label htmlFor="sandi-lama">Kata sandi lama</Label>
         <Input
-          id="sandi-baru"
+          id="sandi-lama"
           type="password"
-          autoComplete="new-password"
-          value={baru}
+          autoComplete="current-password"
+          value={lama}
           onChange={(event) => {
-            setBaru(event.target.value);
+            setLama(event.target.value);
             setGalat(null);
-            setBerhasil(false);
           }}
-          placeholder="Minimal 6 karakter"
-          disabled={saving}
-        />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="sandi-konfirmasi">Konfirmasi kata sandi</Label>
-        <Input
-          id="sandi-konfirmasi"
-          type="password"
-          autoComplete="new-password"
-          value={konfirmasi}
-          onChange={(event) => {
-            setKonfirmasi(event.target.value);
-            setGalat(null);
-            setBerhasil(false);
-          }}
-          placeholder="Ulangi kata sandi baru"
-          disabled={saving}
+          placeholder="Isi kata sandi saat ini"
+          disabled={memeriksa}
           onKeyDown={(event) => {
-            if (event.key === "Enter") void simpan();
+            if (event.key === "Enter") void periksaLama();
           }}
+          className="border-transparent bg-black/[0.075] hover:border-transparent hover:bg-black/[0.12] dark:border-transparent dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
         />
       </div>
       {galat && (
@@ -303,16 +326,61 @@ export function PasswordEditor() {
           {galat}
         </p>
       )}
-      {berhasil && (
-        <p role="status" className="text-sm text-emerald-600 dark:text-emerald-400">
-          Kata sandi diperbarui.
-        </p>
-      )}
       <div className="flex justify-end">
-        <Button onClick={() => void simpan()} disabled={saving} className="rounded-full">
-          {saving ? "Menyimpan…" : "Perbarui kata sandi"}
+        <Button onClick={() => void periksaLama()} disabled={memeriksa} className="rounded-full">
+          {memeriksa ? "Memeriksa…" : "Lanjut"}
         </Button>
       </div>
+
+      <Dialog open={buka} onClose={() => setBuka(false)} title="Ganti kata sandi">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="sandi-baru">Kata sandi baru</Label>
+            <Input
+              id="sandi-baru"
+              type="password"
+              autoComplete="new-password"
+              value={baru}
+              onChange={(event) => {
+                setBaru(event.target.value);
+                setGalatModal(null);
+              }}
+              placeholder="Minimal 6 karakter"
+              disabled={saving}
+              className="border-transparent bg-black/[0.075] hover:border-transparent hover:bg-black/[0.12] dark:border-transparent dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="sandi-konfirmasi">Konfirmasi kata sandi</Label>
+            <Input
+              id="sandi-konfirmasi"
+              type="password"
+              autoComplete="new-password"
+              value={konfirmasi}
+              onChange={(event) => {
+                setKonfirmasi(event.target.value);
+                setGalatModal(null);
+              }}
+              placeholder="Ulangi kata sandi baru"
+              disabled={saving}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void simpan();
+              }}
+              className="border-transparent bg-black/[0.075] hover:border-transparent hover:bg-black/[0.12] dark:border-transparent dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
+            />
+          </div>
+          {galatModal && (
+            <p role="alert" className="text-sm text-danger">
+              {galatModal}
+            </p>
+          )}
+          <div className="flex justify-end">
+            <Button onClick={() => void simpan()} disabled={saving} className="rounded-full">
+              {saving ? "Menyimpan…" : "Simpan kata sandi"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

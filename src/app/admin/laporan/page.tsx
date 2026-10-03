@@ -13,6 +13,7 @@ import {
   labelStatusReview,
 } from "@/lib/laporan-tambahan/queries";
 import { AdminIsianView } from "@/components/admin/admin-isian-view";
+import { AdminBulanList } from "@/components/admin/admin-bulan-list";
 import { LaporanBulanList } from "@/components/admin/laporan-bulan-list";
 
 // Isian user per bulan: lapis 1 daftar bulan (dibuka pengguna) → lapis 2
@@ -101,12 +102,12 @@ export default async function AdminLaporanPage({
                 {userRow.nama}
               </h2>
             </div>
-            <RefListCard
+            <AdminBulanList
               ariaLabel={`Bulan laporan ${userRow.nama}`}
               emptyText="Belum ada bulan. Bulan muncul setelah pengguna menambahkannya."
-              items={bulanUser.map((row) => ({
-                key: `${row.tahun}-${row.bulan}`,
-                title: labelPeriode(row),
+              rows={bulanUser.map((row) => ({
+                tahun: row.tahun,
+                bulan: row.bulan,
                 subtitle:
                   row.total === 0
                     ? "Tanpa tugas"
@@ -127,12 +128,12 @@ export default async function AdminLaporanPage({
           <p className="mt-1 text-sm text-muted-foreground">Pilih bulan laporan.</p>
         </div>
         <div className="mt-5 md:mt-1">
-          <RefListCard
+          <AdminBulanList
             ariaLabel="Bulan laporan"
             emptyText="Belum ada bulan. Bulan muncul setelah pengguna menambahkannya."
-            items={bulanList.map((row) => ({
-              key: `${row.tahun}-${row.bulan}`,
-              title: labelPeriode(row),
+            rows={bulanList.map((row) => ({
+              tahun: row.tahun,
+              bulan: row.bulan,
               subtitle: `${row.userCount} pengguna`,
               href: `/admin/laporan?tahun=${row.tahun}&bulan=${row.bulan}`,
             }))}

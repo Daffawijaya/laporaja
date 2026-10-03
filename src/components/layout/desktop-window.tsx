@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Moon, Search, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import {
   HiClipboardDocumentCheck,
   HiClipboardDocumentList,
@@ -26,6 +26,7 @@ import {
   type LiquidGlassSidebarItem,
 } from "@/components/ui/liquid-glass-sidebar";
 import { SimpanTeks } from "@/components/ui/simpan-teks";
+import { NavbarSearch } from "@/components/layout/navbar-search";
 import { ProfileMenu } from "@/components/auth/profile-menu";
 import type { Role } from "@/lib/supabase/database.types";
 
@@ -53,6 +54,31 @@ function refTitle(pathname: string): string {
   return "Dashboard";
 }
 
+// Search navbar kontekstual: hanya di halaman berdaftar (pengguna/bulan) —
+// di tempat lain input disembunyikan karena ?q= tidak dibaca siapa pun.
+function refSearch(
+  pathname: string,
+  params: ReadonlyURLSearchParams
+): { placeholder: string } | null {
+  const punyaPeriode = params.has("tahun") && params.has("bulan");
+  switch (pathname) {
+    case "/admin/users":
+      return { placeholder: "Cari pengguna…" };
+    case "/admin/bidang":
+      return { placeholder: "Cari bidang…" };
+    case "/admin/section":
+      return { placeholder: "Cari section…" };
+    case "/admin/laporan":
+      // Detail isian (?tahun&bulan&user): tanpa daftar.
+      if (punyaPeriode && params.has("user")) return null;
+      return { placeholder: punyaPeriode ? "Cari pengguna…" : "Cari bulan…" };
+    case "/laporan":
+      return punyaPeriode ? null : { placeholder: "Cari bulan…" };
+    default:
+      return null;
+  }
+}
+
 // Chrome desktop ala referensi: bg abu flat, sidebar kiri (logo, menu pill,
 // ikon bawah), topbar (judul besar, search pill, tombol Create hitam, bel,
 // pesan, avatar). Hanya tampil di desktop, mobile memakai topbar + bottom nav.
@@ -66,7 +92,6 @@ export function DesktopWindow({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -76,31 +101,11 @@ export function DesktopWindow({
     return () => window.clearTimeout(timer);
   }, []);
 
-  // Search global: tulis ke ?q= (debounce), dibaca daftar-daftar client.
-  const urlQ = searchParams.get("q") ?? "";
-  const [q, setQ] = useState(urlQ);
-  const [prevUrlQ, setPrevUrlQ] = useState(urlQ);
-  // Selaraskan ketikan dengan URL saat navigasi (back/forward, clear).
-  if (urlQ !== prevUrlQ) {
-    setPrevUrlQ(urlQ);
-    setQ(urlQ);
-  }
-  useEffect(() => {
-    if (q === urlQ) return;
-    const timer = window.setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (q.trim()) params.set("q", q.trim());
-      else params.delete("q");
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname);
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [q, urlQ, pathname, router, searchParams]);
-
   const isAdmin = role === "superadmin";
   const initial = (username.charAt(0) || "?").toUpperCase();
   const dark = mounted && resolvedTheme === "dark";
   const title = refTitle(pathname);
+  const searchCfg = refSearch(pathname, searchParams);
 
   const menu: SideItem[] = isAdmin
     ? [
@@ -127,6 +132,7 @@ export function DesktopWindow({
           ActiveIcon: HiClipboardDocumentCheck,
           IdleIcon: HiOutlineClipboardDocumentCheck,
         },
+        { key: "anda", label: "Anda", href: "/anda", ActiveIcon: HiUserCircle, IdleIcon: HiOutlineUserCircle },
       ]
     : [
         { key: "beranda", label: "Beranda", href: "/", ActiveIcon: HiHome, IdleIcon: HiOutlineHome },
@@ -213,21 +219,13 @@ export function DesktopWindow({
             <SimpanTeks />
           </div>
 
-          <div className="ref-search-wrap relative w-56 shrink-0 lg:w-72">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-neutral-400"
-            />
-            <input
-              type="search"
-              role="searchbox"
-              aria-label="Cari"
-              value={q}
-              onChange={(event) => setQ(event.target.value)}
-              placeholder="Search anything..."
-              className="ref-search"
-            />
-          </div>
+          <NavbarSearch
+            role={role}
+            placeholder={
+              searchCfg?.placeholder ??
+              (isAdmin ? "Cari pengguna atau bulan…" : "Cari bulan…")
+            }
+          />
 
           <div className="ref-icon-btn-liquid">
           <button

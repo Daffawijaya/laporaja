@@ -19,7 +19,7 @@ export function ThemeSwitchSetting() {
   const dark = mounted && resolvedTheme === "dark";
 
   return (
-    <div className="flex min-h-[60px] items-center justify-between gap-3 px-4 py-3">
+    <div className="flex items-center justify-between gap-3 px-1 py-1">
       <div className="min-w-0">
         <p className="text-sm font-medium">Mode gelap</p>
         <p className="text-xs text-muted-foreground">
@@ -38,7 +38,7 @@ export function ThemeSwitchSetting() {
           aria-hidden="true"
           className={cn(
             "size-6 rounded-full bg-white shadow-[0_1px_3px_rgb(0_0_0/0.3)] transition-transform duration-[160ms] ease-out",
-            dark && "translate-x-5"
+            dark && "translate-x-[18px]"
           )}
         />
       </button>

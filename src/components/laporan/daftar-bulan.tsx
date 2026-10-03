@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,13 @@ export function DaftarBulan({
     value: String(t),
     label: String(t),
   }));
+
+  // Filter dari search navbar (?q=): saring bulan by label periode.
+  const searchParams = useSearchParams();
+  const query = (searchParams.get("q") ?? "").trim().toLowerCase();
+  const visibleBulan = query
+    ? bulanList.filter((row) => labelPeriode(row).toLowerCase().includes(query))
+    : bulanList;
 
   function hrefBulan(tahun: number, bulan: number): string {
     return `/laporan?tahun=${tahun}&bulan=${bulan}`;
@@ -91,8 +98,12 @@ export function DaftarBulan({
     <div>
       <RefListCard
         ariaLabel="Daftar bulan laporan"
-        emptyText="Belum ada bulan. Tambahkan bulan pertama untuk mulai mengisi."
-        items={bulanList.map((row) => ({
+        emptyText={
+          query
+            ? `Tidak ada bulan yang cocok dengan "${query}".`
+            : "Belum ada bulan. Tambahkan bulan pertama untuk mulai mengisi."
+        }
+        items={visibleBulan.map((row) => ({
           key: `${row.tahun}-${row.bulan}`,
           title: labelPeriode(row),
           subtitle:

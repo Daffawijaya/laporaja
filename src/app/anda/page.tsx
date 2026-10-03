@@ -25,15 +25,9 @@ export default async function AndaPage() {
       <ContentGrid
         gapClassName="lg:gap-3"
         aside={
-          <>
+          <div className="flex min-w-0 flex-col gap-3">
             <RefListCard ariaLabel="Pengaturan" title="Pengaturan">
-              <div className="rounded-2xl bg-neutral-50 p-3 dark:bg-white/5">
-                <ThemeSwitchSetting />
-              </div>
-            </RefListCard>
-
-            <RefListCard ariaLabel="Keamanan" title="Keamanan">
-              <PasswordEditor />
+              <ThemeSwitchSetting />
             </RefListCard>
 
             <RefListCard ariaLabel="Aplikasi" title="Aplikasi">
@@ -41,9 +35,10 @@ export default async function AndaPage() {
             </RefListCard>
 
             <LogoutButton />
-          </>
+          </div>
         }
       >
+        <div className="flex min-w-0 flex-col gap-3">
         <RefListCard ariaLabel="Akun" title="Akun">
           <FotoEditor userId={user.id} fotoAwal={profile.foto} nama={profile.nama} />
           <div className="min-w-0 px-1 pb-1">
@@ -66,6 +61,11 @@ export default async function AndaPage() {
             </li>
           </ul>
         </RefListCard>
+
+        <RefListCard ariaLabel="Ganti kata sandi" title="Ganti kata sandi">
+          <PasswordEditor username={profile.username} />
+        </RefListCard>
+        </div>
       </ContentGrid>
       </div>
     </div>

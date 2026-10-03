@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Settings } from "lucide-react";
+import { Download, LogOut, Settings } from "lucide-react";
 
 import {
   DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
@@ -72,8 +72,16 @@ function placePanel(trigger: HTMLElement | null, panel: HTMLElement | null) {
   panel.dataset.ready = "true";
 }
 
+// Perintah pasang bawaan browser (Android/Chrome desktop). iOS tidak punya
+// event ini sehingga fallback-nya ke halaman Anda (panduan manual).
+interface PerintahPasang extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 // Menu avatar navbar: diklik membuka dropdown kaca (bukan pindah halaman).
-// Isi: foto + nama + bidang, divide-y, lalu opsi Pengaturan dan Keluar.
+// Isi: foto + nama + bidang, divide-y, lalu opsi Pengaturan, Unduh aplikasi
+// (PWA, sembunyi bila sudah terpasang), dan Keluar.
 export function ProfileMenu({
   initial,
   buttonClassName,
@@ -99,6 +107,14 @@ export function ProfileMenu({
   const [nama, setNama] = React.useState<string | null>(null);
   const [bidang, setBidang] = React.useState<string | null>(null);
   const [url, setUrl] = React.useState<string | null>(null);
+  const [perintah, setPerintah] = React.useState<PerintahPasang | null>(null);
+  // Berjalan dari layar utama = sudah terpasang (item unduh disembunyikan).
+  const [terpasang, setTerpasang] = React.useState(
+    () =>
+      typeof window !== "undefined" &&
+      (window.matchMedia("(display-mode: standalone)").matches ||
+        (window.navigator as Navigator & { standalone?: boolean }).standalone === true)
+  );
 
   // Profil ringkas untuk isi dropdown (nama, bidang, foto).
   React.useEffect(() => {
@@ -131,6 +147,25 @@ export function ProfileMenu({
     })();
     return () => {
       hidup = false;
+    };
+  }, []);
+
+  // Tampung prompt PWA bawaan browser selama menu ter-mount (navbar selalu
+  // ada, jadi bisa dipasang dari mana saja, tidak harus dari halaman Anda).
+  React.useEffect(() => {
+    function simpanPerintah(event: Event) {
+      event.preventDefault();
+      setPerintah(event as PerintahPasang);
+    }
+    function tandaiPasang() {
+      setTerpasang(true);
+      setPerintah(null);
+    }
+    window.addEventListener("beforeinstallprompt", simpanPerintah);
+    window.addEventListener("appinstalled", tandaiPasang);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", simpanPerintah);
+      window.removeEventListener("appinstalled", tandaiPasang);
     };
   }, []);
 
@@ -209,6 +244,31 @@ export function ProfileMenu({
     router.push("/anda");
   }
 
+  // Indeks menu menyesuaikan item unduh (sembunyi bila sudah terpasang):
+  // 0 Pengaturan, 1 Unduh aplikasi, 2 Keluar — tanpa unduh: 0 dan 1 Keluar.
+  const indeksKeluar = terpasang ? 1 : 2;
+
+  async function unduhAplikasi() {
+    if (perintah) {
+      close();
+      await perintah.prompt();
+      const { outcome } = await perintah.userChoice;
+      if (outcome === "accepted") setTerpasang(true);
+      else setPerintah(null);
+      return;
+    }
+    // Tanpa prompt bawaan (mis. iPhone): ke halaman Anda yang berisi
+    // tombol + panduan pasang manual.
+    close();
+    router.push("/anda");
+  }
+
+  function pilihIndeks(indeks: number) {
+    if (indeks === 0) kePengaturan();
+    else if (!terpasang && indeks === 1) void unduhAplikasi();
+    else void keluar();
+  }
+
   // Klik di luar trigger + panel → tutup.
   React.useEffect(() => {
     if (!open) return;
@@ -244,7 +304,7 @@ export function ProfileMenu({
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
-        setCursor((c) => Math.min(1, c + 1));
+        setCursor((c) => Math.min(indeksKeluar, c + 1));
         break;
       case "ArrowUp":
         event.preventDefault();
@@ -253,8 +313,7 @@ export function ProfileMenu({
       case "Enter":
       case " ":
         event.preventDefault();
-        if (cursor === 0) kePengaturan();
-        else void keluar();
+        pilihIndeks(cursor);
         break;
       case "Escape":
         event.preventDefault();
@@ -328,13 +387,31 @@ export function ProfileMenu({
                     <span className="truncate">Pengaturan</span>
                   </span>
                 </Link>
+                {!terpasang && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-active={cursor === 1 ? "true" : "false"}
+                    onPointerDown={(event) => event.preventDefault()}
+                    onPointerEnter={() => setCursor(1)}
+                    onClick={() => void unduhAplikasi()}
+                    className="gsp-item w-full"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="flex shrink-0 items-center opacity-70 [&_svg]:size-4">
+                        <Download aria-hidden="true" />
+                      </span>
+                      <span className="truncate">Unduh aplikasi</span>
+                    </span>
+                  </button>
+                )}
                 <button
                   type="button"
                   role="menuitem"
-                  data-active={cursor === 1 ? "true" : "false"}
+                  data-active={cursor === indeksKeluar ? "true" : "false"}
                   disabled={busy}
                   onPointerDown={(event) => event.preventDefault()}
-                  onPointerEnter={() => setCursor(1)}
+                  onPointerEnter={() => setCursor(indeksKeluar)}
                   onClick={() => void keluar()}
                   className="gsp-item w-full"
                 >
