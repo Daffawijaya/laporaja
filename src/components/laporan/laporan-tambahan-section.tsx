@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Check, ImagePlus, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -94,129 +95,24 @@ function SelInput({
   );
 }
 
-// Isian teks jamak untuk sel tambah (mis. Nama Kegiatan): tumpukan input
-// + tombol kecil untuk nambah baris input. Tiap isian tersimpan sebagai
-// baris sendiri saat Tambah ditekan.
-function MultiTeksSel({
-  kolom,
-  values,
-  onChange,
-  onAppend,
-  onRemove,
-  disabled,
-}: {
-  kolom: KolomDef;
-  values: string[];
-  onChange: (values: string[]) => void;
-  onAppend: () => void;
-  onRemove: (index: number) => void;
-  disabled: boolean;
-}) {
-  const inputClass =
-    "h-11 min-w-0 flex-1 border-transparent bg-black/[0.075] text-sm hover:border-transparent hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]";
+// Pembungkus slide halus untuk sel baris pasangan tambah: mengembang
+// saat pasangan ditambah, mengempis saat dihapus (via AnimatePresence).
+function SelAnimasi({ children, durasi }: { children: ReactNode; durasi: number }) {
   return (
-    <div className="flex min-w-[200px] flex-col gap-1.5">
-      {values.map((nilai, index) => (
-        <div key={index} className="flex items-center gap-1">
-          <Input
-            aria-label={`${kolom.label} ${index + 1}`}
-            value={nilai}
-            onChange={(event) =>
-              onChange(values.map((awal, j) => (j === index ? event.target.value : awal)))
-            }
-            placeholder={`${kolom.label} ${index + 1}`}
-            disabled={disabled}
-            className={inputClass}
-          />
-          {values.length > 1 && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => onRemove(index)}
-              disabled={disabled}
-              aria-label={`Hapus ${kolom.label} ${index + 1}`}
-              className="min-h-10 w-10 shrink-0"
-            >
-              <X aria-hidden="true" />
-            </Button>
-          )}
-        </div>
-      ))}
-      {values.length < 20 && (
-        <button
-          type="button"
-          onClick={onAppend}
-          disabled={disabled}
-          className="flex items-center gap-1 self-start text-xs font-medium text-neutral-500 transition-soft hover:text-foreground disabled:opacity-50"
-        >
-          <Plus aria-hidden="true" className="size-3.5" />
-          Tambah {kolom.label}
-        </button>
-      )}
-    </div>
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: durasi, ease: [0.32, 0.72, 0, 1] }}
+      className="overflow-hidden"
+    >
+      {children}
+    </motion.div>
   );
 }
 
-// Tumpukan dropzone gambar sebaris dengan tiap nama kegiatan: gambar
-// ke-N berpasangan dengan nama kegiatan ke-N saat Tambah ditekan.
-function MultiGambarSel({
-  kolom,
-  values,
-  onChange,
-  onRemove,
-  disabled,
-  userId,
-  folderId,
-  lindungiPaths,
-}: {
-  kolom: KolomDef;
-  values: string[];
-  onChange: (values: string[]) => void;
-  onRemove: (index: number) => void;
-  disabled: boolean;
-  userId: string;
-  folderId: string;
-  lindungiPaths: string[];
-}) {
-  return (
-    <div className="flex min-w-[200px] flex-col gap-2">
-      {values.map((nilai, index) => (
-        <div key={index}>
-          <div className="flex items-start gap-1">
-            <div className="min-w-0 flex-1">
-              <SelGambar
-                userId={userId}
-                folderId={folderId}
-                kolom={kolom}
-                value={nilai}
-                onChange={(value) =>
-                  onChange(values.map((awal, j) => (j === index ? value : awal)))
-                }
-                disabled={disabled}
-                uniq={`tambah-gambar-${index}`}
-                lindungiPaths={lindungiPaths}
-              />
-            </div>
-            {values.length > 1 && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => onRemove(index)}
-                disabled={disabled}
-                aria-label={`Hapus gambar ${index + 1}`}
-                className="min-h-10 w-10 shrink-0"
-              >
-                <X aria-hidden="true" />
-              </Button>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// Pasangan tambah (nama kegiatan + gambarnya) dirender sebagai baris
+// tabel sendiri agar selalu sejajar atas-bawah.
 
 // Isian gambar ringkas untuk sel tabel: pratinjau kecil + berkas +
 // deskripsi. Nilai JSON {"gambar": path, "deskripsi": teks}.
@@ -672,27 +568,30 @@ function TabelIsianCard({
     item.kolom.find(
       (col) => (col.tipe === "text" || col.tipe === "textarea") && /kegiatan/i.test(col.label)
     ) ?? null;
-  const [multiVals, setMultiVals] = useState<string[]>([""]);
-  const [multiFiles, setMultiFiles] = useState<string[]>([""]);
+  const pairSeq = useRef(0);
+  const [pairs, setPairs] = useState(() => [{ id: "pasangan-0", nama: "", gambar: "" }]);
+
+  function nextPairId() {
+    pairSeq.current += 1;
+    return `pasangan-${pairSeq.current}`;
+  }
   // Kolom gambar pertama dipasangkan sebaris dengan tiap nama kegiatan.
   const imageCol = item.kolom.find((col) => col.tipe === "image") ?? null;
 
   function tambahPasangan() {
-    if (multiVals.length >= 20) return;
-    setMultiVals((prev) => [...prev, ""]);
-    setMultiFiles((prev) => [...prev, ""]);
+    if (pairs.length >= 20) return;
+    setPairs((prev) => [...prev, { id: nextPairId(), nama: "", gambar: "" }]);
     setTambahError(null);
   }
 
   function hapusPasangan(index: number) {
     // Berkas pasangan yang dibuang ikut dibersihkan (best effort) selama
     // tidak dipakai baris tersimpan.
-    const berkas = parseGambarNilai(multiFiles[index] ?? "")?.gambar ?? "";
+    const berkas = parseGambarNilai(pairs[index]?.gambar ?? "")?.gambar ?? "";
     if (berkas && !pathsGambar(item.baris).includes(berkas)) {
       void removeStoragePaths(createClient(), [berkas]).catch(() => undefined);
     }
-    setMultiVals((prev) => prev.filter((_, j) => j !== index));
-    setMultiFiles((prev) => prev.filter((_, j) => j !== index));
+    setPairs((prev) => prev.filter((_, j) => j !== index));
     setTambahError(null);
   }
 
@@ -746,9 +645,9 @@ function TabelIsianCard({
     // Pasangan yang keduanya kosong diabaikan.
     let pasangan: { nama: string; gambar: string }[] | null = null;
     if (multiCol) {
-      const semua = multiVals.map((nilai, i) => ({
-        nama: nilai.trim(),
-        gambar: imageCol ? (multiFiles[i] ?? "") : "",
+      const semua = pairs.map((p) => ({
+        nama: p.nama.trim(),
+        gambar: imageCol ? p.gambar : "",
       }));
       pasangan = semua.filter((p) => p.nama.length > 0 || p.gambar.length > 0);
       if (pasangan.length === 0) {
@@ -825,8 +724,7 @@ function TabelIsianCard({
         if (col.tipe === "date" && tambah[col.id]) tanggalTetap[col.id] = tambah[col.id];
       }
       setTambah(tanggalTetap);
-      setMultiVals([""]);
-      setMultiFiles([""]);
+      setPairs([{ id: nextPairId(), nama: "", gambar: "" }]);
       toast.success(
         bersih.length > 1 ? `${bersih.length} isian ditambahkan.` : "Isian ditambahkan."
       );
@@ -907,6 +805,9 @@ function TabelIsianCard({
       setHapusBusy(false);
     }
   }
+
+  const reduceMotion = !!useReducedMotion();
+  const durasi = reduceMotion ? 0.15 : 0.28;
 
   if (item.kolom.length === 0) {
     return (
@@ -1045,47 +946,121 @@ function TabelIsianCard({
             <tr aria-hidden="true" className="border-0">
               <td colSpan={item.kolom.length + 1} className="border-0 p-0 pt-2" />
             </tr>
-            <tr className="border-0 align-middle">
+            {multiCol ? (
+              <AnimatePresence initial={false}>
+              {pairs.map((pair, i) => (
+                <tr key={pair.id} className="border-0 align-top">
+                  {item.kolom.map((col) => (
+                    <td key={col.id} className="border-0 px-1 py-2 align-top">
+                      <SelAnimasi durasi={durasi}>
+                      {col.id === multiCol.id ? (
+                        <>
+                          <Input
+                            aria-label={`${col.label} ${i + 1}`}
+                            value={pair.nama}
+                            onChange={(event) => {
+                              setPairs((prev) =>
+                                prev.map((p, j) => (j === i ? { ...p, nama: event.target.value } : p))
+                              );
+                              setTambahError(null);
+                            }}
+                            placeholder={`${col.label} ${i + 1}`}
+                            disabled={tambahSaving}
+                            className="h-11 min-w-[128px] border-transparent bg-black/[0.075] text-sm hover:border-transparent hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
+                          />
+                          {i === pairs.length - 1 && pairs.length < 20 && (
+                            <button
+                              type="button"
+                              onClick={tambahPasangan}
+                              disabled={tambahSaving}
+                              className="mt-1.5 flex items-center gap-1 text-xs font-medium text-neutral-500 transition-soft hover:text-foreground disabled:opacity-50"
+                            >
+                              <Plus aria-hidden="true" className="size-3.5" />
+                              Tambah {col.label}
+                            </button>
+                          )}
+                        </>
+                      ) : imageCol && col.id === imageCol.id ? (
+                        <SelGambar
+                          userId={userId}
+                          folderId={item.id}
+                          kolom={col}
+                          value={pair.gambar}
+                          onChange={(value) => {
+                            setPairs((prev) =>
+                              prev.map((p, j) => (j === i ? { ...p, gambar: value } : p))
+                            );
+                            setTambahError(null);
+                          }}
+                          disabled={tambahSaving}
+                          uniq={`tambah-gambar-${i}`}
+                          lindungiPaths={pathsGambar(item.baris)}
+                        />
+                      ) : i === 0 ? (
+                        <SelInput
+                          kolom={col}
+                          value={tambah[col.id] ?? ""}
+                          onChange={(value) => ubahTambah(col.id, value)}
+                          disabled={tambahSaving}
+                          userId={userId}
+                          folderId={item.id}
+                          uniq="tambah"
+                          lindungiPaths={pathsGambar(item.baris)}
+                        />
+                      ) : col.tipe === "date" && tambah[col.id] ? (
+                        <span className="block px-3.5 py-2.5 text-sm text-neutral-400">
+                          {formatNilai(col, tambah[col.id])}
+                        </span>
+                      ) : null}
+                      </SelAnimasi>
+                    </td>
+                  ))}
+                  <td className="border-0 px-1 py-2 align-top">
+                    <SelAnimasi durasi={durasi}>
+                    {i === 0 ? (
+                      <span className="flex justify-end">
+                        <Button
+                          onClick={() => void simpanTambah()}
+                          disabled={tambahSaving || editSaving}
+                          className="rounded-full"
+                          aria-label="Tambah isian"
+                        >
+                          {tambahSaving ? "Menyimpan…" : "Tambah"}
+                        </Button>
+                      </span>
+                    ) : (
+                      <span className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => hapusPasangan(i)}
+                          disabled={tambahSaving}
+                          aria-label={`Hapus pasangan ${i + 1}`}
+                        >
+                          <X aria-hidden="true" />
+                        </Button>
+                      </span>
+                    )}
+                    </SelAnimasi>
+                  </td>
+                </tr>
+              ))}
+              </AnimatePresence>
+            ) : (
+            <tr className="border-0 align-top">
               {item.kolom.map((col) => (
                 <td key={col.id} className="border-0 px-1 py-2 align-top">
-                  {multiCol && col.id === multiCol.id ? (
-                    <MultiTeksSel
-                      kolom={col}
-                      values={multiVals}
-                      onChange={(values) => {
-                        setMultiVals(values);
-                        setTambahError(null);
-                      }}
-                      onAppend={tambahPasangan}
-                      onRemove={hapusPasangan}
-                      disabled={tambahSaving}
-                    />
-                  ) : multiCol && imageCol && col.id === imageCol.id ? (
-                    <MultiGambarSel
-                      kolom={col}
-                      values={multiFiles}
-                      onChange={(values) => {
-                        setMultiFiles(values);
-                        setTambahError(null);
-                      }}
-                      onRemove={hapusPasangan}
-                      disabled={tambahSaving}
-                      userId={userId}
-                      folderId={item.id}
-                      lindungiPaths={pathsGambar(item.baris)}
-                    />
-                  ) : (
-                    <SelInput
-                      kolom={col}
-                      value={tambah[col.id] ?? ""}
-                      onChange={(value) => ubahTambah(col.id, value)}
-                      disabled={tambahSaving}
-                      userId={userId}
-                      folderId={item.id}
-                      uniq="tambah"
-                      lindungiPaths={pathsGambar(item.baris)}
-                    />
-                  )}
+                  <SelInput
+                    kolom={col}
+                    value={tambah[col.id] ?? ""}
+                    onChange={(value) => ubahTambah(col.id, value)}
+                    disabled={tambahSaving}
+                    userId={userId}
+                    folderId={item.id}
+                    uniq="tambah"
+                    lindungiPaths={pathsGambar(item.baris)}
+                  />
                 </td>
               ))}
               <td className="border-0 px-1 py-2 align-top">
@@ -1101,6 +1076,7 @@ function TabelIsianCard({
                 </span>
               </td>
             </tr>
+            )}
           </tbody>
         </table>
       </div>
