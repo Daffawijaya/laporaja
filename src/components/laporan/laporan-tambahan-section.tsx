@@ -1088,7 +1088,18 @@ function TabelIsianCard({
                   )}
                 </td>
               ))}
-              <td className="border-0 px-1 py-2 align-top" aria-hidden="true" />
+              <td className="border-0 px-1 py-2 align-top">
+                <span className="flex justify-end">
+                  <Button
+                    onClick={() => void simpanTambah()}
+                    disabled={tambahSaving || editSaving}
+                    className="rounded-full"
+                    aria-label="Tambah isian"
+                  >
+                    {tambahSaving ? "Menyimpan…" : "Tambah"}
+                  </Button>
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1099,17 +1110,6 @@ function TabelIsianCard({
           {galat}
         </p>
       )}
-      <div className="mt-3 flex justify-end px-1">
-        <Button
-          onClick={() => void simpanTambah()}
-          disabled={tambahSaving || editSaving}
-          className="rounded-full"
-          aria-label="Tambah isian"
-        >
-          <Plus aria-hidden="true" />
-          {tambahSaving ? "Menyimpan…" : "Tambah"}
-        </Button>
-      </div>
       <ConfirmDialog
         open={hapus !== null}
         title="Hapus isian?"
