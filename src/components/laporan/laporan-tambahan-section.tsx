@@ -932,7 +932,7 @@ function TabelIsianCard({
         </p>
       )}
 
-      <div className="overflow-x-auto px-1">
+      <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-neutral-200/70 text-left dark:border-white/10">
@@ -940,7 +940,7 @@ function TabelIsianCard({
                 <th
                   key={col.id}
                   scope="col"
-                  className="min-w-[160px] px-2 py-2 align-bottom"
+                  className="min-w-[160px] px-1 py-2 align-bottom"
                 >
                   <span className="block text-xs font-normal text-neutral-500 dark:text-neutral-400">
                     {col.label}
@@ -949,7 +949,7 @@ function TabelIsianCard({
               ))}
               <th
                 scope="col"
-                className="w-24 px-2 py-2 text-right text-xs font-normal text-neutral-500 dark:text-neutral-400"
+                className="w-24 px-1 py-2 text-right text-xs font-normal text-neutral-500 dark:text-neutral-400"
               >
                 Aksi
               </th>
@@ -960,7 +960,7 @@ function TabelIsianCard({
               editId === row.id ? (
                 <tr key={row.id} className="border-b border-neutral-200/70 bg-accent/5 align-middle dark:border-white/10">
                   {item.kolom.map((col) => (
-                    <td key={col.id} className="px-2 py-2 align-middle">
+                    <td key={col.id} className="px-1 py-3 align-middle">
                       <SelInput
                         kolom={col}
                         value={editVals[col.id] ?? ""}
@@ -973,7 +973,7 @@ function TabelIsianCard({
                       />
                     </td>
                   ))}
-                  <td className="px-2 py-2 align-middle">
+                  <td className="px-1 py-3 align-middle">
                     <span className="flex justify-end gap-1">
                       <Button
                         variant="ghost"
@@ -999,7 +999,7 @@ function TabelIsianCard({
               ) : (
                 <tr key={row.id} className="border-b border-neutral-200/70 align-middle dark:border-white/10">
                   {item.kolom.map((col) => (
-                    <td key={col.id} className="px-2 py-2 align-middle whitespace-pre-wrap">
+                    <td key={col.id} className="px-1 py-3 align-middle whitespace-pre-wrap">
                       {col.tipe === "image" ? (
                         (() => {
                           const parsed = parseGambarNilai(row.nilai[col.id] ?? "");
@@ -1017,7 +1017,7 @@ function TabelIsianCard({
                       )}
                     </td>
                   ))}
-                  <td className="px-2 py-2 align-middle">
+                  <td className="px-1 py-3 align-middle">
                     <span className="flex justify-end">
                       <GlassMenu
                         label="Aksi isian"
@@ -1047,7 +1047,7 @@ function TabelIsianCard({
             </tr>
             <tr className="border-0 align-middle">
               {item.kolom.map((col) => (
-                <td key={col.id} className="border-0 px-2 py-2 align-top">
+                <td key={col.id} className="border-0 px-1 py-2 align-top">
                   {multiCol && col.id === multiCol.id ? (
                     <MultiTeksSel
                       kolom={col}
@@ -1088,7 +1088,7 @@ function TabelIsianCard({
                   )}
                 </td>
               ))}
-              <td className="border-0 px-2 py-2 align-top" aria-hidden="true" />
+              <td className="border-0 px-1 py-2 align-top" aria-hidden="true" />
             </tr>
           </tbody>
         </table>
