@@ -12,19 +12,12 @@ import { RefListCard } from "@/components/ui/ref-list-card";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
-import { labelPeriode, type BulanItem } from "@/lib/laporan-tambahan/queries";
+import { labelPeriode, labelStatusReview, type BulanItem } from "@/lib/laporan-tambahan/queries";
 
 const NAMA_BULAN_PENDEK = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
   "Juli", "Agustus", "September", "Oktober", "November", "Desember",
 ];
-
-function labelStatus(status: string): string {
-  if (status === "approved") return "Disetujui";
-  if (status === "revision") return "Revisi";
-  if (status === "selesai") return "Selesai";
-  return "Menunggu";
-}
 
 // Daftar bulan laporan user: list RefListCard + tambah bulan lewat
 // dropdown bulan/tahun. Klik baris masuk ke form bulan itu.
@@ -106,7 +99,7 @@ export function DaftarBulan({
             row.total === 0
               ? "Tanpa tugas"
               : `${row.terisi}/${row.total} section terisi`,
-          desc: labelStatus(row.status),
+          desc: labelStatusReview(row.status),
           href: hrefBulan(row.tahun, row.bulan),
         }))}
       />

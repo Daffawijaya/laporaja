@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { FileText, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -239,6 +239,13 @@ export function UserManager({
                     <GlassMenu
                       label={`Aksi ${user.profile.nama}`}
                       items={[
+                        {
+                          key: "laporan",
+                          label: "Lihat laporan",
+                          icon: <FileText aria-hidden="true" />,
+                          onSelect: () =>
+                            router.push(`/admin/laporan?user=${user.profile.id}`),
+                        },
                         {
                           key: "edit",
                           label: "Ubah",

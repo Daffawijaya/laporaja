@@ -545,3 +545,131 @@ export async function getSectionBuilderData(
     }))
     .sort((a, b) => a.urutan - b.urutan);
 }
+
+// Label status review bulanan (dipakai daftar bulan user + filter admin).
+export function labelStatusReview(status: string): string {
+  if (status === "approved") return "Disetujui";
+  if (status === "revision") return "Revisi";
+  if (status === "selesai") return "Selesai";
+  return "Menunggu";
+}
+
+export interface BulanAdminItem {
+  tahun: number;
+  bulan: number;
+  /** Pengguna yang membuka bulan ini. */
+  userCount: number;
+}
+
+// Daftar bulan yang dibuka para pengguna (lapis 1 admin): distinct
+// tahun-bulan dari monthly_reviews beserta jumlah penggunanya.
+export async function getBulanAdmin(supabase: ServerClient): Promise<BulanAdminItem[]> {
+  const { data, error } = await supabase
+    .from("monthly_reviews")
+    .select("tahun, bulan, user_id");
+  if (error) throw new Error("Gagal memuat daftar bulan. Coba lagi.");
+  const penggunaPerBulan = new Map<string, Set<string>>();
+  for (const row of data ?? []) {
+    const kunci = `${row.tahun}-${row.bulan}`;
+    const set = penggunaPerBulan.get(kunci) ?? new Set<string>();
+    set.add(row.user_id);
+    penggunaPerBulan.set(kunci, set);
+  }
+  return [...penggunaPerBulan]
+    .map(([kunci, pengguna]) => {
+      const [tahun, bulan] = kunci.split("-").map(Number);
+      return { tahun, bulan, userCount: pengguna.size };
+    })
+    .sort((a, b) => b.tahun - a.tahun || b.bulan - a.bulan);
+}
+
+export interface LaporanUserBulan {
+  id: string;
+  nama: string;
+  username: string;
+  bidangNama: string;
+  status: MonthlyReviewStatus;
+  /** Section terisi pada bulan itu (blok judul selalu terhitung). */
+  terisi: number;
+  total: number;
+}
+
+// Pengguna yang membuka satu bulan beserta status + ketuntasan isiannya
+// (lapis 2 admin). Hanya pengguna yang punya baris review bulan itu.
+export async function getLaporanUserBulan(
+  supabase: ServerClient,
+  periode: Periode
+): Promise<LaporanUserBulan[]> {
+  const { data: users, error: usersError } = await supabase
+    .from("profiles")
+    .select("id, nama, username, bidang_id")
+    .eq("role", "user")
+    .order("nama");
+  if (usersError) throw new Error("Gagal memuat pengguna. Coba lagi.");
+  const list = users ?? [];
+  if (list.length === 0) return [];
+
+  const [reviewResult, linkResult, laporanResult, barisResult, bidangResult] =
+    await Promise.all([
+      supabase
+        .from("monthly_reviews")
+        .select("user_id, status")
+        .eq("tahun", periode.tahun)
+        .eq("bulan", periode.bulan),
+      supabase.from("laporan_tambahan_bidang").select("laporan_id, bidang_id"),
+      supabase.from("laporan_tambahan").select("id, format"),
+      supabase
+        .from("laporan_tambahan_baris")
+        .select("laporan_id, user_id")
+        .eq("tahun", periode.tahun)
+        .eq("bulan", periode.bulan),
+      supabase.from("bidang").select("id, nama"),
+    ]);
+  if (
+    reviewResult.error ||
+    linkResult.error ||
+    laporanResult.error ||
+    barisResult.error ||
+    bidangResult.error
+  ) {
+    throw new Error("Gagal memuat laporan bulan. Coba lagi.");
+  }
+  const statusByUser = new Map(
+    (reviewResult.data ?? []).map((row) => [row.user_id, row.status as MonthlyReviewStatus])
+  );
+  const tugasanPerBidang = new Map<string, Set<string>>();
+  for (const link of linkResult.data ?? []) {
+    const set = tugasanPerBidang.get(link.bidang_id) ?? new Set<string>();
+    set.add(link.laporan_id);
+    tugasanPerBidang.set(link.bidang_id, set);
+  }
+  const judulOtomatis = new Set(
+    (laporanResult.data ?? []).filter((row) => row.format === "judul").map((row) => row.id)
+  );
+  const isiOleh = new Map<string, Set<string>>();
+  for (const row of barisResult.data ?? []) {
+    const set = isiOleh.get(row.user_id) ?? new Set<string>();
+    set.add(row.laporan_id);
+    isiOleh.set(row.user_id, set);
+  }
+  const namaByBidang = new Map((bidangResult.data ?? []).map((row) => [row.id, row.nama]));
+
+  return list
+    .filter((user) => statusByUser.has(user.id))
+    .map((user) => {
+      const tugasan = user.bidang_id
+        ? [...(tugasanPerBidang.get(user.bidang_id) ?? [])]
+        : [];
+      const isian = isiOleh.get(user.id) ?? new Set<string>();
+      return {
+        id: user.id,
+        nama: user.nama,
+        username: user.username,
+        bidangNama:
+          (user.bidang_id && namaByBidang.get(user.bidang_id)) || "Tanpa bidang",
+        status: statusByUser.get(user.id) ?? "menunggu",
+        total: tugasan.length,
+        terisi: tugasan.filter((id) => judulOtomatis.has(id) || isian.has(id)).length,
+      };
+    });
+}

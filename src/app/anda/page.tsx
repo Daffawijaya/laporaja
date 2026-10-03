@@ -4,6 +4,7 @@ import { FotoEditor, PasswordEditor } from "@/components/anda/akun-editor";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ContentGrid } from "@/components/layout/content-grid";
 import { ThemeSwitchSetting } from "@/components/layout/theme-switch";
+import { UnduhAplikasi } from "@/components/pwa/unduh-aplikasi";
 import { RefListCard } from "@/components/ui/ref-list-card";
 import { redirect } from "next/navigation";
 
@@ -33,6 +34,10 @@ export default async function AndaPage() {
 
             <RefListCard ariaLabel="Keamanan" title="Keamanan">
               <PasswordEditor />
+            </RefListCard>
+
+            <RefListCard ariaLabel="Aplikasi" title="Aplikasi">
+              <UnduhAplikasi />
             </RefListCard>
 
             <LogoutButton />

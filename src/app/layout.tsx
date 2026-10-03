@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { AuthListener } from "@/components/auth/auth-listener";
+import { PendaftarSw } from "@/components/pwa/pendaftar-sw";
 import { ToastProvider } from "@/components/ui/toast";
 import { FxFilterLoader } from "@/components/ui/fx-filter-loader";
 import "./globals.css";
@@ -20,7 +21,16 @@ export const metadata: Metadata = {
   title: "LaporAja",
   description: "Aplikasi pelaporan yang bersih dan mudah dipakai.",
   // Ikon tab browser mengambil berkas statis di public/iconss.png.
-  icons: { icon: "/iconss.png" },
+  icons: { icon: "/iconss.png", apple: "/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "LaporAja", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f2f1f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#101014" },
+  ],
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -37,6 +47,7 @@ export default function RootLayout({
       <body className="min-h-full antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <FxFilterLoader />
+          <PendaftarSw />
           <ToastProvider>
             <AuthListener />
             {children}
