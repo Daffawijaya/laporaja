@@ -90,7 +90,7 @@ function TtdGambarBox({
     setMengunggah(true);
     setGalat(null);
     try {
-      const pathBaru = await uploadKegiatanImage({ jenis: "avatar" }, file);
+      const pathBaru = await uploadKegiatanImage({ jenis: "ttd" }, file);
       const lama = value;
       onChange(pathBaru);
       // Best effort: berkas lama dibuang sesudah diganti.

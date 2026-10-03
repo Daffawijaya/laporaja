@@ -40,11 +40,13 @@ export async function removeGambarRefs(paths: string[]): Promise<void> {
 // Gambar diunggah lewat endpoint server agar dikonversi ke WebP dulu
 // (sharp, pola etamhub) sebelum disimpan ke Google Drive di bawah folder
 // bulan + user. Mengembalikan rujukan "drive:<fileId>".
-// Tujuan upload: laporan (folder bulan + user) atau avatar (folder Avatar +
-// user). Foto profil ikut ke Drive agar sumber tunggal.
+// Tujuan upload: laporan (folder bulan + user), avatar (folder Avatar +
+// user), atau ttd (folder TTD, preprocessing tanda tangan). Foto profil
+// ikut ke Drive agar sumber tunggal.
 export type TujuanUpload =
   | { jenis: "laporan"; periode: Periode }
-  | { jenis: "avatar" };
+  | { jenis: "avatar" }
+  | { jenis: "ttd" };
 
 export async function uploadKegiatanImage(tujuan: TujuanUpload, file: File): Promise<string> {
   const form = new FormData();
