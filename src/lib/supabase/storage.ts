@@ -1,31 +1,36 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
-import { failWith } from "@/lib/errors";
+import { SessionExpiredError, failWith } from "@/lib/errors";
 
 export type StorageClient = SupabaseClient<Database>;
 
 const BUCKET = "kegiatan-images";
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-function extensionOf(filename: string): string {
-  const match = filename.toLowerCase().match(/\.([a-z0-9]+)$/);
-  return match ? match[1].slice(0, 5) : "jpg";
-}
-
-// Path selalu "<user_id>/<kegiatan_id>/<acak>.<ext>" sesuai kebijakan Storage.
-export async function uploadKegiatanImage(
-  client: StorageClient,
-  userId: string,
-  kegiatanId: string,
-  file: File
-): Promise<string> {
-  const path = `${userId}/${kegiatanId}/${crypto.randomUUID()}.${extensionOf(file.name)}`;
-  const { error } = await client.storage.from(BUCKET).upload(path, file, {
-    contentType: file.type || undefined,
-    upsert: false,
-  });
-  if (error) {
-    failWith(error, "Gagal mengunggah gambar. Periksa koneksi lalu coba lagi.");
+// Gambar diunggah lewat endpoint server agar dikonversi ke WebP dulu
+// (sharp, pola etamhub) sebelum disimpan ke Storage. Mengembalikan path
+// "<user_id>/<folder_id>/<acak>.webp".
+export async function uploadKegiatanImage(folderId: string, file: File): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("folder", folderId);
+  const res = await fetch("/api/upload-gambar", { method: "POST", body: form });
+  const data: unknown = await res.json().catch(() => null);
+  if (!res.ok) {
+    if (res.status === 401) throw new SessionExpiredError();
+    const message =
+      typeof data === "object" && data !== null && "message" in data &&
+      typeof (data as { message: unknown }).message === "string"
+        ? (data as { message: string }).message
+        : "Gagal mengunggah gambar. Coba lagi.";
+    failWith({ status: res.status, message }, message);
+  }
+  const path =
+    typeof data === "object" && data !== null && "path" in data
+      ? (data as { path: unknown }).path
+      : "";
+  if (typeof path !== "string" || path.length === 0) {
+    throw new Error("Gagal mengunggah gambar. Coba lagi.");
   }
   return path;
 }

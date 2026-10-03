@@ -156,3 +156,9 @@
   background: rgb(255 255 255 / 0.05);
   color: #fff;
 }
+
+/* Kalender (glass-calendar.tsx): padding seragam 14px semua sisi.
+   Spesifisitas dua kelas supaya menang dari padding 6px .gsp-list. */
+.gsp-list.gsp-cal {
+  padding: 14px;
+}

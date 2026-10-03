@@ -7,6 +7,7 @@ import { Check, ImagePlus, Loader2, Pencil, Plus, Trash2, X } from "lucide-react
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { GlassCalendar } from "@/components/ui/glass-calendar";
 import { GlassMenu } from "@/components/ui/glass-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,6 +46,7 @@ function SelInput({
   folderId,
   uniq,
   lindungiPaths = [],
+  periode,
 }: {
   kolom: KolomDef;
   value: string;
@@ -55,6 +57,8 @@ function SelInput({
   uniq: string;
   /** Path gambar milik baris lain: jangan hapus dari storage (dipakai bersama). */
   lindungiPaths?: string[];
+  /** Periode laporan: kalender tanggal dibuka langsung di bulan ini. */
+  periode?: Periode;
 }) {
   if (kolom.tipe === "image") {
     return (
@@ -83,12 +87,27 @@ function SelInput({
       />
     );
   }
+  if (kolom.tipe === "date") {
+    // Kalender liquid glass (bukan date picker bawaan browser) supaya gaya
+    // dan UX-nya sama dengan dropdown/modal kaca.
+    return (
+      <GlassCalendar
+        value={value}
+        onChange={onChange}
+        ariaLabel={kolom.label}
+        disabled={disabled}
+        bulan={periode?.bulan}
+        tahun={periode?.tahun}
+        kunciBulan
+      />
+    );
+  }
   return (
     <Input
       aria-label={kolom.label}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      type={kolom.tipe === "date" ? "date" : kolom.tipe === "number" ? "number" : "text"}
+      type={kolom.tipe === "number" ? "number" : "text"}
       inputMode={kolom.tipe === "number" ? "decimal" : undefined}
       disabled={disabled}
       placeholder={kolom.label}
@@ -177,8 +196,8 @@ function SelGambar({
 
   async function pilihBerkas(file: File | undefined) {
     if (!file || mengunggah || disabled) return;
-    if (!file.type.startsWith("image/")) {
-      setGalat("Berkas harus berupa gambar.");
+    if (!["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(file.type)) {
+      setGalat("Format file harus JPG, JPEG, PNG, atau WEBP.");
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
@@ -188,12 +207,12 @@ function SelGambar({
     setMengunggah(true);
     setGalat(null);
     try {
-      const supabase = createClient();
-      const pathBaru = await uploadKegiatanImage(supabase, userId, folderId, file);
+      // Server mengonversi ke WebP dulu sebelum menyimpan ke Storage.
+      const pathBaru = await uploadKegiatanImage(folderId, file);
       // Best effort: berkas lama dibuang saat diganti, kecuali dipakai
       // baris lain (hasil tambah banyak kegiatan sekaligus).
       if (path && path !== pathBaru && !lindungiPaths.includes(path)) {
-        await removeStoragePaths(supabase, [path]);
+        await removeStoragePaths(createClient(), [path]);
       }
       tulis(pathBaru, deskripsi);
     } catch (err) {
@@ -312,14 +331,14 @@ function SelGambar({
           <span className="text-xs font-medium">
             {mengunggah ? "Mengunggah…" : "Klik atau seret gambar ke sini"}
           </span>
-          <span className="text-[11px] text-neutral-500">PNG/JPG · maks {maksMb} MB</span>
+          <span className="text-[11px] text-neutral-500">JPG/PNG/WEBP · maks {maksMb} MB</span>
         </div>
       )}
       <Input
         ref={fileRef}
         id={`${fileId}-${uniq}-${kolom.id}`}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         disabled={sibuk}
         onChange={(event) => {
           void pilihBerkas(event.target.files?.[0]);
@@ -365,8 +384,9 @@ const ESAI_MAKS = 10000;
 
 // Kartu isian esai: satu textarea per subjudul dalam satu baris user.
 // Tersimpan otomatis 800 mdetik sesudah berhenti mengetik ala
-// admin/section (status di navbar via SimpanTeks). Semua subjudul wajib
-// diisi; kosongkan semua untuk menghapus (kembali belum diisi).
+// admin/section (status di navbar via SimpanTeks). Boleh kosong;
+// kelengkapan baru dicek saat tombol Selesai diklik. Kosongkan semua
+// untuk menghapus (kembali belum diisi).
 function EsaiIsian({
   userId,
   item,
@@ -411,24 +431,14 @@ function EsaiIsian({
   }
 
   // Validasi ringan saat mengetik (ditampilkan, tidak toast) ala
-  // admin/section: memblokir autosave selama belum valid. Kosong total
-  // bukan masalah — itu kondisi belum diisi (tanpa baris) atau perintah
-  // hapus otomatis (punya baris).
+  // admin/section: memblokir autosave selama belum valid. Kosong bukan
+  // masalah — kelengkapan baru dicek saat tombol Selesai diklik.
   let masalah: string | null = null;
   {
-    const trimmed = kolomList.map((col) => ({
-      col,
-      nilai: (isi[col.id] ?? "").trim(),
-    }));
-    const adaIsi = trimmed.some(({ nilai }) => nilai.length > 0);
-    const adaKosong = trimmed.some(({ nilai }) => nilai.length === 0);
-    if (adaIsi && adaKosong) {
-      const kosong = trimmed.find(({ nilai }) => nilai.length === 0);
-      if (kosong) masalah = `Subjudul "${kosong.col.label}" wajib diisi.`;
-    } else if (adaIsi) {
-      const panjang = trimmed.find(({ nilai }) => nilai.length > ESAI_MAKS);
-      if (panjang) masalah = `Subjudul "${panjang.col.label}" maksimal ${ESAI_MAKS} karakter.`;
-    }
+    const panjang = kolomList
+      .map((col) => ({ col, nilai: (isi[col.id] ?? "").trim() }))
+      .find(({ nilai }) => nilai.length > ESAI_MAKS);
+    if (panjang) masalah = `Subjudul "${panjang.col.label}" maksimal ${ESAI_MAKS} karakter.`;
   }
 
   const sesiBerakhir = useCallback(
@@ -479,10 +489,6 @@ function EsaiIsian({
           return;
         }
         for (const { col, nilai } of cleaned) {
-          if (nilai.length === 0) {
-            setError(`Subjudul "${col.label}" wajib diisi.`);
-            return;
-          }
           if (nilai.length > ESAI_MAKS) {
             setError(`Subjudul "${col.label}" maksimal ${ESAI_MAKS} karakter.`);
             return;
@@ -988,7 +994,8 @@ function TabelIsianCard({
                         userId={userId}
                         folderId={item.id}
                         uniq={`edit-${row.id}`}
-                        lindungiPaths={pathsGambar(item.baris.filter((r) => r.id !== editId))}
+                        lindungiPaths={pathsGambar(barisOpt.filter((r) => r.id !== editId))}
+                        periode={periode}
                       />
                     </td>
                   ))}
@@ -1133,6 +1140,7 @@ function TabelIsianCard({
                           folderId={item.id}
                           uniq="tambah"
                           lindungiPaths={pathsGambar(barisOpt)}
+                          periode={periode}
                         />
                       ) : col.tipe === "date" && tambah[col.id] ? (
                         <span className="block px-3.5 py-2.5 text-sm text-neutral-400">
@@ -1187,6 +1195,7 @@ function TabelIsianCard({
                     folderId={item.id}
                     uniq="tambah"
                     lindungiPaths={pathsGambar(barisOpt)}
+                    periode={periode}
                   />
                 </td>
               ))}
@@ -1232,13 +1241,13 @@ function TombolStatusLaporan({
   userId,
   periode,
   status,
-  semuaTerisi,
+  tugas,
   onStatus,
 }: {
   userId: string;
   periode: Periode;
   status: MonthlyReviewStatus;
-  semuaTerisi: boolean;
+  tugas: TugasLaporan[];
   onStatus: (next: MonthlyReviewStatus) => void;
 }) {
   const router = useRouter();
@@ -1282,6 +1291,49 @@ function TombolStatusLaporan({
       }
     }
     return true;
+  }
+
+  async function tandaiSelesai() {
+    if (sibuk) return;
+    // Kelengkapan dicek di sini (saat klik), bukan saat mengetik.
+    const kurang: string[] = [];
+    for (const item of tugas) {
+      if (item.format === "judul") continue;
+      if (item.format === "esai") {
+        const baris = item.baris[0] ?? null;
+        const adaKosong = item.kolom.some(
+          (col) => ((baris?.nilai[col.id] ?? "").trim().length === 0)
+        );
+        if (adaKosong) kurang.push(item.judul);
+      } else if (item.baris.length === 0) {
+        kurang.push(item.judul);
+      }
+    }
+    if (kurang.length > 0) {
+      setGalat(`Masih belum lengkap: ${kurang.join(", ")}.`);
+      return;
+    }
+    setSibuk(true);
+    setGalat(null);
+    try {
+      if (!(await pastikanBaris())) return;
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("monthly_reviews")
+        .update({ status: "selesai" })
+        .eq("user_id", userId)
+        .eq("tahun", periode.tahun)
+        .eq("bulan", periode.bulan);
+      if (error) {
+        if (sesiBerakhir(error)) return;
+        setGalat("Gagal mengubah status laporan. Coba lagi.");
+        return;
+      }
+      onStatus("selesai");
+      router.refresh();
+    } finally {
+      setSibuk(false);
+    }
   }
 
   async function ubahStatus(next: MonthlyReviewStatus) {
@@ -1332,8 +1384,8 @@ function TombolStatusLaporan({
         </Button>
       ) : (
         <Button
-          onClick={() => void ubahStatus("selesai")}
-          disabled={sibuk || !semuaTerisi}
+          onClick={() => void tandaiSelesai()}
+          disabled={sibuk}
           className="rounded-full"
           aria-label="Tandai laporan selesai"
         >
@@ -1343,11 +1395,6 @@ function TombolStatusLaporan({
       {galat && (
         <p role="alert" className="px-1 text-sm text-danger">
           {galat}
-        </p>
-      )}
-      {!selesai && !semuaTerisi && (
-        <p className="px-1 text-xs text-neutral-500">
-          Lengkapi semua section untuk menandai selesai.
         </p>
       )}
     </div>
@@ -1381,7 +1428,6 @@ export function LaporanTambahanSection({
   if (tugas.length === 0) return null;
 
   const terkunci = status === "selesai" || status === "approved";
-  const semuaTerisi = tugas.every((item) => item.terisi);
 
   return (
     <div className={className}>
@@ -1407,7 +1453,7 @@ export function LaporanTambahanSection({
         userId={userId}
         periode={periode}
         status={status}
-        semuaTerisi={semuaTerisi}
+        tugas={tugas}
         onStatus={setStatus}
       />
     </div>
