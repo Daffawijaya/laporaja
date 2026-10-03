@@ -26,6 +26,7 @@ import {
   type LiquidGlassSidebarItem,
 } from "@/components/ui/liquid-glass-sidebar";
 import { SimpanTeks } from "@/components/ui/simpan-teks";
+import { ProfileMenu } from "@/components/auth/profile-menu";
 import type { Role } from "@/lib/supabase/database.types";
 
 type Icon = React.ComponentType<{ className?: string }>;
@@ -243,14 +244,11 @@ export function DesktopWindow({
           </button>
           </div>
           <div className="ref-icon-btn-liquid ref-profile-bare shrink-0">
-            <Link href="/anda" aria-label="Akun Anda" className="ref-icon-btn-plain">
-              <span
-                aria-hidden="true"
-                className="flex size-11 items-center justify-center rounded-full bg-neutral-200 text-sm font-semibold text-neutral-600 dark:bg-white/15 dark:text-white"
-              >
-                {initial}
-              </span>
-            </Link>
+            <ProfileMenu
+              initial={initial}
+              buttonClassName="ref-icon-btn-plain"
+              avatarClassName="flex size-11 items-center justify-center overflow-hidden rounded-full bg-neutral-200 text-sm font-semibold text-neutral-600 dark:bg-white/15 dark:text-white"
+            />
           </div>
           </div>
         </header>

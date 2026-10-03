@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { ProfileMenu } from "@/components/auth/profile-menu";
+
 // Topbar mobile ala YouTube: logo kiri, avatar kanan.
 // Hanya tampil di mobile, desktop memakai sidebar kaca kiri.
 export function MobileTopbar({ initial }: { initial: string }) {
@@ -30,18 +32,11 @@ export function MobileTopbar({ initial }: { initial: string }) {
         </Link>
 
         <div className="flex items-center gap-1">
-          <Link
-            href="/anda"
-            aria-label="Akun Anda"
-            className="flex size-11 items-center justify-center rounded-full"
-          >
-            <span
-              aria-hidden="true"
-              className="mchrome-avatar flex size-7 items-center justify-center rounded-full text-sm font-semibold"
-            >
-              {initial}
-            </span>
-          </Link>
+          <ProfileMenu
+            initial={initial}
+            buttonClassName="flex size-11 items-center justify-center rounded-full"
+            avatarClassName="mchrome-avatar flex size-7 items-center justify-center overflow-hidden rounded-full text-sm font-semibold"
+          />
         </div>
       </div>
     </header>
