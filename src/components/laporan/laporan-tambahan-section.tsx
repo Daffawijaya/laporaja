@@ -6,6 +6,7 @@ import { Check, ImagePlus, Loader2, Pencil, Plus, Trash2, X } from "lucide-react
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { GlassMenu } from "@/components/ui/glass-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RefListCard } from "@/components/ui/ref-list-card";
@@ -40,6 +41,7 @@ function SelInput({
   userId,
   folderId,
   uniq,
+  lindungiPaths = [],
 }: {
   kolom: KolomDef;
   value: string;
@@ -48,6 +50,8 @@ function SelInput({
   userId: string;
   folderId: string;
   uniq: string;
+  /** Path gambar milik baris lain: jangan hapus dari storage (dipakai bersama). */
+  lindungiPaths?: string[];
 }) {
   if (kolom.tipe === "image") {
     return (
@@ -59,6 +63,7 @@ function SelInput({
         onChange={onChange}
         disabled={disabled}
         uniq={uniq}
+        lindungiPaths={lindungiPaths}
       />
     );
   }
@@ -89,6 +94,130 @@ function SelInput({
   );
 }
 
+// Isian teks jamak untuk sel tambah (mis. Nama Kegiatan): tumpukan input
+// + tombol kecil untuk nambah baris input. Tiap isian tersimpan sebagai
+// baris sendiri saat Tambah ditekan.
+function MultiTeksSel({
+  kolom,
+  values,
+  onChange,
+  onAppend,
+  onRemove,
+  disabled,
+}: {
+  kolom: KolomDef;
+  values: string[];
+  onChange: (values: string[]) => void;
+  onAppend: () => void;
+  onRemove: (index: number) => void;
+  disabled: boolean;
+}) {
+  const inputClass =
+    "h-11 min-w-0 flex-1 border-transparent bg-black/[0.075] text-sm hover:border-transparent hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]";
+  return (
+    <div className="flex min-w-[200px] flex-col gap-1.5">
+      {values.map((nilai, index) => (
+        <div key={index} className="flex items-center gap-1">
+          <Input
+            aria-label={`${kolom.label} ${index + 1}`}
+            value={nilai}
+            onChange={(event) =>
+              onChange(values.map((awal, j) => (j === index ? event.target.value : awal)))
+            }
+            placeholder={`${kolom.label} ${index + 1}`}
+            disabled={disabled}
+            className={inputClass}
+          />
+          {values.length > 1 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onRemove(index)}
+              disabled={disabled}
+              aria-label={`Hapus ${kolom.label} ${index + 1}`}
+              className="min-h-10 w-10 shrink-0"
+            >
+              <X aria-hidden="true" />
+            </Button>
+          )}
+        </div>
+      ))}
+      {values.length < 20 && (
+        <button
+          type="button"
+          onClick={onAppend}
+          disabled={disabled}
+          className="flex items-center gap-1 self-start text-xs font-medium text-neutral-500 transition-soft hover:text-foreground disabled:opacity-50"
+        >
+          <Plus aria-hidden="true" className="size-3.5" />
+          Tambah {kolom.label}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Tumpukan dropzone gambar sebaris dengan tiap nama kegiatan: gambar
+// ke-N berpasangan dengan nama kegiatan ke-N saat Tambah ditekan.
+function MultiGambarSel({
+  kolom,
+  values,
+  onChange,
+  onRemove,
+  disabled,
+  userId,
+  folderId,
+  lindungiPaths,
+}: {
+  kolom: KolomDef;
+  values: string[];
+  onChange: (values: string[]) => void;
+  onRemove: (index: number) => void;
+  disabled: boolean;
+  userId: string;
+  folderId: string;
+  lindungiPaths: string[];
+}) {
+  return (
+    <div className="flex min-w-[200px] flex-col gap-2">
+      {values.map((nilai, index) => (
+        <div key={index}>
+          <div className="flex items-start gap-1">
+            <div className="min-w-0 flex-1">
+              <SelGambar
+                userId={userId}
+                folderId={folderId}
+                kolom={kolom}
+                value={nilai}
+                onChange={(value) =>
+                  onChange(values.map((awal, j) => (j === index ? value : awal)))
+                }
+                disabled={disabled}
+                uniq={`tambah-gambar-${index}`}
+                lindungiPaths={lindungiPaths}
+              />
+            </div>
+            {values.length > 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => onRemove(index)}
+                disabled={disabled}
+                aria-label={`Hapus gambar ${index + 1}`}
+                className="min-h-10 w-10 shrink-0"
+              >
+                <X aria-hidden="true" />
+              </Button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Isian gambar ringkas untuk sel tabel: pratinjau kecil + berkas +
 // deskripsi. Nilai JSON {"gambar": path, "deskripsi": teks}.
 function SelGambar({
@@ -99,6 +228,7 @@ function SelGambar({
   onChange,
   disabled,
   uniq,
+  lindungiPaths = [],
 }: {
   userId: string;
   folderId: string;
@@ -107,6 +237,8 @@ function SelGambar({
   onChange: (value: string) => void;
   disabled: boolean;
   uniq: string;
+  /** Path gambar milik baris lain: jangan hapus dari storage (dipakai bersama). */
+  lindungiPaths?: string[];
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -160,7 +292,9 @@ function SelGambar({
     try {
       const supabase = createClient();
       const pathBaru = await uploadKegiatanImage(supabase, userId, folderId, file);
-      if (path && path !== pathBaru) {
+      // Best effort: berkas lama dibuang saat diganti, kecuali dipakai
+      // baris lain (hasil tambah banyak kegiatan sekaligus).
+      if (path && path !== pathBaru && !lindungiPaths.includes(path)) {
         await removeStoragePaths(supabase, [path]);
       }
       tulis(pathBaru, deskripsi);
@@ -180,8 +314,11 @@ function SelGambar({
     if (!path || mengunggah || disabled) return;
     setMengunggah(true);
     try {
-      const supabase = createClient();
-      await removeStoragePaths(supabase, [path]);
+      // Berkas yang dipakai baris lain tidak ikut dibuang.
+      if (!lindungiPaths.includes(path)) {
+        const supabase = createClient();
+        await removeStoragePaths(supabase, [path]);
+      }
     } finally {
       tulis("", deskripsi);
       setMengunggah(false);
@@ -467,20 +604,6 @@ function EsaiIsian({
       title={item.judul}
       className="mt-4"
     >
-      <div className="flex items-center justify-between gap-3 px-1 pb-3">
-        <span className="text-xs text-neutral-500">
-          Wajib diisi · {kolomList.length} subjudul
-        </span>
-        <span
-          className={
-            item.terisi
-              ? "text-xs font-medium text-emerald-700 dark:text-emerald-300"
-              : "text-xs font-medium text-amber-700 dark:text-amber-300"
-          }
-        >
-          {item.terisi ? "Sudah diisi" : "Belum diisi"}
-        </span>
-      </div>
       {item.deskripsi && (
         <p className="px-1 pb-3 text-xs whitespace-pre-wrap text-neutral-500">
           {item.deskripsi}
@@ -529,8 +652,60 @@ function TabelIsianCard({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const [tambah, setTambah] = useState<Record<string, string>>({});
+  const [tambah, setTambah] = useState<Record<string, string>>(() => {
+    // Tanggal tetap: baris tambah dibuka dengan tanggal baris terakhir,
+    // jadi tambah kegiatan berulang tidak perlu isi tanggal lagi.
+    // Keterangan/gambar selalu mulai kosong.
+    const awal: Record<string, string> = {};
+    const terakhir = item.baris[item.baris.length - 1];
+    if (terakhir) {
+      for (const col of item.kolom) {
+        if (col.tipe === "date" && terakhir.nilai[col.id]) awal[col.id] = terakhir.nilai[col.id];
+      }
+    }
+    return awal;
+  });
   const [tambahError, setTambahError] = useState<string | null>(null);
+  // Kolom nama kegiatan mendukung banyak isian sekaligus di baris tambah:
+  // tiap isian tersimpan sebagai baris sendiri (tanggal/gambar sama).
+  const multiCol =
+    item.kolom.find(
+      (col) => (col.tipe === "text" || col.tipe === "textarea") && /kegiatan/i.test(col.label)
+    ) ?? null;
+  const [multiVals, setMultiVals] = useState<string[]>([""]);
+  const [multiFiles, setMultiFiles] = useState<string[]>([""]);
+  // Kolom gambar pertama dipasangkan sebaris dengan tiap nama kegiatan.
+  const imageCol = item.kolom.find((col) => col.tipe === "image") ?? null;
+
+  function tambahPasangan() {
+    if (multiVals.length >= 20) return;
+    setMultiVals((prev) => [...prev, ""]);
+    setMultiFiles((prev) => [...prev, ""]);
+    setTambahError(null);
+  }
+
+  function hapusPasangan(index: number) {
+    // Berkas pasangan yang dibuang ikut dibersihkan (best effort) selama
+    // tidak dipakai baris tersimpan.
+    const berkas = parseGambarNilai(multiFiles[index] ?? "")?.gambar ?? "";
+    if (berkas && !pathsGambar(item.baris).includes(berkas)) {
+      void removeStoragePaths(createClient(), [berkas]).catch(() => undefined);
+    }
+    setMultiVals((prev) => prev.filter((_, j) => j !== index));
+    setMultiFiles((prev) => prev.filter((_, j) => j !== index));
+    setTambahError(null);
+  }
+
+  // Semua path gambar yang dipakai sekumpulan baris (untuk lindungi
+  // berkas bersama dari hapus storage).
+  function pathsGambar(rows: BarisIsi[]): string[] {
+    return rows.flatMap((row) =>
+      item.kolom
+        .filter((col) => col.tipe === "image")
+        .map((col) => parseGambarNilai(row.nilai[col.id] ?? "")?.gambar ?? "")
+        .filter((p) => p.length > 0)
+    );
+  }
   const [tambahSaving, setTambahSaving] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editVals, setEditVals] = useState<Record<string, string>>({});
@@ -567,14 +742,42 @@ function TabelIsianCard({
 
   async function simpanTambah() {
     if (tambahSaving || editSaving) return;
-    let cleaned: Record<string, string>;
+    // Pasangan sebaris: tiap nama kegiatan + gambarnya jadi satu baris.
+    // Pasangan yang keduanya kosong diabaikan.
+    let pasangan: { nama: string; gambar: string }[] | null = null;
+    if (multiCol) {
+      const semua = multiVals.map((nilai, i) => ({
+        nama: nilai.trim(),
+        gambar: imageCol ? (multiFiles[i] ?? "") : "",
+      }));
+      pasangan = semua.filter((p) => p.nama.length > 0 || p.gambar.length > 0);
+      if (pasangan.length === 0) {
+        setTambahError(`Kolom "${multiCol.label}" wajib diisi.`);
+        return;
+      }
+      if (pasangan.length > 20) {
+        setTambahError(`Maksimal 20 ${multiCol.label.toLowerCase()} sekaligus.`);
+        return;
+      }
+    }
+    let bersih: Record<string, string>[];
     try {
-      cleaned = cleanNilai(item.kolom, tambah);
+      bersih = (pasangan ?? [{ nama: "", gambar: "" }]).map((p) =>
+        cleanNilai(item.kolom, {
+          ...tambah,
+          ...(multiCol ? { [multiCol.id]: p.nama } : {}),
+          ...(multiCol && imageCol ? { [imageCol.id]: p.gambar } : {}),
+        })
+      );
     } catch (err) {
       setTambahError(err instanceof Error ? err.message : "Isian belum valid.");
       return;
     }
-    if (!Object.values(cleaned).some((nilai) => nilai.length > 0)) {
+    // Tanggal yang ikut tetap tidak dihitung sebagai isian: minimal satu
+    // kolom selain tanggal harus terisi.
+    const kolomIsi = item.kolom.filter((col) => col.tipe !== "date");
+    const pool = kolomIsi.length > 0 ? kolomIsi : item.kolom;
+    if (!bersih.some((row) => pool.some((col) => (row[col.id] ?? "").length > 0))) {
       setTambahError(`Kolom "${item.kolom[0]?.label ?? "isian"}" wajib diisi.`);
       return;
     }
@@ -582,30 +785,51 @@ function TabelIsianCard({
     setTambahError(null);
     try {
       const supabase = createClient();
-      const { data: baris, error: barisError } = await supabase
+      const { data: barisBaru, error: barisError } = await supabase
         .from("laporan_tambahan_baris")
-        .insert({ laporan_id: item.id, user_id: userId, bulan: periode.bulan, tahun: periode.tahun })
-        .select("id")
-        .single();
-      if (barisError || !baris) {
+        .insert(
+          bersih.map(() => ({
+            laporan_id: item.id,
+            user_id: userId,
+            bulan: periode.bulan,
+            tahun: periode.tahun,
+          }))
+        )
+        .select("id");
+      if (barisError || !barisBaru || barisBaru.length !== bersih.length) {
         if (sesiBerakhir(barisError)) return;
         setTambahError("Gagal menyimpan. Coba lagi.");
         return;
       }
       const { error: nilaiError } = await supabase.from("laporan_tambahan_nilai").insert(
-        item.kolom.map((col) => ({
-          baris_id: baris.id,
-          kolom_id: col.id,
-          nilai: cleaned[col.id] ?? "",
-        }))
+        barisBaru.flatMap((baris, i) =>
+          item.kolom.map((col) => ({
+            baris_id: baris.id,
+            kolom_id: col.id,
+            nilai: bersih[i][col.id] ?? "",
+          }))
+        )
       );
       if (nilaiError) {
-        await supabase.from("laporan_tambahan_baris").delete().eq("id", baris.id);
+        await supabase.from("laporan_tambahan_baris").delete().in(
+          "id",
+          barisBaru.map((b) => b.id)
+        );
         setTambahError("Gagal menyimpan. Coba lagi.");
         return;
       }
-      setTambah({});
-      toast.success("Isian ditambahkan.");
+      // Tanggal tetap terisi untuk kegiatan berikutnya; keterangan dan
+      // gambar dikosongkan lagi. Gambar tetap wajib per baris.
+      const tanggalTetap: Record<string, string> = {};
+      for (const col of item.kolom) {
+        if (col.tipe === "date" && tambah[col.id]) tanggalTetap[col.id] = tambah[col.id];
+      }
+      setTambah(tanggalTetap);
+      setMultiVals([""]);
+      setMultiFiles([""]);
+      toast.success(
+        bersih.length > 1 ? `${bersih.length} isian ditambahkan.` : "Isian ditambahkan."
+      );
       router.refresh();
     } finally {
       setTambahSaving(false);
@@ -663,10 +887,15 @@ function TabelIsianCard({
         toast.error("Gagal menghapus isian. Coba lagi.");
         return;
       }
+      // Best effort: berkas gambar ikut dibuang agar tidak yatim, kecuali
+      // masih dipakai baris lain (tambah banyak kegiatan sekaligus).
+      const dipakaiLain = new Set(
+        pathsGambar(item.baris.filter((row) => row.id !== hapus.id))
+      );
       const paths = item.kolom
         .filter((col) => col.tipe === "image")
         .map((col) => parseGambarNilai(hapus.nilai[col.id] ?? "")?.gambar ?? "")
-        .filter((path) => path.length > 0);
+        .filter((path) => path.length > 0 && !dipakaiLain.has(path));
       if (paths.length > 0) {
         await removeStoragePaths(createClient(), paths);
       }
@@ -713,14 +942,14 @@ function TabelIsianCard({
                   scope="col"
                   className="min-w-[160px] px-2 py-2 align-bottom"
                 >
-                  <span className="block text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                  <span className="block text-xs font-normal text-neutral-500 dark:text-neutral-400">
                     {col.label}
                   </span>
                 </th>
               ))}
               <th
                 scope="col"
-                className="w-24 px-2 py-2 text-right text-xs font-medium text-neutral-500"
+                className="w-24 px-2 py-2 text-right text-xs font-normal text-neutral-500 dark:text-neutral-400"
               >
                 Aksi
               </th>
@@ -740,6 +969,7 @@ function TabelIsianCard({
                         userId={userId}
                         folderId={item.id}
                         uniq={`edit-${row.id}`}
+                        lindungiPaths={pathsGambar(item.baris.filter((r) => r.id !== editId))}
                       />
                     </td>
                   ))}
@@ -788,23 +1018,25 @@ function TabelIsianCard({
                     </td>
                   ))}
                   <td className="px-2 py-2 align-middle">
-                    <span className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => mulaiUbah(row)}
-                        aria-label="Ubah isian"
-                      >
-                        <Pencil aria-hidden="true" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setHapus(row)}
-                        aria-label="Hapus isian"
-                      >
-                        <Trash2 aria-hidden="true" />
-                      </Button>
+                    <span className="flex justify-end">
+                      <GlassMenu
+                        label="Aksi isian"
+                        items={[
+                          {
+                            key: "edit",
+                            label: "Ubah",
+                            icon: <Pencil aria-hidden="true" />,
+                            onSelect: () => mulaiUbah(row),
+                          },
+                          {
+                            key: "delete",
+                            label: "Hapus",
+                            icon: <Trash2 aria-hidden="true" />,
+                            danger: true,
+                            onSelect: () => setHapus(row),
+                          },
+                        ]}
+                      />
                     </span>
                   </td>
                 </tr>
@@ -815,29 +1047,48 @@ function TabelIsianCard({
             </tr>
             <tr className="border-0 align-middle">
               {item.kolom.map((col) => (
-                <td key={col.id} className="border-0 px-2 py-2 align-middle">
-                  <SelInput
-                    kolom={col}
-                    value={tambah[col.id] ?? ""}
-                    onChange={(value) => ubahTambah(col.id, value)}
-                    disabled={tambahSaving}
-                    userId={userId}
-                    folderId={item.id}
-                    uniq="tambah"
-                  />
+                <td key={col.id} className="border-0 px-2 py-2 align-top">
+                  {multiCol && col.id === multiCol.id ? (
+                    <MultiTeksSel
+                      kolom={col}
+                      values={multiVals}
+                      onChange={(values) => {
+                        setMultiVals(values);
+                        setTambahError(null);
+                      }}
+                      onAppend={tambahPasangan}
+                      onRemove={hapusPasangan}
+                      disabled={tambahSaving}
+                    />
+                  ) : multiCol && imageCol && col.id === imageCol.id ? (
+                    <MultiGambarSel
+                      kolom={col}
+                      values={multiFiles}
+                      onChange={(values) => {
+                        setMultiFiles(values);
+                        setTambahError(null);
+                      }}
+                      onRemove={hapusPasangan}
+                      disabled={tambahSaving}
+                      userId={userId}
+                      folderId={item.id}
+                      lindungiPaths={pathsGambar(item.baris)}
+                    />
+                  ) : (
+                    <SelInput
+                      kolom={col}
+                      value={tambah[col.id] ?? ""}
+                      onChange={(value) => ubahTambah(col.id, value)}
+                      disabled={tambahSaving}
+                      userId={userId}
+                      folderId={item.id}
+                      uniq="tambah"
+                      lindungiPaths={pathsGambar(item.baris)}
+                    />
+                  )}
                 </td>
               ))}
-              <td className="border-0 px-2 py-2 align-middle">
-                <Button
-                  onClick={() => void simpanTambah()}
-                  disabled={tambahSaving}
-                  className="rounded-full"
-                  aria-label="Tambah baris"
-                >
-                  <Plus aria-hidden="true" />
-                  {tambahSaving ? "Menyimpan…" : "Tambah"}
-                </Button>
-              </td>
+              <td className="border-0 px-2 py-2 align-top" aria-hidden="true" />
             </tr>
           </tbody>
         </table>
@@ -848,6 +1099,17 @@ function TabelIsianCard({
           {galat}
         </p>
       )}
+      <div className="mt-3 flex justify-end px-1">
+        <Button
+          onClick={() => void simpanTambah()}
+          disabled={tambahSaving || editSaving}
+          className="rounded-full"
+          aria-label="Tambah isian"
+        >
+          <Plus aria-hidden="true" />
+          {tambahSaving ? "Menyimpan…" : "Tambah"}
+        </Button>
+      </div>
       <ConfirmDialog
         open={hapus !== null}
         title="Hapus isian?"
