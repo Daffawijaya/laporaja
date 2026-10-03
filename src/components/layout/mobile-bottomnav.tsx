@@ -30,6 +30,13 @@ interface Slot {
 
 const USER_SLOTS: Slot[] = [
   { key: "beranda", label: "Beranda", href: "/", ActiveIcon: HiHome, IdleIcon: HiOutlineHome },
+  {
+    key: "laporan",
+    label: "Laporan",
+    href: "/laporan",
+    ActiveIcon: HiClipboardDocumentList,
+    IdleIcon: HiOutlineClipboardDocumentList,
+  },
   { key: "anda", label: "Anda", href: "/anda", ActiveIcon: HiUserCircle, IdleIcon: HiOutlineUserCircle },
 ];
 

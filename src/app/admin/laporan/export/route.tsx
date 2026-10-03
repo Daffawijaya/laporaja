@@ -21,6 +21,17 @@ export async function GET(request: Request) {
   if (!userId) {
     return Response.json({ message: "Pilih user terlebih dahulu." }, { status: 400 });
   }
+  const tahun = Number(params.get("tahun") ?? "");
+  const bulan = Number(params.get("bulan") ?? "");
+  const periode =
+    Number.isInteger(tahun) &&
+    Number.isInteger(bulan) &&
+    tahun >= 2000 &&
+    tahun <= 2100 &&
+    bulan >= 1 &&
+    bulan <= 12
+      ? { tahun, bulan }
+      : null;
 
   const supabase = await createClient();
   const { data: owner } = await supabase
@@ -45,7 +56,7 @@ export async function GET(request: Request) {
   const [subsResult, pengaturanResult, tugas] = await Promise.all([
     supabase.from("user_sub_bidang").select("nama").eq("user_id", userId).order("nama"),
     supabase.from("pengaturan").select("nilai").eq("kunci", "unit_kerja").maybeSingle(),
-    getTugasUser(supabase, userId, owner.bidang_id).catch(() => null),
+    getTugasUser(supabase, userId, owner.bidang_id, periode).catch(() => null),
   ]);
   if (!tugas) {
     return Response.json(

@@ -122,6 +122,8 @@ export type LaporanTambahanBarisRow = {
   id: string;
   laporan_id: string;
   user_id: string;
+  bulan: number;
+  tahun: number;
   urutan: number;
   created_at: string;
   updated_at: string;
@@ -249,7 +251,7 @@ export type Database = {
       };
       laporan_tambahan_baris: {
         Row: LaporanTambahanBarisRow;
-        Insert: Pick<LaporanTambahanBarisRow, "laporan_id" | "user_id"> &
+        Insert: Pick<LaporanTambahanBarisRow, "laporan_id" | "user_id" | "bulan" | "tahun"> &
           Partial<Pick<LaporanTambahanBarisRow, "id" | "urutan" | "created_at" | "updated_at">>;
         Update: Partial<Pick<LaporanTambahanBarisRow, "urutan">>;
         Relationships: [];

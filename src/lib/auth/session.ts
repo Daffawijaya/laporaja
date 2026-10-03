@@ -4,7 +4,7 @@ import type { ProfileRow, Role } from "@/lib/supabase/database.types";
 
 export const HOME_BY_ROLE: Record<Role, string> = {
   superadmin: "/admin",
-  user: "/laporan",
+  user: "/",
 };
 
 export async function getCurrentProfile() {

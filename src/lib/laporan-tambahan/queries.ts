@@ -14,7 +14,23 @@ export interface KolomDef {
 
 export interface BarisIsi {
   id: string;
+  bulan: number;
+  tahun: number;
   nilai: Record<string, string>;
+}
+
+/** Periode bulanan laporan user. */
+export interface Periode {
+  tahun: number;
+  bulan: number;
+}
+
+export function labelPeriode(periode: Periode): string {
+  const nama = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+  ][periode.bulan - 1] ?? `Bulan ${periode.bulan}`;
+  return `${nama} ${periode.tahun}`;
 }
 
 export interface TugasLaporan {
@@ -115,12 +131,13 @@ async function namaBidang(
 }
 
 // Tugas wajib user: laporan yang tertaut ke bidangnya beserta definisi
-// kolom dan baris yang sudah ia isi. Penugasan permanen (tanpa periode);
-// selesai = punya minimal 1 baris.
+// kolom dan baris yang sudah ia isi pada satu periode bulan (atau semua
+// periode bila tanpa filter). Selesai = punya minimal 1 baris.
 export async function getTugasUser(
   supabase: ServerClient,
   userId: string,
-  bidangId: string | null
+  bidangId: string | null,
+  periode?: Periode | null
 ): Promise<TugasLaporan[]> {
   if (!bidangId) return [];
   const { data: links, error: linkError } = await supabase
@@ -131,6 +148,13 @@ export async function getTugasUser(
   const ids = [...new Set((links ?? []).map((row) => row.laporan_id))];
   if (ids.length === 0) return [];
 
+  const barisQuery = supabase
+    .from("laporan_tambahan_baris")
+    .select("id, laporan_id, bulan, tahun")
+    .in("laporan_id", ids)
+    .eq("user_id", userId)
+    .order("laporan_id")
+    .order("urutan");
   const [laporanResult, kolomResult, barisResult] = await Promise.all([
     supabase.from("laporan_tambahan").select("id, judul, deskripsi, format, urutan").in("id", ids).order("urutan").order("judul"),
     supabase
@@ -139,13 +163,9 @@ export async function getTugasUser(
       .in("laporan_id", ids)
       .order("laporan_id")
       .order("urutan"),
-    supabase
-      .from("laporan_tambahan_baris")
-      .select("id, laporan_id")
-      .in("laporan_id", ids)
-      .eq("user_id", userId)
-      .order("laporan_id")
-      .order("urutan"),
+    periode
+      ? barisQuery.eq("tahun", periode.tahun).eq("bulan", periode.bulan)
+      : barisQuery,
   ]);
   if (laporanResult.error || kolomResult.error || barisResult.error) {
     throw new Error("Gagal memuat laporan tambahan. Coba lagi.");
@@ -193,7 +213,7 @@ export async function getTugasUser(
   const barisByLaporan = new Map<string, BarisIsi[]>();
   for (const row of barisResult.data ?? []) {
     const arr = barisByLaporan.get(row.laporan_id) ?? [];
-    arr.push({ id: row.id, nilai: nilaiByBaris.get(row.id) ?? {} });
+    arr.push({ id: row.id, bulan: row.bulan, tahun: row.tahun, nilai: nilaiByBaris.get(row.id) ?? {} });
     barisByLaporan.set(row.laporan_id, arr);
   }
   return laporanList.map((row) => {
@@ -209,6 +229,72 @@ export async function getTugasUser(
       kolom: kolomByLaporan.get(row.id) ?? [],
       baris,
       terisi: format === "judul" || baris.length > 0,
+    };
+  });
+}
+
+export interface BulanItem {
+  tahun: number;
+  bulan: number;
+  status: string;
+  /** Section terisi pada bulan itu (blok judul selalu terhitung). */
+  terisi: number;
+  total: number;
+}
+
+// Daftar bulan laporan milik user beserta ketuntasan isiannya.
+export async function getBulanUser(
+  supabase: ServerClient,
+  userId: string,
+  bidangId: string | null
+): Promise<BulanItem[]> {
+  const { data: bulanList, error: bulanError } = await supabase
+    .from("monthly_reviews")
+    .select("tahun, bulan, status")
+    .eq("user_id", userId)
+    .order("tahun", { ascending: false })
+    .order("bulan", { ascending: false });
+  if (bulanError) throw new Error("Gagal memuat daftar bulan. Coba lagi.");
+  if (!bidangId) {
+    return (bulanList ?? []).map((row) => ({
+      tahun: row.tahun,
+      bulan: row.bulan,
+      status: row.status,
+      terisi: 0,
+      total: 0,
+    }));
+  }
+  const [linkResult, laporanResult, barisResult] = await Promise.all([
+    supabase.from("laporan_tambahan_bidang").select("laporan_id").eq("bidang_id", bidangId),
+    supabase.from("laporan_tambahan").select("id, format"),
+    supabase.from("laporan_tambahan_baris").select("laporan_id, tahun, bulan").eq("user_id", userId),
+  ]);
+  if (linkResult.error || laporanResult.error || barisResult.error) {
+    throw new Error("Gagal memuat daftar bulan. Coba lagi.");
+  }
+  const tugasan = new Set((linkResult.data ?? []).map((row) => row.laporan_id));
+  const judulOtomatis = new Set(
+    (laporanResult.data ?? []).filter((row) => row.format === "judul").map((row) => row.id)
+  );
+  const isiPerBulan = new Map<string, Set<string>>();
+  for (const row of barisResult.data ?? []) {
+    const kunci = `${row.tahun}-${row.bulan}`;
+    const set = isiPerBulan.get(kunci) ?? new Set<string>();
+    set.add(row.laporan_id);
+    isiPerBulan.set(kunci, set);
+  }
+  return (bulanList ?? []).map((row) => {
+    const isian = isiPerBulan.get(`${row.tahun}-${row.bulan}`) ?? new Set<string>();
+    let terisi = 0;
+    for (const id of tugasan) {
+      if (judulOtomatis.has(id) || isian.has(id)) terisi += 1;
+    }
+    return {
+      tahun: row.tahun,
+      bulan: row.bulan,
+      status: row.status,
+      terisi,
+      total: tugasan.size,
     };
   });
 }
