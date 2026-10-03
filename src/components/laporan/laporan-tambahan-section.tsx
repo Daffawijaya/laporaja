@@ -20,7 +20,7 @@ import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import {
   MAX_IMAGE_BYTES,
   getSignedImageUrl,
-  removeStoragePaths,
+  removeGambarRefs,
   uploadKegiatanImage,
 } from "@/lib/supabase/storage";
 import { formatTanggalPanjang } from "@/components/laporan/types";
@@ -42,8 +42,6 @@ function SelInput({
   value,
   onChange,
   disabled,
-  userId,
-  folderId,
   uniq,
   lindungiPaths = [],
   periode,
@@ -52,19 +50,16 @@ function SelInput({
   value: string;
   onChange: (value: string) => void;
   disabled: boolean;
-  userId: string;
-  folderId: string;
   uniq: string;
   /** Path gambar milik baris lain: jangan hapus dari storage (dipakai bersama). */
   lindungiPaths?: string[];
-  /** Periode laporan: kalender tanggal dibuka langsung di bulan ini. */
-  periode?: Periode;
+  /** Periode laporan: tujuan upload (folder bulan) + kalender tanggal. */
+  periode: Periode;
 }) {
   if (kolom.tipe === "image") {
     return (
       <SelGambar
-        userId={userId}
-        folderId={folderId}
+        periode={periode}
         kolom={kolom}
         value={value}
         onChange={onChange}
@@ -138,8 +133,7 @@ function SelAnimasi({ children, durasi }: { children: ReactNode; durasi: number 
 // Isian gambar ringkas untuk sel tabel: pratinjau kecil + berkas +
 // deskripsi. Nilai JSON {"gambar": path, "deskripsi": teks}.
 function SelGambar({
-  userId,
-  folderId,
+  periode,
   kolom,
   value,
   onChange,
@@ -147,8 +141,7 @@ function SelGambar({
   uniq,
   lindungiPaths = [],
 }: {
-  userId: string;
-  folderId: string;
+  periode: Periode;
   kolom: KolomDef;
   value: string;
   onChange: (value: string) => void;
@@ -207,12 +200,12 @@ function SelGambar({
     setMengunggah(true);
     setGalat(null);
     try {
-      // Server mengonversi ke WebP dulu sebelum menyimpan ke Storage.
-      const pathBaru = await uploadKegiatanImage(folderId, file);
+      // Server mengonversi ke WebP lalu menyimpan ke Drive (folder bulan+user).
+      const pathBaru = await uploadKegiatanImage({ jenis: "laporan", periode }, file);
       // Best effort: berkas lama dibuang saat diganti, kecuali dipakai
       // baris lain (hasil tambah banyak kegiatan sekaligus).
       if (path && path !== pathBaru && !lindungiPaths.includes(path)) {
-        await removeStoragePaths(createClient(), [path]);
+        await removeGambarRefs([path]);
       }
       tulis(pathBaru, deskripsi);
     } catch (err) {
@@ -233,8 +226,7 @@ function SelGambar({
     try {
       // Berkas yang dipakai baris lain tidak ikut dibuang.
       if (!lindungiPaths.includes(path)) {
-        const supabase = createClient();
-        await removeStoragePaths(supabase, [path]);
+        await removeGambarRefs([path]);
       }
     } finally {
       tulis("", deskripsi);
@@ -670,7 +662,7 @@ function TabelIsianCard({
     // tidak dipakai baris tersimpan.
     const berkas = parseGambarNilai(pairs[index]?.gambar ?? "")?.gambar ?? "";
     if (berkas && !pathsGambar(barisOpt).includes(berkas)) {
-      void removeStoragePaths(createClient(), [berkas]).catch(() => undefined);
+      void removeGambarRefs([berkas]).catch(() => undefined);
     }
     setPairs((prev) => prev.filter((_, j) => j !== index));
     setTambahError(null);
@@ -910,7 +902,7 @@ function TabelIsianCard({
         .map((col) => parseGambarNilai(target.nilai[col.id] ?? "")?.gambar ?? "")
         .filter((path) => path.length > 0 && !dipakaiLain.has(path));
       if (paths.length > 0) {
-        await removeStoragePaths(createClient(), paths);
+        await removeGambarRefs(paths);
       }
       berhasil = true;
       router.refresh();
@@ -991,8 +983,6 @@ function TabelIsianCard({
                         value={editVals[col.id] ?? ""}
                         onChange={(value) => ubahEdit(col.id, value)}
                         disabled={editSaving}
-                        userId={userId}
-                        folderId={item.id}
                         uniq={`edit-${row.id}`}
                         lindungiPaths={pathsGambar(barisOpt.filter((r) => r.id !== editId))}
                         periode={periode}
@@ -1116,8 +1106,7 @@ function TabelIsianCard({
                         </>
                       ) : imageCol && col.id === imageCol.id ? (
                         <SelGambar
-                          userId={userId}
-                          folderId={item.id}
+                          periode={periode}
                           kolom={col}
                           value={pair.gambar}
                           onChange={(value) => {
@@ -1136,8 +1125,6 @@ function TabelIsianCard({
                           value={tambah[col.id] ?? ""}
                           onChange={(value) => ubahTambah(col.id, value)}
                           disabled={tambahSaving}
-                          userId={userId}
-                          folderId={item.id}
                           uniq="tambah"
                           lindungiPaths={pathsGambar(barisOpt)}
                           periode={periode}
@@ -1191,8 +1178,6 @@ function TabelIsianCard({
                     value={tambah[col.id] ?? ""}
                     onChange={(value) => ubahTambah(col.id, value)}
                     disabled={tambahSaving}
-                    userId={userId}
-                    folderId={item.id}
                     uniq="tambah"
                     lindungiPaths={pathsGambar(barisOpt)}
                     periode={periode}

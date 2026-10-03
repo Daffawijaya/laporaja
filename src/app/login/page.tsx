@@ -1,12 +1,15 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { LoginForm } from "@/components/auth/login-form";
+import { RefListCard } from "@/components/ui/ref-list-card";
 import { getCurrentProfile, HOME_BY_ROLE } from "@/lib/auth/session";
-import { cn } from "@/lib/utils";
 
 // Butuh cookie sesi: render saat request, jangan di-prerender waktu build.
 export const dynamic = "force-dynamic";
 
+// Gaya disamakan dengan dashboard (ref-card di bg flat, bukan glass-panel):
+// kartu putih rounded-3xl + logo yang sama dengan topbar/sidebar.
 export default async function LoginPage({
   searchParams,
 }: {
@@ -19,28 +22,45 @@ export default async function LoginPage({
   const expired = params.expired === "1";
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-5 py-12">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[#f2f1f7] px-5 py-12 dark:bg-[#101014]">
       <div className="w-full max-w-[360px]">
-        <div className="text-center">
-          <p className="text-lg font-semibold tracking-tight">LaporAja</p>
-          <p className="mt-1 text-sm text-muted-foreground">Masuk untuk melanjutkan</p>
+        <div className="flex flex-col items-center text-center">
+          <Image
+            src="/logolight.png"
+            alt="LaporAja"
+            width={1697}
+            height={372}
+            priority
+            className="h-7 w-auto dark:hidden"
+          />
+          <Image
+            src="/logodark.png"
+            alt=""
+            aria-hidden="true"
+            width={1697}
+            height={372}
+            priority
+            className="hidden h-7 w-auto dark:block"
+          />
+          <p className="mt-3 text-sm text-muted-foreground">Masuk untuk melanjutkan</p>
         </div>
 
         {expired && (
           <p
             role="status"
-            className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
+            className="mt-5 rounded-md bg-amber-50 px-2.5 py-1.5 text-center text-xs text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
           >
             Sesi Anda berakhir. Silakan masuk lagi.
           </p>
         )}
 
-        <section
-          aria-label="Form masuk"
-          className={cn("glass-panel rounded-lg px-6 py-7", expired ? "mt-4" : "mt-7")}
+        <RefListCard
+          ariaLabel="Form masuk"
+          title="Masuk"
+          className={expired ? "mt-4" : "mt-5"}
         >
           <LoginForm />
-        </section>
+        </RefListCard>
       </div>
     </main>
   );

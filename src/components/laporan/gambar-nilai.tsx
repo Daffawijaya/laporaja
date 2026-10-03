@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
-import { getSignedImageUrl } from "@/lib/supabase/storage";
+import { resolveGambarUrl } from "@/lib/supabase/storage";
 
-// Tampilan nilai kolom gambar: thumbnail dari Storage privat (signed URL)
+// Tampilan nilai kolom gambar: thumbnail via proxy Drive / signed URL Storage
 // + deskripsi. Dipakai di daftar isian user dan pratinjau admin.
 export function GambarNilaiTampil({
   path,
@@ -28,8 +28,8 @@ export function GambarNilaiTampil({
     let hidup = true;
     if (!path) return;
     const supabase = createClient();
-    void getSignedImageUrl(supabase, path).then((signed) => {
-      if (hidup) setUrl(signed);
+    void resolveGambarUrl(supabase, path).then((resolved) => {
+      if (hidup) setUrl(resolved);
     });
     return () => {
       hidup = false;

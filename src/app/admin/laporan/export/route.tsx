@@ -1,6 +1,9 @@
 import { renderToBuffer } from "@react-pdf/renderer";
+import sharp from "sharp";
 import { getCurrentProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { downloadDriveFile } from "@/lib/drive/client";
+import { getSignedImageUrl } from "@/lib/supabase/storage";
 import { getTugasUser, parseGambarNilai } from "@/lib/laporan-tambahan/queries";
 import { LaporanDocument, type PdfTambahan } from "@/components/admin/laporan-document";
 import { formatTanggalPanjang } from "@/components/laporan/types";
@@ -80,19 +83,33 @@ export async function GET(request: Request) {
         })
       );
       // URL bertanda untuk sel gambar (superadmin boleh baca semua berkas).
+      // Rujukan Drive diunduh + dijadikan JPEG (PDF tidak andal merender
+      // WebP); path Storage lawas tetap via signed URL.
       const jobs: Promise<void>[] = [];
       item.baris.forEach((row, rowIdx) => {
         item.kolom.forEach((col, colIdx) => {
           if (col.tipe !== "image") return;
           const parsed = parseGambarNilai(row.nilai[col.id] ?? "");
           if (!parsed?.gambar) return;
+          const ref = parsed.gambar;
+          if (ref.startsWith("drive:")) {
+            const fileId = ref.slice("drive:".length).trim();
+            if (!fileId) return;
+            jobs.push(
+              downloadDriveFile(fileId)
+                .then((bytes) => sharp(bytes).jpeg({ quality: 85 }).toBuffer())
+                .then((jpeg) => {
+                  gambarUrl[`${rowIdx}:${colIdx}`] =
+                    `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+                })
+                .catch(() => undefined)
+            );
+            return;
+          }
           jobs.push(
-            supabase.storage
-              .from("kegiatan-images")
-              .createSignedUrl(parsed.gambar, 3600)
-              .then(({ data }) => {
-                if (data?.signedUrl) gambarUrl[`${rowIdx}:${colIdx}`] = data.signedUrl;
-              })
+            getSignedImageUrl(supabase, ref).then((signed) => {
+              if (signed) gambarUrl[`${rowIdx}:${colIdx}`] = signed;
+            })
           );
         });
       });

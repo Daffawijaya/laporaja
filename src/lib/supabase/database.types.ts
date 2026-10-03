@@ -15,6 +15,8 @@ export type ProfileRow = {
   nama: string;
   role: Role;
   bidang_id: string | null;
+  /** Path foto profil di Storage, null bila belum ada. */
+  foto: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -167,7 +169,7 @@ export type Database = {
         Row: ProfileRow;
         Insert: Pick<ProfileRow, "id" | "username" | "nama"> &
           Partial<Pick<ProfileRow, "role" | "bidang_id" | "created_at" | "updated_at">>;
-        Update: Partial<Pick<ProfileRow, "nama" | "username" | "role" | "bidang_id">>;
+        Update: Partial<Pick<ProfileRow, "nama" | "username" | "role" | "bidang_id" | "foto">>;
         Relationships: [];
       };
       user_sub_bidang: {

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth/session";
+import { FotoEditor, PasswordEditor } from "@/components/anda/akun-editor";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ContentGrid } from "@/components/layout/content-grid";
 import { ThemeSwitchSetting } from "@/components/layout/theme-switch";
@@ -30,22 +31,19 @@ export default async function AndaPage() {
               </div>
             </RefListCard>
 
+            <RefListCard ariaLabel="Keamanan" title="Keamanan">
+              <PasswordEditor />
+            </RefListCard>
+
             <LogoutButton />
           </>
         }
       >
         <RefListCard ariaLabel="Akun" title="Akun">
-          <div className="flex items-center gap-4 px-1 pb-3">
-            <span
-              aria-hidden="true"
-              className="flex size-16 items-center justify-center rounded-full bg-accent text-2xl font-semibold text-white"
-            >
-              {(profile.nama.charAt(0) || "?").toUpperCase()}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-xl font-semibold tracking-tight">{profile.nama}</p>
-              <p className="text-sm text-neutral-500">@{profile.username}</p>
-            </div>
+          <FotoEditor userId={user.id} fotoAwal={profile.foto} nama={profile.nama} />
+          <div className="min-w-0 px-1 pb-1">
+            <p className="truncate text-xl font-semibold tracking-tight">{profile.nama}</p>
+            <p className="text-sm text-neutral-500">@{profile.username}</p>
           </div>
 
           <ul className="divide-y divide-neutral-200/70 text-sm dark:divide-white/10">
