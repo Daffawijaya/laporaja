@@ -559,7 +559,7 @@ export function MobileBottomnav({ role }: { role: Role }) {
         className="lgt-nav-inner"
         role="group"
         aria-label={role === "superadmin" ? "Navigasi admin" : "Navigasi utama"}
-        style={{ gridTemplateColumns: `repeat(${slots.length}, 1fr)` }}
+        style={{ gridTemplateColumns: `repeat(${slots.length}, auto)` }}
       >
         <div ref={indicatorRef} className="lgt-indicator" aria-hidden="true" />
         {/* Filter refraksi khusus teks (id unik agar tidak dobel dengan filter tab). */}

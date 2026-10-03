@@ -9,9 +9,11 @@ import { Moon, Sun } from "lucide-react";
 import {
   HiClipboardDocumentCheck,
   HiClipboardDocumentList,
+  HiCog,
   HiHome,
   HiOutlineClipboardDocumentCheck,
   HiOutlineClipboardDocumentList,
+  HiOutlineCog,
   HiOutlineHome,
   HiOutlineSquares2X2,
   HiOutlineUserCircle,
@@ -41,10 +43,10 @@ interface SideItem {
 }
 
 // Judul topbar per halaman (gaya referensi: satu judul besar di kiri).
-function refTitle(pathname: string): string {
+function refTitle(pathname: string, role: Role): string {
   if (pathname === "/") return "Beranda";
   if (pathname === "/laporan") return "Laporan";
-  if (pathname === "/anda") return "Anda";
+  if (pathname === "/anda") return role === "superadmin" ? "Pengaturan" : "Anda";
   if (pathname === "/admin") return "Dashboard";
   if (pathname === "/admin/users") return "Pengguna";
   if (pathname === "/admin/bidang") return "Bidang";
@@ -104,7 +106,7 @@ export function DesktopWindow({
   const isAdmin = role === "superadmin";
   const initial = (username.charAt(0) || "?").toUpperCase();
   const dark = mounted && resolvedTheme === "dark";
-  const title = refTitle(pathname);
+  const title = refTitle(pathname, role);
   const searchCfg = refSearch(pathname, searchParams);
 
   const menu: SideItem[] = isAdmin
@@ -132,7 +134,7 @@ export function DesktopWindow({
           ActiveIcon: HiClipboardDocumentCheck,
           IdleIcon: HiOutlineClipboardDocumentCheck,
         },
-        { key: "anda", label: "Anda", href: "/anda", ActiveIcon: HiUserCircle, IdleIcon: HiOutlineUserCircle },
+        { key: "anda", label: "Pengaturan", href: "/anda", ActiveIcon: HiCog, IdleIcon: HiOutlineCog },
       ]
     : [
         { key: "beranda", label: "Beranda", href: "/", ActiveIcon: HiHome, IdleIcon: HiOutlineHome },

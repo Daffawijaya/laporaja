@@ -4,32 +4,36 @@
 
 .mgn-nav.lgt-nav {
   position: fixed;
-  inset-inline: 12px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
   top: auto;
   bottom: calc(12px + env(safe-area-inset-bottom));
   z-index: 30;
-  width: auto;
-  max-width: none;
-  height: 68px;
+  /* Lebar statis mengikuti isi (bukan selebar layar): 5 slot hampir penuh,
+     3 slot tetap pill ramping di tengah. Padding seragam semua sisi. */
+  width: max-content;
+  max-width: calc(100dvw - 24px);
+  height: auto;
+  padding: 8px;
 }
 
 .mgn-nav .lgt-nav-inner {
-  grid-template-columns: repeat(3, 1fr);
-  height: 100%;
+  height: auto;
   gap: 2px;
 }
 
 .mgn-nav .lgt-item {
-  height: 100%;
-  min-height: 0;
+  width: 64px;
+  min-height: 52px;
   padding: 6px 4px;
   /* Bar boleh jadi awal scroll halaman (tanpa drag antar slot). */
   touch-action: pan-y;
 }
 
 .mgn-nav .lgt-indicator {
-  top: 4px;
-  height: calc(100% - 8px);
+  top: 0;
+  height: 100%;
 }
 
 /* Label slot: ikon di atas, teks di bawah. */

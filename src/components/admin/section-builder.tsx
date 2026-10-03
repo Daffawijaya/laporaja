@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlignLeft, Table, Type } from "lucide-react";
+import { AlignLeft, Flag, Table, Type } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -17,6 +17,15 @@ import {
   SectionEditor,
   editorKey,
 } from "@/components/admin/section-editor";
+
+// Opsi tambah section (dipakai rel samping desktop + toolbar apung mobile).
+// Indikator = salinan tabel (judul + kolom isian per baris), beda label.
+const TAMBAH_OPSI = [
+  { nilai: "tabel", label: "Tambah tabel", Icon: Table },
+  { nilai: "esai", label: "Tambah esai", Icon: AlignLeft },
+  { nilai: "judul", label: "Tambah judul", Icon: Type },
+  { nilai: "indikator", label: "Tambah indikator", Icon: Flag },
+] as const;
 
 // Builder susun laporan ala Google Forms: tumpukan kartu yang bisa
 // digeser (drag gagang atau panah keyboard), tiap kartu langsung bisa
@@ -159,7 +168,7 @@ export function SectionBuilder({
   // judulnya langsung terfokus — tanpa menunggu database. Tulis DB jalan di
   // belakang; navbar yang menunjukkan Menyimpan/Tersimpan. Id dibuat di
   // client supaya kartu tidak perlu remount saat data server tiba.
-  async function tambahCepat(format: "tabel" | "esai" | "judul") {
+  async function tambahCepat(format: "tabel" | "esai" | "judul" | "indikator") {
     if (menambah) return;
     setMenambah(true);
     setPageError(null);
@@ -195,7 +204,7 @@ export function SectionBuilder({
               {
                 id: kolomIdBaru,
                 label: format === "esai" ? "Isian" : "Kolom 1",
-                tipe: format === "esai" ? "textarea" : "text",
+                tipe: format === "esai" ? "textarea" : format === "indikator" ? "number" : "text",
               },
             ],
     };
@@ -547,8 +556,10 @@ export function SectionBuilder({
           </div>
         </div>
 
-        {/* Penanda tempat rel aksi: mempertahankan lebar kolom kanan. */}
-        <div className="shrink-0" aria-hidden="true">
+        {/* Penanda tempat rel aksi: mempertahankan lebar kolom kanan.
+            Hanya desktop — di mobile disembunyikan agar kartu full selebar
+            layar (rel diganti toolbar apung di bawah). */}
+        <div className="hidden shrink-0 md:block" aria-hidden="true">
           <div
             ref={ghostRef}
             className="ref-card flex flex-col gap-1 rounded-full p-1.5 opacity-0"
@@ -560,11 +571,12 @@ export function SectionBuilder({
         </div>
 
         {/* Rel aksi ala Google Forms: tambah tabel/esai/judul. Absolute
-            terhadap baris, menempel di tepi atas kartu terpilih. */}
+            terhadap baris, menempel di tepi atas kartu terpilih.
+            Hanya desktop — di mobile diganti toolbar apung di bawah. */}
         <div
           ref={railRef}
           data-rel-tambah
-          className={`absolute top-0 z-10 shrink-0 ${
+          className={`absolute top-0 z-10 hidden shrink-0 md:block ${
             terukur ? "opacity-100" : "opacity-0"
           }`}
           style={{ transform: "translateY(0px)" }}
@@ -574,13 +586,32 @@ export function SectionBuilder({
             aria-label="Tambah section"
             className="ref-card flex flex-col gap-1 rounded-full p-1.5"
           >
-            {(
-              [
-                { nilai: "tabel", label: "Tambah tabel", Icon: Table },
-                { nilai: "esai", label: "Tambah esai", Icon: AlignLeft },
-                { nilai: "judul", label: "Tambah judul", Icon: Type },
-              ] as const
-            ).map(({ nilai, label, Icon }) => (
+            {TAMBAH_OPSI.map(({ nilai, label, Icon }) => (
+              <Button
+                key={nilai}
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => tambahCepat(nilai)}
+                aria-label={label}
+                title={label}
+                className="rounded-full"
+              >
+                <Icon aria-hidden="true" />
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Toolbar tambah mobile: pill mengambang kanan-bawah di atas
+            bottom-nav (rel samping disembunyikan di layar kecil). */}
+        <div className="fixed right-4 bottom-24 z-30 md:hidden" data-rel-tambah>
+          <div
+            role="toolbar"
+            aria-label="Tambah section"
+            className="ref-card flex flex-row gap-1 rounded-full p-1.5"
+          >
+            {TAMBAH_OPSI.map(({ nilai, label, Icon }) => (
               <Button
                 key={nilai}
                 type="button"

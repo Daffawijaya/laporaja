@@ -88,6 +88,7 @@ function KolomRows({
   satuan = "Kolom",
   tambahLabel = "Tambah Kolom",
   kunciTipe = null,
+  tipeTerkunci = null,
 }: {
   kolom: KolomDraft[];
   onPatch: (key: number, patch: Partial<KolomDraft>) => void;
@@ -98,6 +99,8 @@ function KolomRows({
   satuan?: string;
   tambahLabel?: string;
   kunciTipe?: KolomTipe | null;
+  /** Tipe terkunci tapi tata letak tetap tabel (indikator = selalu Angka). */
+  tipeTerkunci?: KolomTipe | null;
 }) {
   if (kunciTipe) {
     // Esai: subjudul ditumpuk ke bawah, tombol hapus tepat di kanan input.
@@ -203,6 +206,10 @@ function KolomRows({
                     {kunciTipe ? (
                       <span className="min-w-0 flex-1 px-1 text-xs text-neutral-500">
                         Esai · teks panjang
+                      </span>
+                    ) : tipeTerkunci ? (
+                      <span className="min-w-0 flex-1 px-1 text-xs text-neutral-500">
+                        {labelTipe(tipeTerkunci)}
                       </span>
                     ) : (
                       <GlassSelect
@@ -606,7 +613,8 @@ export function SectionCard({
 
   const esai = item.format === "esai";
   const kepala = item.format === "judul";
-  const pakaiKolom = item.format === "tabel";
+  // Indikator = tabel (pakai kolom isian per baris), beda label saja.
+  const pakaiKolom = item.format === "tabel" || item.format === "indikator";
   // Esai memakai kolom sebagai daftar subjudul (tipe terkunci esai).
   const kelolaKolom = pakaiKolom || esai;
 
@@ -644,8 +652,9 @@ export function SectionCard({
             ...col,
             // Label kosong diisi default supaya tetap valid di DB.
             label: label.length > 0 ? label : `${esai ? "Subjudul" : "Kolom"} ${index + 1}`,
-            // Subjudul esai selalu tersimpan sebagai teks panjang.
-            tipe: (esai ? "textarea" : col.tipe) as KolomTipe,
+            // Subjudul esai selalu tersimpan sebagai teks panjang;
+            // kolom indikator selalu tersimpan sebagai angka.
+            tipe: (esai ? "textarea" : item.format === "indikator" ? "number" : col.tipe) as KolomTipe,
             urutan: index,
           };
         })
@@ -822,11 +831,15 @@ export function SectionCard({
             Esai
           </span>
         )}
-        {pakaiKolom && (
+        {item.format === "indikator" ? (
+          <span className="shrink-0 rounded-full bg-black/[0.075] px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-white/10">
+            Indikator
+          </span>
+        ) : pakaiKolom ? (
           <span className="shrink-0 rounded-full bg-black/[0.075] px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-white/10">
             Tabel
           </span>
-        )}
+        ) : null}
         {kepala && (
           <span className="shrink-0 rounded-full bg-black/[0.075] px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-white/10">
             Judul
@@ -846,15 +859,16 @@ export function SectionCard({
             onAdd={() => {
               setKolom((prev) => [
                 ...prev,
-                esai ? kolomBaru("", null, "textarea") : kolomBaru(),
+                esai ? kolomBaru("", null, "textarea") : item.format === "indikator" ? kolomBaru("", null, "number") : kolomBaru(),
               ]);
               setError(null);
             }}
             disabled={false}
             terpilih={terpilih}
             satuan={esai ? "Subjudul" : "Kolom"}
-            tambahLabel={esai ? "Tambah Subjudul" : "Tambah Kolom"}
+            tambahLabel={esai ? "Tambah Subjudul" : item.format === "indikator" ? "Tambah Indikator" : "Tambah Kolom"}
             kunciTipe={esai ? "textarea" : null}
+            tipeTerkunci={item.format === "indikator" ? "number" : null}
           />
         ) : null}
       </div>

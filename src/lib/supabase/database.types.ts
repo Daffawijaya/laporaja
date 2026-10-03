@@ -107,7 +107,7 @@ export type LaporanTambahanBidangRow = {
 export type KolomTipe = "text" | "textarea" | "date" | "number" | "image";
 
 /** Bentuk isian laporan tambahan: tabel (baris-baris kolom), esai (satu teks panjang), atau judul (pembatas tanpa isian). */
-export type LaporanFormat = "tabel" | "esai" | "judul";
+export type LaporanFormat = "tabel" | "esai" | "judul" | "indikator";
 
 export type LaporanTambahanKolomRow = {
   id: string;

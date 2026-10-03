@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth/session";
+import { getPengaturan } from "@/lib/laporan-tambahan/queries";
 import { FotoEditor, PasswordEditor } from "@/components/anda/akun-editor";
+import { TandaTanganEditor, type TtdItem } from "@/components/anda/tanda-tangan-editor";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ContentGrid } from "@/components/layout/content-grid";
 import { ThemeSwitchSetting } from "@/components/layout/theme-switch";
@@ -19,6 +21,30 @@ export default async function AndaPage() {
     ? await supabase.from("bidang").select("nama").eq("id", profile.bidang_id).maybeSingle()
     : { data: null };
 
+  const isSuperadmin = profile.role === "superadmin";
+  // Daftar tanda tangan (JSON di pengaturan "ttd_daftar"): rusak/kosong = [].
+  let ttdDaftar: TtdItem[] = [];
+  if (isSuperadmin) {
+    const mentah = await getPengaturan(supabase, "ttd_daftar");
+    try {
+      const parsed: unknown = mentah ? JSON.parse(mentah) : [];
+      if (Array.isArray(parsed)) {
+        ttdDaftar = parsed
+          .filter(
+            (item): item is TtdItem =>
+              typeof item === "object" &&
+              item !== null &&
+              typeof (item as TtdItem).nama === "string" &&
+              typeof (item as TtdItem).jabatan === "string" &&
+              typeof (item as TtdItem).gambar === "string"
+          )
+          .map((item) => ({ nama: item.nama, jabatan: item.jabatan, gambar: item.gambar }));
+      }
+    } catch {
+      ttdDaftar = [];
+    }
+  }
+
   return (
     <div className="w-full">
       <div className="mt-5 md:mt-1">
@@ -28,6 +54,10 @@ export default async function AndaPage() {
           <div className="flex min-w-0 flex-col gap-3">
             <RefListCard ariaLabel="Pengaturan" title="Pengaturan">
               <ThemeSwitchSetting />
+            </RefListCard>
+
+            <RefListCard ariaLabel="Ganti kata sandi" title="Ganti kata sandi">
+              <PasswordEditor username={profile.username} />
             </RefListCard>
 
             <RefListCard ariaLabel="Aplikasi" title="Aplikasi">
@@ -62,9 +92,11 @@ export default async function AndaPage() {
           </ul>
         </RefListCard>
 
-        <RefListCard ariaLabel="Ganti kata sandi" title="Ganti kata sandi">
-          <PasswordEditor username={profile.username} />
-        </RefListCard>
+        {isSuperadmin ? (
+          <RefListCard ariaLabel="Tanda tangan" title="Tanda tangan">
+            <TandaTanganEditor daftarAwal={ttdDaftar} />
+          </RefListCard>
+        ) : null}
         </div>
       </ContentGrid>
       </div>

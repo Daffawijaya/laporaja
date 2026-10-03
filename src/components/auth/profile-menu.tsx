@@ -129,7 +129,22 @@ export function ProfileMenu({
         .from("profiles")
         .select("nama, foto, bidang_id")
         .eq("id", user.id)
-        .maybeSingle();
+        .maybeSingle()
+        .then(
+          async (first) => {
+            // Toleransi migrasi foto belum diterapkan: ulangi tanpa kolom foto.
+            if (first.error || !first.data) {
+              const second = await supabase
+                .from("profiles")
+                .select("nama, bidang_id")
+                .eq("id", user.id)
+                .maybeSingle();
+              if (second.error || !second.data) return { data: null };
+              return { data: { ...second.data, foto: null as string | null } };
+            }
+            return first;
+          }
+        );
       if (!hidup || !profile) return;
       setNama(profile.nama);
       if (profile.bidang_id) {
