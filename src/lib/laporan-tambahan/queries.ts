@@ -1,9 +1,9 @@
 import type { createClient } from "@/lib/supabase/server";
-import type { KolomTipe, LaporanFormat, LaporanTambahanKolomRow } from "@/lib/supabase/database.types";
+import type { KolomTipe, LaporanFormat, LaporanTambahanKolomRow, MonthlyReviewStatus } from "@/lib/supabase/database.types";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
-export type { KolomTipe, LaporanFormat };
+export type { KolomTipe, LaporanFormat, MonthlyReviewStatus };
 
 export interface KolomDef {
   id: string;
@@ -240,6 +240,24 @@ export interface BulanItem {
   /** Section terisi pada bulan itu (blok judul selalu terhitung). */
   terisi: number;
   total: number;
+}
+
+// Status review satu bulan milik user. Tanpa baris = masih menunggu
+// (belum ditandai selesai).
+export async function getStatusReview(
+  supabase: ServerClient,
+  userId: string,
+  periode: Periode
+): Promise<MonthlyReviewStatus> {
+  const { data, error } = await supabase
+    .from("monthly_reviews")
+    .select("status")
+    .eq("user_id", userId)
+    .eq("tahun", periode.tahun)
+    .eq("bulan", periode.bulan)
+    .maybeSingle();
+  if (error) throw new Error("Gagal memuat status laporan. Coba lagi.");
+  return (data?.status ?? "menunggu") as MonthlyReviewStatus;
 }
 
 // Daftar bulan laporan milik user beserta ketuntasan isiannya.

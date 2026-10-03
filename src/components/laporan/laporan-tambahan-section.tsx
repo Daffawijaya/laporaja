@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Check, ImagePlus, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { RefListCard } from "@/components/ui/ref-list-card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
+import { setSimpanStatus } from "@/lib/simpan-status";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import {
@@ -28,6 +29,7 @@ import {
   parseGambarNilai,
   type BarisIsi,
   type KolomDef,
+  type MonthlyReviewStatus,
   type Periode,
   type TugasLaporan,
 } from "@/lib/laporan-tambahan/queries";
@@ -361,18 +363,20 @@ function formatNilai(col: KolomDef, raw: string): string {
 // Batas panjang esai: nilai disimpan sebagai teks bebas (kolom DB text).
 const ESAI_MAKS = 10000;
 
-// Kartu isian esai: satu textarea per subjudul dalam satu baris user
-// (buat sekali, simpan = tambah bila belum ada atau ubah bila sudah ada).
-// Semua subjudul wajib diisi; kosongkan semua lalu Simpan untuk menghapus
-// (kembali belum diisi).
+// Kartu isian esai: satu textarea per subjudul dalam satu baris user.
+// Tersimpan otomatis 800 mdetik sesudah berhenti mengetik ala
+// admin/section (status di navbar via SimpanTeks). Semua subjudul wajib
+// diisi; kosongkan semua untuk menghapus (kembali belum diisi).
 function EsaiIsian({
   userId,
   item,
   periode,
+  terkunci,
 }: {
   userId: string;
   item: TugasLaporan;
   periode: Periode;
+  terkunci: boolean;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -383,114 +387,169 @@ function EsaiIsian({
     for (const col of kolomList) awal[col.id] = baris?.nilai[col.id] ?? "";
     return awal;
   });
+  // Id baris lokal: langsung terisi sesudah insert pertama supaya
+  // ketikan berikutnya jadi ubah, tanpa menunggu refresh server.
+  const [barisId, setBarisId] = useState<string | null>(baris?.id ?? null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  function sesiBerakhir(error: unknown): boolean {
-    if (error instanceof SessionExpiredError || isSessionError(error)) {
-      toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
-      router.replace("/login?expired=1");
-      return true;
-    }
-    return false;
+  // Selaraskan dengan data server sesudah refresh (render-phase sync ala
+  // admin/section: hanya saat referensi baris/kolom berganti).
+  const sig = `${item.id}|${kolomList.map((col) => col.id).join(",")}|${baris?.id ?? ""}|${JSON.stringify(baris?.nilai ?? {})}`;
+  const [prevSig, setPrevSig] = useState(sig);
+  // Potret draft untuk banding kotor vs tersimpan ala admin/section.
+  const snap = JSON.stringify(kolomList.map((col) => (isi[col.id] ?? "").trim()));
+  const [savedSnap, setSavedSnap] = useState(snap);
+  if (prevSig !== sig) {
+    setPrevSig(sig);
+    const segar: Record<string, string> = {};
+    for (const col of kolomList) segar[col.id] = baris?.nilai[col.id] ?? "";
+    setIsi(segar);
+    setBarisId(baris?.id ?? null);
+    setSavedSnap(JSON.stringify(kolomList.map((col) => (baris?.nilai[col.id] ?? "").trim())));
+    setError(null);
   }
 
+  // Validasi ringan saat mengetik (ditampilkan, tidak toast) ala
+  // admin/section: memblokir autosave selama belum valid. Kosong total
+  // bukan masalah — itu kondisi belum diisi (tanpa baris) atau perintah
+  // hapus otomatis (punya baris).
+  let masalah: string | null = null;
+  {
+    const trimmed = kolomList.map((col) => ({
+      col,
+      nilai: (isi[col.id] ?? "").trim(),
+    }));
+    const adaIsi = trimmed.some(({ nilai }) => nilai.length > 0);
+    const adaKosong = trimmed.some(({ nilai }) => nilai.length === 0);
+    if (adaIsi && adaKosong) {
+      const kosong = trimmed.find(({ nilai }) => nilai.length === 0);
+      if (kosong) masalah = `Subjudul "${kosong.col.label}" wajib diisi.`;
+    } else if (adaIsi) {
+      const panjang = trimmed.find(({ nilai }) => nilai.length > ESAI_MAKS);
+      if (panjang) masalah = `Subjudul "${panjang.col.label}" maksimal ${ESAI_MAKS} karakter.`;
+    }
+  }
+
+  const sesiBerakhir = useCallback(
+    (galat: unknown): boolean => {
+      if (galat instanceof SessionExpiredError || isSessionError(galat)) {
+        toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
+        router.replace("/login?expired=1");
+        return true;
+      }
+      return false;
+    },
+    [toast, router]
+  );
+
   function setSatu(kolomId: string, value: string) {
+    if (terkunci) return;
     setIsi((prev) => ({ ...prev, [kolomId]: value }));
     setError(null);
   }
 
-  async function handleSimpan() {
-    if (saving || kolomList.length === 0) return;
-    const cleaned = kolomList.map((col) => ({ col, nilai: (isi[col.id] ?? "").trim() }));
-    const adaIsi = cleaned.some(({ nilai }) => nilai.length > 0);
-    if (!adaIsi) {
-      if (!baris) {
-        setError(`Subjudul "${kolomList[0].label}" wajib diisi.`);
-        return;
-      }
+  const simpan = useCallback(
+    async (snapAwal: string) => {
+      const cleaned = kolomList.map((col) => ({ col, nilai: (isi[col.id] ?? "").trim() }));
+      const adaIsi = cleaned.some(({ nilai }) => nilai.length > 0);
+      // Pengaman ganda: jangan tulis baris kosong baru ke DB.
+      if (!adaIsi && !barisId) return;
       setSaving(true);
       setError(null);
+      setSimpanStatus("saving");
+      let berhasil = false;
       try {
         const supabase = createClient();
-        const { error } = await supabase
-          .from("laporan_tambahan_baris")
-          .delete()
-          .eq("id", baris.id)
-          .eq("user_id", userId);
-        if (error) {
-          if (sesiBerakhir(error)) return;
-          setError("Gagal menghapus isian. Coba lagi.");
+        if (!adaIsi && barisId) {
+          const { error } = await supabase
+            .from("laporan_tambahan_baris")
+            .delete()
+            .eq("id", barisId)
+            .eq("user_id", userId);
+          if (error) {
+            if (sesiBerakhir(error)) return;
+            setError("Gagal menghapus isian. Coba lagi.");
+            return;
+          }
+          setBarisId(null);
+          setSavedSnap(snapAwal);
+          berhasil = true;
+          router.refresh();
           return;
         }
-        toast.success("Isian dihapus.");
+        for (const { col, nilai } of cleaned) {
+          if (nilai.length === 0) {
+            setError(`Subjudul "${col.label}" wajib diisi.`);
+            return;
+          }
+          if (nilai.length > ESAI_MAKS) {
+            setError(`Subjudul "${col.label}" maksimal ${ESAI_MAKS} karakter.`);
+            return;
+          }
+        }
+        if (barisId) {
+          const { error } = await supabase.from("laporan_tambahan_nilai").upsert(
+            cleaned.map(({ col, nilai }) => ({
+              baris_id: barisId,
+              kolom_id: col.id,
+              nilai,
+            })),
+            { onConflict: "baris_id,kolom_id" }
+          );
+          if (error) {
+            if (sesiBerakhir(error)) return;
+            setError("Gagal menyimpan. Coba lagi.");
+            return;
+          }
+        } else {
+          const { data: baru, error: barisError } = await supabase
+            .from("laporan_tambahan_baris")
+            .insert({ laporan_id: item.id, user_id: userId, bulan: periode.bulan, tahun: periode.tahun })
+            .select("id")
+            .single();
+          if (barisError || !baru) {
+            if (sesiBerakhir(barisError)) return;
+            setError("Gagal menyimpan. Coba lagi.");
+            return;
+          }
+          const { error: nilaiError } = await supabase
+            .from("laporan_tambahan_nilai")
+            .insert(
+              cleaned.map(({ col, nilai }) => ({
+                baris_id: baru.id,
+                kolom_id: col.id,
+                nilai,
+              }))
+            );
+          if (nilaiError) {
+            await supabase.from("laporan_tambahan_baris").delete().eq("id", baru.id);
+            setError("Gagal menyimpan. Coba lagi.");
+            return;
+          }
+          setBarisId(baru.id);
+        }
+        setSavedSnap(snapAwal);
+        berhasil = true;
         router.refresh();
       } finally {
         setSaving(false);
+        setSimpanStatus(berhasil ? "saved" : "error");
       }
-      return;
-    }
-    for (const { col, nilai } of cleaned) {
-      if (nilai.length === 0) {
-        setError(`Subjudul "${col.label}" wajib diisi.`);
-        return;
-      }
-      if (nilai.length > ESAI_MAKS) {
-        setError(`Subjudul "${col.label}" maksimal ${ESAI_MAKS} karakter.`);
-        return;
-      }
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const supabase = createClient();
-      if (baris) {
-        const { error } = await supabase.from("laporan_tambahan_nilai").upsert(
-          cleaned.map(({ col, nilai }) => ({
-            baris_id: baris.id,
-            kolom_id: col.id,
-            nilai,
-          })),
-          { onConflict: "baris_id,kolom_id" }
-        );
-        if (error) {
-          if (sesiBerakhir(error)) return;
-          setError("Gagal menyimpan. Coba lagi.");
-          return;
-        }
-        toast.success("Isian diperbarui.");
-      } else {
-        const { data: baru, error: barisError } = await supabase
-          .from("laporan_tambahan_baris")
-          .insert({ laporan_id: item.id, user_id: userId, bulan: periode.bulan, tahun: periode.tahun })
-          .select("id")
-          .single();
-        if (barisError || !baru) {
-          if (sesiBerakhir(barisError)) return;
-          setError("Gagal menyimpan. Coba lagi.");
-          return;
-        }
-        const { error: nilaiError } = await supabase
-          .from("laporan_tambahan_nilai")
-          .insert(
-            cleaned.map(({ col, nilai }) => ({
-              baris_id: baru.id,
-              kolom_id: col.id,
-              nilai,
-            }))
-          );
-        if (nilaiError) {
-          await supabase.from("laporan_tambahan_baris").delete().eq("id", baru.id);
-          setError("Gagal menyimpan. Coba lagi.");
-          return;
-        }
-        toast.success("Isian ditambahkan.");
-      }
-      router.refresh();
-    } finally {
-      setSaving(false);
-    }
-  }
+    },
+    [isi, barisId, kolomList, item.id, periode.bulan, periode.tahun, userId, router, sesiBerakhir]
+  );
+
+  // Simpan otomatis 800 mdetik sesudah berhenti mengetik ala admin/section.
+  // Saat terkunci (selesai/disetujui) tidak ada yang bisa berubah.
+  useEffect(() => {
+    if (terkunci || snap === savedSnap || masalah || saving) return;
+    if (!barisId && kolomList.every((col) => (isi[col.id] ?? "").trim().length === 0)) return;
+    const timer = window.setTimeout(() => {
+      void simpan(snap);
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [terkunci, snap, savedSnap, masalah, saving, barisId, kolomList, isi, simpan]);
 
   if (kolomList.length === 0) return null;
 
@@ -515,21 +574,16 @@ function EsaiIsian({
               onChange={(event) => setSatu(col.id, event.target.value)}
               rows={6}
               placeholder={`Tulis ${col.label.toLowerCase()} di sini.`}
-              disabled={saving}
+              disabled={terkunci}
             />
           </div>
         ))}
       </div>
-      {error && (
+      {(error ?? masalah) && (
         <p role="alert" className="mt-2 px-1 text-sm text-danger">
-          {error}
+          {error ?? masalah}
         </p>
       )}
-      <div className="mt-3 flex justify-end px-1">
-        <Button onClick={handleSimpan} disabled={saving} className="w-full sm:w-auto">
-          {saving ? "Menyimpan..." : "Simpan isian"}
-        </Button>
-      </div>
     </RefListCard>
   );
 }
@@ -541,13 +595,34 @@ function TabelIsianCard({
   userId,
   item,
   periode,
+  terkunci,
 }: {
   userId: string;
   item: TugasLaporan;
   periode: Periode;
+  terkunci: boolean;
 }) {
   const router = useRouter();
   const toast = useToast();
+  // Baris optimis ala admin/section tambahCepat: baris langsung tampil di UI
+  // saat Tambah diklik (slide smooth), tulis DB jalan di belakang dengan
+  // status di navbar (Menyimpan…/Tersimpan). Gagal = rollback + navbar error.
+  // Id dibuat di client supaya key stabil (tanpa remount/dobel saat data
+  // server tiba); pendingRef menjaga baris optimis bila refresh dari kartu
+  // lain datang sebelum insert rampung.
+  const pendingRef = useRef<Set<string>>(new Set());
+  const [barisOpt, setBarisOpt] = useState<BarisIsi[]>(item.baris);
+  const [syncedBaris, setSyncedBaris] = useState(item.baris);
+  if (syncedBaris !== item.baris) {
+    setSyncedBaris(item.baris);
+    setBarisOpt((prev) => {
+      const serverIds = new Set(item.baris.map((row) => row.id));
+      const tertunda = prev.filter(
+        (row) => pendingRef.current.has(row.id) && !serverIds.has(row.id)
+      );
+      return tertunda.length > 0 ? [...item.baris, ...tertunda] : item.baris;
+    });
+  }
   const [tambah, setTambah] = useState<Record<string, string>>(() => {
     // Tanggal tetap: baris tambah dibuka dengan tanggal baris terakhir,
     // jadi tambah kegiatan berulang tidak perlu isi tanggal lagi.
@@ -588,7 +663,7 @@ function TabelIsianCard({
     // Berkas pasangan yang dibuang ikut dibersihkan (best effort) selama
     // tidak dipakai baris tersimpan.
     const berkas = parseGambarNilai(pairs[index]?.gambar ?? "")?.gambar ?? "";
-    if (berkas && !pathsGambar(item.baris).includes(berkas)) {
+    if (berkas && !pathsGambar(barisOpt).includes(berkas)) {
       void removeStoragePaths(createClient(), [berkas]).catch(() => undefined);
     }
     setPairs((prev) => prev.filter((_, j) => j !== index));
@@ -633,6 +708,7 @@ function TabelIsianCard({
   }
 
   function mulaiUbah(row: BarisIsi) {
+    if (terkunci) return;
     setEditId(row.id);
     setEditVals({ ...row.nilai });
     setEditError(null);
@@ -640,7 +716,7 @@ function TabelIsianCard({
   }
 
   async function simpanTambah() {
-    if (tambahSaving || editSaving) return;
+    if (terkunci || tambahSaving || editSaving) return;
     // Pasangan sebaris: tiap nama kegiatan + gambarnya jadi satu baris.
     // Pasangan yang keduanya kosong diabaikan.
     let pasangan: { nama: string; gambar: string }[] | null = null;
@@ -680,14 +756,36 @@ function TabelIsianCard({
       setTambahError(`Kolom "${item.kolom[0]?.label ?? "isian"}" wajib diisi.`);
       return;
     }
+    // Optimis: tampilkan baris baru langsung (slide smooth via motion.tr),
+    // kosongkan form tambah, status jalan di navbar ala admin/section.
+    // Id baris dibuat di client dan dipakai juga untuk insert DB, jadi key
+    // React stabil — tidak ada remount/dobel saat refresh server tiba.
+    const tempIds = bersih.map(() => crypto.randomUUID());
+    for (const id of tempIds) pendingRef.current.add(id);
+    const barisOptimis: BarisIsi[] = bersih.map((nilai, i) => ({
+      id: tempIds[i],
+      bulan: periode.bulan,
+      tahun: periode.tahun,
+      nilai,
+    }));
+    const tanggalTetap: Record<string, string> = {};
+    for (const col of item.kolom) {
+      if (col.tipe === "date" && tambah[col.id]) tanggalTetap[col.id] = tambah[col.id];
+    }
+    setBarisOpt((prev) => [...prev, ...barisOptimis]);
+    setTambah(tanggalTetap);
+    setPairs([{ id: nextPairId(), nama: "", gambar: "" }]);
     setTambahSaving(true);
     setTambahError(null);
+    setSimpanStatus("saving");
+    let berhasil = false;
     try {
       const supabase = createClient();
       const { data: barisBaru, error: barisError } = await supabase
         .from("laporan_tambahan_baris")
         .insert(
-          bersih.map(() => ({
+          bersih.map((_, i) => ({
+            id: tempIds[i],
             laporan_id: item.id,
             user_id: userId,
             bulan: periode.bulan,
@@ -701,41 +799,35 @@ function TabelIsianCard({
         return;
       }
       const { error: nilaiError } = await supabase.from("laporan_tambahan_nilai").insert(
-        barisBaru.flatMap((baris, i) =>
+        barisBaru.flatMap((_, i) =>
           item.kolom.map((col) => ({
-            baris_id: baris.id,
+            baris_id: tempIds[i],
             kolom_id: col.id,
             nilai: bersih[i][col.id] ?? "",
           }))
         )
       );
       if (nilaiError) {
-        await supabase.from("laporan_tambahan_baris").delete().in(
-          "id",
-          barisBaru.map((b) => b.id)
-        );
+        await supabase.from("laporan_tambahan_baris").delete().in("id", tempIds);
         setTambahError("Gagal menyimpan. Coba lagi.");
         return;
       }
-      // Tanggal tetap terisi untuk kegiatan berikutnya; keterangan dan
-      // gambar dikosongkan lagi. Gambar tetap wajib per baris.
-      const tanggalTetap: Record<string, string> = {};
-      for (const col of item.kolom) {
-        if (col.tipe === "date" && tambah[col.id]) tanggalTetap[col.id] = tambah[col.id];
-      }
-      setTambah(tanggalTetap);
-      setPairs([{ id: nextPairId(), nama: "", gambar: "" }]);
-      toast.success(
-        bersih.length > 1 ? `${bersih.length} isian ditambahkan.` : "Isian ditambahkan."
-      );
+      for (const id of tempIds) pendingRef.current.delete(id);
+      berhasil = true;
       router.refresh();
     } finally {
+      if (!berhasil) {
+        // Rollback tampilan optimis bila gagal.
+        for (const id of tempIds) pendingRef.current.delete(id);
+        setBarisOpt((prev) => prev.filter((row) => !tempIds.includes(row.id)));
+      }
       setTambahSaving(false);
+      setSimpanStatus(berhasil ? "saved" : "error");
     }
   }
 
   async function simpanUbah(rowId: string) {
-    if (editSaving) return;
+    if (terkunci || editSaving) return;
     let cleaned: Record<string, string>;
     try {
       cleaned = cleanNilai(item.kolom, editVals);
@@ -743,8 +835,16 @@ function TabelIsianCard({
       setEditError(err instanceof Error ? err.message : "Isian belum valid.");
       return;
     }
+    // Optimis: tampilkan perubahan langsung, tutup mode ubah.
+    const prevRows = barisOpt;
+    setBarisOpt((prev) =>
+      prev.map((row) => (row.id === rowId ? { ...row, nilai: cleaned } : row))
+    );
+    setEditId(null);
     setEditSaving(true);
     setEditError(null);
+    setSimpanStatus("saving");
+    let berhasil = false;
     try {
       const supabase = createClient();
       const { error } = await supabase
@@ -762,23 +862,32 @@ function TabelIsianCard({
         setEditError("Gagal menyimpan. Coba lagi.");
         return;
       }
-      setEditId(null);
-      toast.success("Isian diperbarui.");
+      berhasil = true;
       router.refresh();
     } finally {
+      if (!berhasil) setBarisOpt(prevRows);
       setEditSaving(false);
+      setSimpanStatus(berhasil ? "saved" : "error");
     }
   }
 
   async function jalankanHapus() {
-    if (!hapus || hapusBusy) return;
+    if (terkunci || !hapus || hapusBusy) return;
+    const target = hapus;
+    // Optimis: hilangkan baris langsung dengan animasi keluar.
+    const prevRows = barisOpt;
+    setBarisOpt((prev) => prev.filter((row) => row.id !== target.id));
+    if (editId === target.id) setEditId(null);
+    setHapus(null);
     setHapusBusy(true);
+    setSimpanStatus("saving");
+    let berhasil = false;
     try {
       const supabase = createClient();
       const { error } = await supabase
         .from("laporan_tambahan_baris")
         .delete()
-        .eq("id", hapus.id)
+        .eq("id", target.id)
         .eq("user_id", userId);
       if (error) {
         if (sesiBerakhir(error)) return;
@@ -788,21 +897,21 @@ function TabelIsianCard({
       // Best effort: berkas gambar ikut dibuang agar tidak yatim, kecuali
       // masih dipakai baris lain (tambah banyak kegiatan sekaligus).
       const dipakaiLain = new Set(
-        pathsGambar(item.baris.filter((row) => row.id !== hapus.id))
+        pathsGambar(prevRows.filter((row) => row.id !== target.id))
       );
       const paths = item.kolom
         .filter((col) => col.tipe === "image")
-        .map((col) => parseGambarNilai(hapus.nilai[col.id] ?? "")?.gambar ?? "")
+        .map((col) => parseGambarNilai(target.nilai[col.id] ?? "")?.gambar ?? "")
         .filter((path) => path.length > 0 && !dipakaiLain.has(path));
       if (paths.length > 0) {
         await removeStoragePaths(createClient(), paths);
       }
-      if (editId === hapus.id) setEditId(null);
-      setHapus(null);
-      toast.success("Isian dihapus.");
+      berhasil = true;
       router.refresh();
     } finally {
+      if (!berhasil) setBarisOpt(prevRows);
       setHapusBusy(false);
+      setSimpanStatus(berhasil ? "saved" : "error");
     }
   }
 
@@ -848,18 +957,27 @@ function TabelIsianCard({
                   </span>
                 </th>
               ))}
-              <th
-                scope="col"
-                className="w-24 px-1 py-2 text-right text-xs font-normal text-neutral-500 dark:text-neutral-400"
-              >
-                Aksi
-              </th>
+              {terkunci ? null : (
+                <th
+                  scope="col"
+                  className="w-24 px-1 py-2 text-right text-xs font-normal text-neutral-500 dark:text-neutral-400"
+                >
+                  Aksi
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
-            {item.baris.map((row) =>
-              editId === row.id ? (
-                <tr key={row.id} className="border-b border-neutral-200/70 bg-accent/5 align-middle dark:border-white/10">
+            <AnimatePresence initial={false}>
+            {barisOpt.map((row) =>
+              !terkunci && editId === row.id ? (
+                <motion.tr
+                  key={row.id}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: durasi, ease: [0.32, 0.72, 0, 1] }}
+                  className="border-b border-neutral-200/70 bg-accent/5 align-middle dark:border-white/10">
                   {item.kolom.map((col) => (
                     <td key={col.id} className="px-1 py-3 align-middle">
                       <SelInput
@@ -896,9 +1014,15 @@ function TabelIsianCard({
                       </Button>
                     </span>
                   </td>
-                </tr>
+                </motion.tr>
               ) : (
-                <tr key={row.id} className="border-b border-neutral-200/70 align-middle dark:border-white/10">
+                <motion.tr
+                  key={row.id}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: durasi, ease: [0.32, 0.72, 0, 1] }}
+                  className="border-b border-neutral-200/70 align-middle dark:border-white/10">
                   {item.kolom.map((col) => (
                     <td key={col.id} className="px-1 py-3 align-middle whitespace-pre-wrap">
                       {col.tipe === "image" ? (
@@ -919,6 +1043,7 @@ function TabelIsianCard({
                     </td>
                   ))}
                   <td className="px-1 py-3 align-middle">
+                    {terkunci ? null : (
                     <span className="flex justify-end">
                       <GlassMenu
                         label="Aksi isian"
@@ -939,14 +1064,16 @@ function TabelIsianCard({
                         ]}
                       />
                     </span>
+                    )}
                   </td>
-                </tr>
+                </motion.tr>
               )
             )}
+            </AnimatePresence>
             <tr aria-hidden="true" className="border-0">
               <td colSpan={item.kolom.length + 1} className="border-0 p-0 pt-2" />
             </tr>
-            {multiCol ? (
+            {terkunci ? null : multiCol ? (
               <AnimatePresence initial={false}>
               {pairs.map((pair, i) => (
                 <tr key={pair.id} className="border-0 align-top">
@@ -994,7 +1121,7 @@ function TabelIsianCard({
                           }}
                           disabled={tambahSaving}
                           uniq={`tambah-gambar-${i}`}
-                          lindungiPaths={pathsGambar(item.baris)}
+                          lindungiPaths={pathsGambar(barisOpt)}
                         />
                       ) : i === 0 ? (
                         <SelInput
@@ -1005,7 +1132,7 @@ function TabelIsianCard({
                           userId={userId}
                           folderId={item.id}
                           uniq="tambah"
-                          lindungiPaths={pathsGambar(item.baris)}
+                          lindungiPaths={pathsGambar(barisOpt)}
                         />
                       ) : col.tipe === "date" && tambah[col.id] ? (
                         <span className="block px-3.5 py-2.5 text-sm text-neutral-400">
@@ -1025,7 +1152,7 @@ function TabelIsianCard({
                           className="rounded-full"
                           aria-label="Tambah isian"
                         >
-                          {tambahSaving ? "Menyimpan…" : "Tambah"}
+                          Tambah
                         </Button>
                       </span>
                     ) : (
@@ -1059,7 +1186,7 @@ function TabelIsianCard({
                     userId={userId}
                     folderId={item.id}
                     uniq="tambah"
-                    lindungiPaths={pathsGambar(item.baris)}
+                    lindungiPaths={pathsGambar(barisOpt)}
                   />
                 </td>
               ))}
@@ -1071,7 +1198,7 @@ function TabelIsianCard({
                     className="rounded-full"
                     aria-label="Tambah isian"
                   >
-                    {tambahSaving ? "Menyimpan…" : "Tambah"}
+                    Tambah
                   </Button>
                 </span>
               </td>
@@ -1098,21 +1225,163 @@ function TabelIsianCard({
   );
 }
 
+// Tombol status di ujung kanan bawah, di luar kartu: Selesai menandai
+// laporan bulan ini rampung agar siap direview (isian jadi baca-saja),
+// Batalkan mengembalikannya agar bisa diubah lagi.
+function TombolStatusLaporan({
+  userId,
+  periode,
+  status,
+  semuaTerisi,
+  onStatus,
+}: {
+  userId: string;
+  periode: Periode;
+  status: MonthlyReviewStatus;
+  semuaTerisi: boolean;
+  onStatus: (next: MonthlyReviewStatus) => void;
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const [sibuk, setSibuk] = useState(false);
+  const [galat, setGalat] = useState<string | null>(null);
+
+  function sesiBerakhir(galat: unknown): boolean {
+    if (galat instanceof SessionExpiredError || isSessionError(galat)) {
+      toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
+      router.replace("/login?expired=1");
+      return true;
+    }
+    return false;
+  }
+
+  // Pastikan baris review bulan ini ada (trigger hanya mengizinkan baris
+  // baru berstatus menunggu; perubahan ke selesai lewat update sesudahnya).
+  async function pastikanBaris(): Promise<boolean> {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("monthly_reviews")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("tahun", periode.tahun)
+      .eq("bulan", periode.bulan)
+      .maybeSingle();
+    if (error) {
+      if (sesiBerakhir(error)) return false;
+      setGalat("Gagal memuat status laporan. Coba lagi.");
+      return false;
+    }
+    if (!data) {
+      const { error: tambahError } = await supabase
+        .from("monthly_reviews")
+        .insert({ user_id: userId, tahun: periode.tahun, bulan: periode.bulan });
+      if (tambahError) {
+        if (sesiBerakhir(tambahError)) return false;
+        setGalat("Gagal memuat status laporan. Coba lagi.");
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async function ubahStatus(next: MonthlyReviewStatus) {
+    if (sibuk) return;
+    setSibuk(true);
+    setGalat(null);
+    try {
+      if (!(await pastikanBaris())) return;
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("monthly_reviews")
+        .update({ status: next })
+        .eq("user_id", userId)
+        .eq("tahun", periode.tahun)
+        .eq("bulan", periode.bulan);
+      if (error) {
+        if (sesiBerakhir(error)) return;
+        setGalat("Gagal mengubah status laporan. Coba lagi.");
+        return;
+      }
+      onStatus(next);
+      router.refresh();
+    } finally {
+      setSibuk(false);
+    }
+  }
+
+  if (status === "approved") {
+    return (
+      <div className="mt-3 flex justify-end">
+        <p className="px-1 text-sm text-neutral-500">Laporan sudah disetujui.</p>
+      </div>
+    );
+  }
+
+  const selesai = status === "selesai";
+  return (
+    <div className="mt-3 flex flex-col items-end gap-1">
+      {selesai ? (
+        <Button
+          variant="secondary"
+          onClick={() => void ubahStatus("menunggu")}
+          disabled={sibuk}
+          className="rounded-full"
+          aria-label="Batalkan laporan selesai"
+        >
+          {sibuk ? "Menyimpan…" : "Batalkan"}
+        </Button>
+      ) : (
+        <Button
+          onClick={() => void ubahStatus("selesai")}
+          disabled={sibuk || !semuaTerisi}
+          className="rounded-full"
+          aria-label="Tandai laporan selesai"
+        >
+          {sibuk ? "Menyimpan…" : "Selesai"}
+        </Button>
+      )}
+      {galat && (
+        <p role="alert" className="px-1 text-sm text-danger">
+          {galat}
+        </p>
+      )}
+      {!selesai && !semuaTerisi && (
+        <p className="px-1 text-xs text-neutral-500">
+          Lengkapi semua section untuk menandai selesai.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // Seksi pengisian laporan tambahan di halaman laporan user: daftar tugas
 // wajib untuk satu periode bulan. Tugas tabel = tabel langsung
 // (tambah/ubah/hapus baris mengikuti kolom admin); tugas esai = textarea.
+// Status selesai/approved mengunci isian jadi baca-saja; revision kembali
+// bisa diubah.
 export function LaporanTambahanSection({
   userId,
   tugas,
   periode,
+  statusAwal,
   className,
 }: {
   userId: string;
   tugas: TugasLaporan[];
   periode: Periode;
+  statusAwal: MonthlyReviewStatus;
   className?: string;
 }) {
+  const [status, setStatus] = useState<MonthlyReviewStatus>(statusAwal);
+  const [prevStatus, setPrevStatus] = useState(statusAwal);
+  if (prevStatus !== statusAwal) {
+    setPrevStatus(statusAwal);
+    setStatus(statusAwal);
+  }
   if (tugas.length === 0) return null;
+
+  const terkunci = status === "selesai" || status === "approved";
+  const semuaTerisi = tugas.every((item) => item.terisi);
 
   return (
     <div className={className}>
@@ -1130,10 +1399,17 @@ export function LaporanTambahanSection({
           );
         }
         if (item.format === "esai") {
-          return <EsaiIsian key={item.id} userId={userId} item={item} periode={periode} />;
+          return <EsaiIsian key={item.id} userId={userId} item={item} periode={periode} terkunci={terkunci} />;
         }
-        return <TabelIsianCard key={item.id} userId={userId} item={item} periode={periode} />;
+        return <TabelIsianCard key={item.id} userId={userId} item={item} periode={periode} terkunci={terkunci} />;
       })}
+      <TombolStatusLaporan
+        userId={userId}
+        periode={periode}
+        status={status}
+        semuaTerisi={semuaTerisi}
+        onStatus={setStatus}
+      />
     </div>
   );
 }

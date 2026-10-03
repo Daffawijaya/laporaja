@@ -22,6 +22,7 @@ const NAMA_BULAN_PENDEK = [
 function labelStatus(status: string): string {
   if (status === "approved") return "Disetujui";
   if (status === "revision") return "Revisi";
+  if (status === "selesai") return "Selesai";
   return "Menunggu";
 }
 

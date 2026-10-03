@@ -56,7 +56,7 @@ export type ReviewRow = {
   updated_at: string;
 };
 
-export type MonthlyReviewStatus = "menunggu" | "revision" | "approved";
+export type MonthlyReviewStatus = "menunggu" | "selesai" | "revision" | "approved";
 
 export type MonthlyReviewRow = {
   id: string;

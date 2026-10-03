@@ -1,7 +1,8 @@
 -- Review bulanan: 1 baris = 1 laporan user per bulan.
--- Rekomendasi ditulis user; status + catatan revisi hanya boleh diubah superadmin
--- (dikunci trigger, bukan cuma UI). Jalankan di Supabase Dashboard > SQL Editor.
--- Aman dijalankan ulang (idempoten).
+-- Rekomendasi ditulis user; status selesai boleh dibolak-balik user
+-- (menunggu<->selesai), status revision/approved + catatan revisi hanya
+-- boleh diubah superadmin (dikunci trigger, bukan cuma UI). Jalankan di
+-- Supabase Dashboard > SQL Editor. Aman dijalankan ulang (idempoten).
 
 create table if not exists public.monthly_reviews (
   id uuid primary key default gen_random_uuid(),
@@ -10,7 +11,7 @@ create table if not exists public.monthly_reviews (
   bulan integer not null check (bulan between 1 and 12),
   rekomendasi text,
   status text not null default 'menunggu'
-    check (status in ('menunggu', 'revision', 'approved')),
+    check (status in ('menunggu', 'selesai', 'revision', 'approved')),
   catatan text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -33,10 +34,15 @@ begin
     return NEW;
   end if;
   if not public.is_superadmin() then
-    if TG_OP = 'UPDATE'
-      and (NEW.status is distinct from OLD.status
-        or NEW.catatan is distinct from OLD.catatan) then
-      raise exception 'Hanya superadmin yang boleh mengubah status/catatan.';
+    if TG_OP = 'UPDATE' then
+      if NEW.catatan is distinct from OLD.catatan then
+        raise exception 'Hanya superadmin yang boleh mengubah status/catatan.';
+      end if;
+      if NEW.status is distinct from OLD.status
+        and not (OLD.status in ('menunggu', 'selesai')
+          and NEW.status in ('menunggu', 'selesai')) then
+        raise exception 'Hanya superadmin yang boleh mengubah status/catatan.';
+      end if;
     end if;
     if TG_OP = 'INSERT' and (NEW.status <> 'menunggu' or NEW.catatan is not null) then
       raise exception 'Baris baru selalu berstatus menunggu tanpa catatan.';

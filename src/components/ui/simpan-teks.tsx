@@ -11,19 +11,19 @@ const TEKS: Record<Exclude<SimpanStatus, "idle">, string> = {
   error: "Gagal menyimpan",
 };
 
-// Teks kecil sebelah kanan judul navbar (hanya di halaman Section).
+// Teks kecil sebelah kanan judul navbar (halaman Section + Laporan).
 // Tanpa animasi/ikon: cukup "Menyimpan…" lalu "Tersimpan".
 export function SimpanTeks() {
   const status = useSimpanStatus();
   const pathname = usePathname();
-  const diSection = pathname === "/admin/section";
+  const tampilkan = pathname === "/admin/section" || pathname.startsWith("/laporan");
 
   // Buang status basi saat pindah halaman.
   useEffect(() => {
-    if (!diSection) setSimpanStatus("idle");
-  }, [diSection]);
+    if (!tampilkan) setSimpanStatus("idle");
+  }, [tampilkan]);
 
-  if (!diSection || status === "idle") return null;
+  if (!tampilkan || status === "idle") return null;
 
   return (
     <span

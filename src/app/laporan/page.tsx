@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth/session";
 import {
   getBulanUser,
+  getStatusReview,
   getTugasUser,
   labelPeriode,
   type Periode,
@@ -13,6 +14,7 @@ import {
 import { LaporanTambahanSection } from "@/components/laporan/laporan-tambahan-section";
 import { DaftarBulan } from "@/components/laporan/daftar-bulan";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SimpanTeks } from "@/components/ui/simpan-teks";
 
 // Halaman laporan user. Lapis 1: daftar bulan (tambah sendiri lewat
 // dropdown) komponen list RefListCard. Lapis 2 (?tahun&bulan): form
@@ -40,7 +42,10 @@ export default async function LaporanPage({
 
   if (periodeValid) {
     const periode: Periode = { tahun, bulan };
-    const tugas = await getTugasUser(supabase, user.id, profile.bidang_id, periode);
+    const [tugas, statusAwal] = await Promise.all([
+      getTugasUser(supabase, user.id, profile.bidang_id, periode),
+      getStatusReview(supabase, user.id, periode),
+    ]);
     return (
       <div className="w-full">
         <div className="mb-3 flex items-center gap-3">
@@ -56,6 +61,9 @@ export default async function LaporanPage({
           <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight">
             {labelPeriode(periode)}
           </h2>
+          <span className="shrink-0 md:hidden">
+            <SimpanTeks />
+          </span>
         </div>
         {tugas.length === 0 ? (
           <EmptyState
@@ -64,7 +72,7 @@ export default async function LaporanPage({
             description="Belum ada section untuk bidangmu. Hubungi admin bila seharusnya ada."
           />
         ) : (
-          <LaporanTambahanSection userId={user.id} tugas={tugas} periode={periode} />
+          <LaporanTambahanSection userId={user.id} tugas={tugas} periode={periode} statusAwal={statusAwal} />
         )}
       </div>
     );
