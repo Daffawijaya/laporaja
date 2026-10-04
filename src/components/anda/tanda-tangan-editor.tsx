@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ImagePlus, Loader2, Minus, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { Reorder, useDragControls } from "motion/react";
+import { Check, GripHorizontal, ImagePlus, Loader2, Minus, Plus, RotateCcw, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -58,12 +59,55 @@ function snapOf(daftar: TtdItem[]): string {
   );
 }
 
+// Potret draft untuk banding kotor vs tersimpan ala SectionCard: satu JSON
+// { d: isian, p: peran otomatis, u: urutan tampil }.
+function snapTtd(daftar: TtdItem[], peran: string, urutan: string[]): string {
+  return JSON.stringify({
+    d: daftar.map((item) => [
+      item.peran.trim(),
+      item.nama.trim(),
+      item.jabatan.trim(),
+      item.pangkat.trim(),
+      item.nip.trim(),
+      item.gambar,
+    ]),
+    p: peran.trim(),
+    u: urutan,
+  });
+}
+
+// Id kartu di urutan tampil: manual "m<key>", otomatis "auto".
+const ID_OTOMATIS = "auto";
+function idManual(key: number): string {
+  return `m${key}`;
+}
+function daftarAwalBaru(awal: TtdItem[]): TtdDraft[] {
+  return awal.length > 0 ? awal.map((item) => ttdBaru(item)) : [ttdBaru()];
+}
+// Rangkaian tampil: semua manual + kartu otomatis disisipkan di posisi
+// tersimpan (null/di luar jangkauan = paling akhir).
+function rangkaiUrutan(daftarBaru: TtdDraft[], posisi: number | null): string[] {
+  const ids = daftarBaru.map((item) => idManual(item.key));
+  const pos = posisi == null ? ids.length : Math.min(Math.max(0, posisi), ids.length);
+  const next = [...ids];
+  next.splice(pos, 0, ID_OTOMATIS);
+  return next;
+}
+// Cap data server untuk selaras ulang (posisi ikut, urutan lokal tidak).
+function sigLuar(awal: TtdItem[], peran: string, posisi: number | null): string {
+  return `${snapOf(awal)}|${peran.trim()}|${posisi ?? ""}`;
+}
+
 // Daftar path gambar dari sebuah snap (untuk bersih-bersih yatim).
 function gambarDariSnap(snap: string): string[] {
   try {
-    const parsed: unknown = JSON.parse(snap.split("|").slice(0, -1).join("|") || "[]");
-    if (!Array.isArray(parsed)) return [];
-    return parsed
+    const parsed: unknown = JSON.parse(snap);
+    const rows =
+      typeof parsed === "object" && parsed !== null
+        ? (parsed as { d?: unknown }).d
+        : null;
+    if (!Array.isArray(rows)) return [];
+    return rows
       .filter((row): row is unknown[] => Array.isArray(row))
       .map((row) => (typeof row[5] === "string" ? row[5] : ""))
       .filter((g) => g.length > 0);
@@ -500,6 +544,58 @@ function TtdGambarBox({
   );
 }
 
+// Bingkai kartu TTD yang bisa digeser: gagang titik-6 di atas ala kartu
+// section (tahan + geser, atau fokus lalu panah atas/bawah).
+function BingkaiKartuTtd({
+  id,
+  label,
+  onAtas,
+  onBawah,
+  children,
+}: {
+  id: string;
+  label: string;
+  onAtas: () => void;
+  onBawah: () => void;
+  children: React.ReactNode;
+}) {
+  const controls = useDragControls();
+  return (
+    <Reorder.Item
+      value={id}
+      as="div"
+      dragListener={false}
+      dragControls={controls}
+      className="min-w-0"
+    >
+      <div className="flex h-full flex-col gap-3 rounded-2xl bg-black/[0.03] p-3 dark:bg-white/[0.04]">
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onPointerDown={(event) => controls.start(event)}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                onAtas();
+              } else if (event.key === "ArrowDown") {
+                event.preventDefault();
+                onBawah();
+              }
+            }}
+            aria-label={`Geser ${label} (panah atas bawah untuk pindah)`}
+            title="Tahan dan geser untuk pindah"
+            style={{ touchAction: "none" }}
+            className="flex min-w-[56px] cursor-grab items-center justify-center rounded-md text-neutral-400 transition-soft hover:text-foreground active:cursor-grabbing"
+          >
+            <GripHorizontal aria-hidden="true" className="size-5" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </Reorder.Item>
+  );
+}
+
 // Blok pratinjau resmi satu entri: rata kanan (ujung kartu), terisi
 // otomatis dari ketikan (peran/jabatan/gambar/nama/pangkat/NIP).
 function PratinjauBlok({ item }: { item: TtdItem }) {
@@ -551,67 +647,98 @@ function PratinjauBlok({ item }: { item: TtdItem }) {
 
 // Daftar tanda tangan pengesah (khusus superadmin, satu kunci pengaturan
 // "ttd_daftar" berisi JSON): tiap entri peran + nama + jabatan + gambar. Bisa
-// ditambah banyak; tiap entri wajib lengkap kecuali peran. Kartu terakhir
-// selalu otomatis = user pelapor (identitas + gambar dari akun masing-masing
-// user, hanya Peran yang diatur di sini via kunci "ttd_user_peran").
+// ditambah banyak dan digeser urutannya (termasuk kartu otomatis); tiap entri
+// wajib lengkap kecuali peran. Kartu otomatis = user pelapor (identitas +
+// gambar dari akun masing-masing user, hanya Peran yang diatur di sini via
+// kunci "ttd_user_peran", posisinya via "ttd_user_posisi").
 export function TandaTanganEditor({
   daftarAwal,
   peranUserAwal = "",
+  posisiUserAwal = null,
 }: {
   daftarAwal: TtdItem[];
   peranUserAwal?: string;
+  /** Posisi kartu otomatis di rangkaian (null = paling akhir). */
+  posisiUserAwal?: number | null;
 }) {
   const router = useRouter();
   const toast = useToast();
-  const [daftar, setDaftar] = useState<TtdDraft[]>(() =>
-    daftarAwal.length > 0 ? daftarAwal.map((item) => ttdBaru(item)) : [ttdBaru()]
-  );
+  const [awal] = useState(() => {
+    const d = daftarAwalBaru(daftarAwal);
+    return { daftar: d, urutan: rangkaiUrutan(d, posisiUserAwal) };
+  });
+  const [daftar, setDaftar] = useState<TtdDraft[]>(awal.daftar);
+  // Rangkaian tampil (id manual + "auto"): sumber urutan kartu & simpan.
+  const [urutan, setUrutan] = useState<string[]>(awal.urutan);
   // Peran kartu otomatis (user pelapor): tersimpan terpisah di pengaturan.
   const [peranUser, setPeranUser] = useState(peranUserAwal);
-  const [prevPeranUser, setPrevPeranUser] = useState(peranUserAwal);
-  if (prevPeranUser !== peranUserAwal) {
-    setPrevPeranUser(peranUserAwal);
-    setPeranUser(peranUserAwal);
-  }
-  const [prevAwal, setPrevAwal] = useState(() => snapOf(daftarAwal));
-  const sigAwal = snapOf(daftarAwal);
-  // Potret draft untuk banding kotor vs tersimpan ala SectionCard.
-  const snap = `${snapOf(daftar)}|${peranUser.trim()}`;
-  const [savedSnap, setSavedSnap] = useState(
-    () => `${snapOf(daftarAwal.map((item) => normalisasi(item)))}|${peranUserAwal.trim()}`
+  const [prevSig, setPrevSig] = useState(() =>
+    sigLuar(daftarAwal, peranUserAwal, posisiUserAwal)
   );
-  if (prevAwal !== sigAwal) {
-    setPrevAwal(sigAwal);
-    setDaftar(daftarAwal.length > 0 ? daftarAwal.map((item) => ttdBaru(item)) : [ttdBaru()]);
-    setSavedSnap(`${sigAwal}|${peranUserAwal.trim()}`);
+  const sig = sigLuar(daftarAwal, peranUserAwal, posisiUserAwal);
+  // Potret draft untuk banding kotor vs tersimpan ala SectionCard.
+  const snap = snapTtd(daftar, peranUser, urutan);
+  const [savedSnap, setSavedSnap] = useState(() =>
+    snapTtd(
+      daftarAwal.map((item) => normalisasi(item)),
+      peranUserAwal,
+      awal.urutan
+    )
+  );
+  if (prevSig !== sig) {
+    setPrevSig(sig);
+    const baru = daftarAwalBaru(daftarAwal);
+    const urutanBaru = rangkaiUrutan(baru, posisiUserAwal);
+    setDaftar(baru);
+    setUrutan(urutanBaru);
+    setPeranUser(peranUserAwal);
+    setSavedSnap(
+      snapTtd(
+        daftarAwal.map((item) => normalisasi(item)),
+        peranUserAwal,
+        urutanBaru
+      )
+    );
   }
   const [saving, setSaving] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
 
+  const olehKunci = new Map(daftar.map((item) => [idManual(item.key), item]));
+
   // Validasi ringan saat mengetik (ditampilkan, bukan toast) ala
   // SectionCard: memblokir autosave selama belum valid. Entri yang
-  // sepenuhnya kosong diabaikan (dihapus saat menyimpan).
-  const bersihSemua = daftar.map((item) => {
-    const t = normalisasi(item);
-    return {
-      peran: t.peran.trim(),
-      nama: t.nama.trim(),
-      jabatan: t.jabatan.trim(),
-      pangkat: t.pangkat.trim(),
-      nip: t.nip.trim(),
-      gambar: t.gambar,
-    };
+  // sepenuhnya kosong diabaikan (dihapus saat menyimpan). Penomoran
+  // mengikuti urutan tampil.
+  const bersihSemua = urutan.flatMap((id, pos) => {
+    if (id === ID_OTOMATIS) return [];
+    const d = olehKunci.get(id);
+    if (!d) return [];
+    const t = normalisasi(d);
+    return [
+      {
+        pos: pos + 1,
+        item: {
+          peran: t.peran.trim(),
+          nama: t.nama.trim(),
+          jabatan: t.jabatan.trim(),
+          pangkat: t.pangkat.trim(),
+          nip: t.nip.trim(),
+          gambar: t.gambar,
+        },
+      },
+    ];
   });
   const adaIsi = bersihSemua.some(
-    (item) => item.peran || item.nama || item.jabatan || item.pangkat || item.nip || item.gambar
+    ({ item }) =>
+      item.peran || item.nama || item.jabatan || item.pangkat || item.nip || item.gambar
   );
   let masalah: string | null = null;
   if (adaIsi) {
-    const kurang = bersihSemua.findIndex(
-      (item) => !(item.nama && item.jabatan && item.pangkat && item.nip && item.gambar)
+    const kurang = bersihSemua.find(
+      ({ item }) => !(item.nama && item.jabatan && item.pangkat && item.nip && item.gambar)
     );
-    if (kurang >= 0) {
-      masalah = `Tanda tangan ${kurang + 1}: nama, jabatan, pangkat, NIP, dan gambar wajib diisi.`;
+    if (kurang) {
+      masalah = `Tanda tangan ${kurang.pos}: nama, jabatan, pangkat, NIP, dan gambar wajib diisi.`;
     }
   }
 
@@ -622,22 +749,55 @@ export function TandaTanganEditor({
 
   function tambah() {
     if (daftar.length >= 10) return;
-    setDaftar((prev) => [...prev, ttdBaru()]);
+    const baru = ttdBaru();
+    const id = idManual(baru.key);
+    setDaftar((prev) => [...prev, baru]);
+    // Sisip tepat sebelum kartu otomatis supaya ia tidak terdorong.
+    setUrutan((prev) => {
+      const i = prev.indexOf(ID_OTOMATIS);
+      if (i < 0) return [...prev, id];
+      const next = [...prev];
+      next.splice(i, 0, id);
+      return next;
+    });
     setGalat(null);
   }
 
   function hapus(key: number) {
+    const id = idManual(key);
     setDaftar((prev) => prev.filter((item) => item.key !== key));
+    setUrutan((prev) => prev.filter((row) => row !== id));
+    setGalat(null);
+  }
+
+  // Geser kartu seposisi (dipakai drag keyboard panah di gagang).
+  function geser(id: string, arah: -1 | 1) {
+    setUrutan((prev) => {
+      const i = prev.indexOf(id);
+      const j = i + arah;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      next[i] = prev[j];
+      next[j] = prev[i];
+      return next;
+    });
     setGalat(null);
   }
 
   // Simpan otomatis 800 mdetik sesudah berhenti mengetik ala SectionCard:
   // status jalan di navbar (SimpanTeks). Entri kosong total ikut terbuang.
+  // Manual tersimpan mengikuti urutan tampil; posisi kartu otomatis
+  // tersimpan terpisah supaya urutan pulih sesudah refresh.
   const simpan = useCallback(
     async (snapAwal: string) => {
-      const semua = daftar.map((item) => {
-        const t = normalisasi(item);
-        return {
+      const peta = new Map(daftar.map((item) => [idManual(item.key), item]));
+      const lengkap: TtdItem[] = [];
+      for (const id of urutan) {
+        if (id === ID_OTOMATIS) continue;
+        const d = peta.get(id);
+        if (!d) continue;
+        const t = normalisasi(d);
+        const item = {
           peran: t.peran.trim(),
           nama: t.nama.trim(),
           jabatan: t.jabatan.trim(),
@@ -645,26 +805,33 @@ export function TandaTanganEditor({
           nip: t.nip.trim(),
           gambar: t.gambar,
         };
-      });
-      const lengkap = semua.filter(
-        (item) => item.nama && item.jabatan && item.pangkat && item.nip && item.gambar
-      );
+        if (item.nama && item.jabatan && item.pangkat && item.nip && item.gambar) {
+          lengkap.push(item);
+        }
+      }
       const peranBersih = peranUser.trim();
+      const posisiAuto = urutan.indexOf(ID_OTOMATIS);
       setSaving(true);
       setGalat(null);
       setSimpanStatus("saving");
       let berhasil = false;
       try {
         const supabase = createClient();
-        const [hasilDaftar, hasilPeran] = await Promise.all([
+        const [hasilDaftar, hasilPeran, hasilPosisi] = await Promise.all([
           supabase
             .from("pengaturan")
             .upsert({ kunci: "ttd_daftar", nilai: JSON.stringify(lengkap) }, { onConflict: "kunci" }),
           supabase
             .from("pengaturan")
             .upsert({ kunci: "ttd_user_peran", nilai: peranBersih }, { onConflict: "kunci" }),
+          supabase
+            .from("pengaturan")
+            .upsert(
+              { kunci: "ttd_user_posisi", nilai: String(posisiAuto < 0 ? lengkap.length : posisiAuto) },
+              { onConflict: "kunci" }
+            ),
         ]);
-        const error = hasilDaftar.error ?? hasilPeran.error;
+        const error = hasilDaftar.error ?? hasilPeran.error ?? hasilPosisi.error;
         if (error) {
           if (error instanceof SessionExpiredError || isSessionError(error)) {
             toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
@@ -688,7 +855,7 @@ export function TandaTanganEditor({
         setSimpanStatus(berhasil ? "saved" : "error");
       }
     },
-    [daftar, peranUser, savedSnap, router, toast]
+    [daftar, urutan, peranUser, savedSnap, router, toast]
   );
 
   useEffect(() => {
@@ -699,12 +866,178 @@ export function TandaTanganEditor({
     return () => window.clearTimeout(timer);
   }, [snap, savedSnap, masalah, saving, simpan]);
 
-  // Kartu otomatis selalu di ujung kanan: total = manual + 1.
-  const totalKartu = daftar.length + 1;
+  // Rangkaian tampil: manual + kartu otomatis (bisa di posisi mana pun).
+  const totalKartu = urutan.length;
+
+  // Isi kartu manual (bingkai + gagang dipasang di rangkaian bawah).
+  function badanManual(item: TtdDraft, pos: number) {
+    return (
+      <>
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => hapus(item.key)}
+            disabled={saving}
+            aria-label={`Hapus tanda tangan ${pos + 1}`}
+            className="rounded-full"
+          >
+            <X aria-hidden="true" />
+          </Button>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`ttd-peran-${item.key}`}>Peran</Label>
+          <Input
+            id={`ttd-peran-${item.key}`}
+            value={item.peran}
+            onChange={(event) => patch(item.key, { peran: event.target.value })}
+            placeholder="mis. Mengetahui,"
+            disabled={saving}
+            list={`ttd-peran-saran-${item.key}`}
+            autoComplete="off"
+          />
+          <datalist id={`ttd-peran-saran-${item.key}`}>
+            {SARAN_PERAN.map((saran) => (
+              <option key={saran} value={saran} />
+            ))}
+          </datalist>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`ttd-jabatan-${item.key}`}>Jabatan</Label>
+          <Input
+            id={`ttd-jabatan-${item.key}`}
+            value={item.jabatan}
+            onChange={(event) => patch(item.key, { jabatan: event.target.value })}
+            placeholder="Jabatan penanda tangan"
+            disabled={saving}
+          />
+        </div>
+        <TtdGambarBox
+          label={`tanda tangan ${pos + 1}`}
+          value={item.gambar}
+          onChange={(gambar) => patch(item.key, { gambar })}
+          disabled={saving}
+        />
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`ttd-nama-${item.key}`}>Nama</Label>
+          <Input
+            id={`ttd-nama-${item.key}`}
+            value={item.nama}
+            onChange={(event) => patch(item.key, { nama: event.target.value })}
+            placeholder="Nama penanda tangan"
+            disabled={saving}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`ttd-pangkat-${item.key}`}>Pangkat</Label>
+          <Input
+            id={`ttd-pangkat-${item.key}`}
+            value={item.pangkat}
+            onChange={(event) => patch(item.key, { pangkat: event.target.value })}
+            placeholder="Pangkat penanda tangan"
+            disabled={saving}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`ttd-nip-${item.key}`}>NIP</Label>
+          <Input
+            id={`ttd-nip-${item.key}`}
+            value={item.nip}
+            onChange={(event) => patch(item.key, { nip: event.target.value })}
+            placeholder="NIP penanda tangan"
+            disabled={saving}
+          />
+        </div>
+      </>
+    );
+  }
+
+  // Isi kartu otomatis: penanda tangan = user pelapor. Terkunci kecuali
+  // Peran; bisa digeser ke posisi mana pun seperti kartu manual.
+  const badanOtomatis = (
+    <>
+      <div className="flex items-center justify-end gap-2">
+        <span className="rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent">
+          Otomatis
+        </span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="ttd-peran-otomatis">Peran</Label>
+        <Input
+          id="ttd-peran-otomatis"
+          value={peranUser}
+          onChange={(event) => {
+            setPeranUser(event.target.value);
+            setGalat(null);
+          }}
+          placeholder="mis. Yang melaporkan,"
+          disabled={saving}
+          list="ttd-peran-otomatis-saran"
+          autoComplete="off"
+        />
+        <datalist id="ttd-peran-otomatis-saran">
+          {SARAN_PERAN.map((saran) => (
+            <option key={saran} value={saran} />
+          ))}
+        </datalist>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="ttd-jabatan-otomatis">Jabatan</Label>
+        <Input
+          id="ttd-jabatan-otomatis"
+          value=""
+          placeholder="Otomatis dari akun user"
+          disabled
+        />
+      </div>
+      <div className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-neutral-300 bg-black/[0.03] px-4 py-5 text-center dark:border-white/15 dark:bg-white/[0.04]">
+        <span className="text-xs font-medium">Gambar terkunci</span>
+        <span className="text-[11px] text-neutral-500">
+          Terisi otomatis dari tanda tangan di akun masing-masing user.
+        </span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="ttd-nama-otomatis">Nama</Label>
+        <Input
+          id="ttd-nama-otomatis"
+          value=""
+          placeholder="Otomatis dari akun user"
+          disabled
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="ttd-pangkat-otomatis">Pangkat</Label>
+        <Input
+          id="ttd-pangkat-otomatis"
+          value=""
+          placeholder="Otomatis dari akun user"
+          disabled
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="ttd-nip-otomatis">NIP</Label>
+        <Input
+          id="ttd-nip-otomatis"
+          value=""
+          placeholder="Otomatis dari akun user"
+          disabled
+        />
+      </div>
+    </>
+  );
 
   return (
     <div className="flex flex-col gap-4 px-1">
-      <div
+      <Reorder.Group
+        // Tanpa axis: otomatis mengikuti tata letak — grid desktop (kartu
+        // bersebelahan) jadi bebas kanan-kiri-atas-bawah, kolom tunggal
+        // mobile tetap vertikal. Mengunci "y" bikin geser kanan-kiri macet.
+        values={urutan}
+        onReorder={(ids) => {
+          setUrutan(ids);
+          setGalat(null);
+        }}
         className={`grid grid-cols-1 gap-3 ${
           totalKartu <= 1
             ? ""
@@ -712,163 +1045,36 @@ export function TandaTanganEditor({
               ? "sm:grid-cols-2"
               : "sm:grid-cols-2 xl:grid-cols-3"
         }`}
-      >{daftar.map((item, index) => (
-        <div
-          key={item.key}
-          className="flex flex-col gap-3 rounded-2xl bg-black/[0.03] p-3 dark:bg-white/[0.04]"
-        >
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => hapus(item.key)}
-              disabled={saving}
-              aria-label={`Hapus tanda tangan ${index + 1}`}
-              className="rounded-full"
+      >
+        {urutan.map((id, pos) => {
+          if (id === ID_OTOMATIS) {
+            return (
+              <BingkaiKartuTtd
+                key={ID_OTOMATIS}
+                id={ID_OTOMATIS}
+                label="tanda tangan otomatis"
+                onAtas={() => geser(ID_OTOMATIS, -1)}
+                onBawah={() => geser(ID_OTOMATIS, 1)}
+              >
+                {badanOtomatis}
+              </BingkaiKartuTtd>
+            );
+          }
+          const item = olehKunci.get(id);
+          if (!item) return null;
+          return (
+            <BingkaiKartuTtd
+              key={item.key}
+              id={id}
+              label={`tanda tangan ${pos + 1}`}
+              onAtas={() => geser(id, -1)}
+              onBawah={() => geser(id, 1)}
             >
-              <X aria-hidden="true" />
-            </Button>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`ttd-peran-${item.key}`}>Peran</Label>
-            <Input
-              id={`ttd-peran-${item.key}`}
-              value={item.peran}
-              onChange={(event) => patch(item.key, { peran: event.target.value })}
-              placeholder="mis. Mengetahui,"
-              disabled={saving}
-              list={`ttd-peran-saran-${item.key}`}
-              autoComplete="off"
-            />
-            <datalist id={`ttd-peran-saran-${item.key}`}>
-              {SARAN_PERAN.map((saran) => (
-                <option key={saran} value={saran} />
-              ))}
-            </datalist>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`ttd-jabatan-${item.key}`}>Jabatan</Label>
-            <Input
-              id={`ttd-jabatan-${item.key}`}
-              value={item.jabatan}
-              onChange={(event) => patch(item.key, { jabatan: event.target.value })}
-              placeholder="Jabatan penanda tangan"
-              disabled={saving}
-            />
-          </div>
-          <TtdGambarBox
-            label={`tanda tangan ${index + 1}`}
-            value={item.gambar}
-            onChange={(gambar) => patch(item.key, { gambar })}
-            disabled={saving}
-          />
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`ttd-nama-${item.key}`}>Nama</Label>
-            <Input
-              id={`ttd-nama-${item.key}`}
-              value={item.nama}
-              onChange={(event) => patch(item.key, { nama: event.target.value })}
-              placeholder="Nama penanda tangan"
-              disabled={saving}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`ttd-pangkat-${item.key}`}>Pangkat</Label>
-            <Input
-              id={`ttd-pangkat-${item.key}`}
-              value={item.pangkat}
-              onChange={(event) => patch(item.key, { pangkat: event.target.value })}
-              placeholder="Pangkat penanda tangan"
-              disabled={saving}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`ttd-nip-${item.key}`}>NIP</Label>
-            <Input
-              id={`ttd-nip-${item.key}`}
-              value={item.nip}
-              onChange={(event) => patch(item.key, { nip: event.target.value })}
-              placeholder="NIP penanda tangan"
-              disabled={saving}
-            />
-          </div>
-        </div>
-      ))}
-        {/* Kartu otomatis paling kanan: penanda tangan terakhir = user
-            pelapor. Nama/jabatan/pangkat/NIP/gambar terkunci — terisi
-            otomatis dari akun masing-masing user. Hanya Peran yang bisa
-            diubah di sini. */}
-        <div className="flex flex-col gap-3 rounded-2xl bg-black/[0.03] p-3 dark:bg-white/[0.04]">
-          <div className="flex items-center justify-end gap-2">
-            <span className="rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent">
-              Otomatis
-            </span>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ttd-peran-otomatis">Peran</Label>
-            <Input
-              id="ttd-peran-otomatis"
-              value={peranUser}
-              onChange={(event) => {
-                setPeranUser(event.target.value);
-                setGalat(null);
-              }}
-              placeholder="mis. Yang melaporkan,"
-              disabled={saving}
-              list="ttd-peran-otomatis-saran"
-              autoComplete="off"
-            />
-            <datalist id="ttd-peran-otomatis-saran">
-              {SARAN_PERAN.map((saran) => (
-                <option key={saran} value={saran} />
-              ))}
-            </datalist>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ttd-jabatan-otomatis">Jabatan</Label>
-            <Input
-              id="ttd-jabatan-otomatis"
-              value=""
-              placeholder="Otomatis dari akun user"
-              disabled
-            />
-          </div>
-          <div className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-neutral-300 bg-black/[0.03] px-4 py-5 text-center dark:border-white/15 dark:bg-white/[0.04]">
-            <span className="text-xs font-medium">Gambar terkunci</span>
-            <span className="text-[11px] text-neutral-500">
-              Terisi otomatis dari tanda tangan di akun masing-masing user.
-            </span>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ttd-nama-otomatis">Nama</Label>
-            <Input
-              id="ttd-nama-otomatis"
-              value=""
-              placeholder="Otomatis dari akun user"
-              disabled
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ttd-pangkat-otomatis">Pangkat</Label>
-            <Input
-              id="ttd-pangkat-otomatis"
-              value=""
-              placeholder="Otomatis dari akun user"
-              disabled
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ttd-nip-otomatis">NIP</Label>
-            <Input
-              id="ttd-nip-otomatis"
-              value=""
-              placeholder="Otomatis dari akun user"
-              disabled
-            />
-          </div>
-        </div>
-      </div>
+              {badanManual(item, pos)}
+            </BingkaiKartuTtd>
+          );
+        })}
+      </Reorder.Group>
       {daftar.length < 10 ? (
         <button
           type="button"
@@ -885,15 +1091,34 @@ export function TandaTanganEditor({
           {galat ?? masalah}
         </p>
       )}
-      {daftar.some((item) => item.peran.trim() || item.nama.trim() || item.gambar) ? (
+      {bersihSemua.some(({ item }) => item.peran || item.nama || item.gambar) ||
+      peranUser.trim() ? (
         <div className="border-t border-neutral-200/70 pt-3 dark:border-white/10">
           <p className="px-1 text-xs font-medium text-neutral-500">Pratinjau</p>
           <div className="mt-2 flex flex-wrap justify-end gap-6 px-1">
-            {daftar
-              .filter((item) => item.peran.trim() || item.nama.trim() || item.gambar)
-              .map((item) => (
-                <PratinjauBlok key={item.key} item={item} />
-              ))}
+            {urutan.map((id) => {
+              if (id === ID_OTOMATIS) {
+                if (!peranUser.trim()) return null;
+                return (
+                  <PratinjauBlok
+                    key={ID_OTOMATIS}
+                    item={{
+                      peran: peranUser,
+                      nama: "",
+                      jabatan: "",
+                      pangkat: "",
+                      nip: "",
+                      gambar: "",
+                    }}
+                  />
+                );
+              }
+              const item = olehKunci.get(id);
+              if (!item || !(item.peran.trim() || item.nama.trim() || item.gambar)) {
+                return null;
+              }
+              return <PratinjauBlok key={item.key} item={item} />;
+            })}
           </div>
         </div>
       ) : null}

@@ -38,9 +38,11 @@ const TAMBAH_OPSI = [
 function TtdKartu({
   ttdAwal,
   ttdPeranUserAwal,
+  ttdPosisiUserAwal,
 }: {
   ttdAwal: TtdItem[];
   ttdPeranUserAwal: string;
+  ttdPosisiUserAwal: number | null;
 }) {
   const [terbuka, setTerbuka] = useState(true);
   return (
@@ -77,7 +79,11 @@ function TtdKartu({
             className="overflow-hidden"
           >
             <div className="pt-2">
-              <TandaTanganEditor daftarAwal={ttdAwal} peranUserAwal={ttdPeranUserAwal} />
+              <TandaTanganEditor
+                daftarAwal={ttdAwal}
+                peranUserAwal={ttdPeranUserAwal}
+                posisiUserAwal={ttdPosisiUserAwal}
+              />
             </div>
           </motion.div>
         )}
@@ -98,6 +104,7 @@ export function SectionBuilder({
   infoJudulAwal,
   ttdAwal,
   ttdPeranUserAwal = "",
+  ttdPosisiUserAwal = null,
 }: {
   initialItems: BuilderItem[];
   bidangList: { id: string; nama: string }[];
@@ -107,6 +114,7 @@ export function SectionBuilder({
   infoJudulAwal: string;
   ttdAwal: TtdItem[];
   ttdPeranUserAwal?: string;
+  ttdPosisiUserAwal?: number | null;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -617,7 +625,11 @@ export function SectionBuilder({
               setTerpilih={setTerpilih}
             />
             <div className="mt-4">
-              <TtdKartu ttdAwal={ttdAwal} ttdPeranUserAwal={ttdPeranUserAwal} />
+              <TtdKartu
+                ttdAwal={ttdAwal}
+                ttdPeranUserAwal={ttdPeranUserAwal}
+                ttdPosisiUserAwal={ttdPosisiUserAwal}
+              />
             </div>
           </div>
         </div>

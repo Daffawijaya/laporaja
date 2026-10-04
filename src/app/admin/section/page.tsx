@@ -13,7 +13,7 @@ import type { TtdItem } from "@/components/anda/tanda-tangan-editor";
 export default async function SectionPage() {
   const supabase = await createClient();
 
-  const [semua, matrix, unitKerja, jabatanAwalan, infoJudul, ttdMentah, ttdPeranUser] = await Promise.all([
+  const [semua, matrix, unitKerja, jabatanAwalan, infoJudul, ttdMentah, ttdPeranUser, ttdPosisiMentah] = await Promise.all([
     getSectionBuilderData(supabase),
     getBidangTargetMatrix(supabase),
     getPengaturan(supabase, "unit_kerja"),
@@ -21,8 +21,13 @@ export default async function SectionPage() {
     getPengaturan(supabase, "info_judul"),
     getPengaturan(supabase, "ttd_daftar"),
     getPengaturan(supabase, "ttd_user_peran"),
+    getPengaturan(supabase, "ttd_user_posisi"),
   ]);
 
+  // Posisi kartu otomatis (angka cacah, rusak/kosong = paling akhir).
+  const ttdPosisiUser = /^\d+$/.test(ttdPosisiMentah.trim())
+    ? Number(ttdPosisiMentah.trim())
+    : null;
   // Daftar tanda tangan (JSON di pengaturan "ttd_daftar"): rusak/kosong = [].
   // Entri lama belum punya peran/pangkat/NIP.
   let ttdDaftar: TtdItem[] = [];
@@ -72,6 +77,7 @@ export default async function SectionPage() {
           infoJudulAwal={infoJudul || "Info Laporan"}
           ttdAwal={ttdDaftar}
           ttdPeranUserAwal={ttdPeranUser}
+          ttdPosisiUserAwal={ttdPosisiUser}
         />
       </div>
     </div>
