@@ -2,11 +2,11 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlignLeft, Flag, Table, Type } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { AlignLeft, ChevronDown, Flag, Table, Type } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { RefListCard } from "@/components/ui/ref-list-card";
 import { useToast } from "@/components/ui/toast";
 import { setSimpanStatus } from "@/lib/simpan-status";
 import { hapusPending, isPending, tambahPending } from "@/lib/section-pending";
@@ -31,6 +31,60 @@ const TAMBAH_OPSI = [
   { nilai: "judul", label: "Tambah judul", Icon: Type },
   { nilai: "indikator", label: "Tambah indikator", Icon: Flag },
 ] as const;
+
+// Kartu tanda tangan statis paling bawah (bukan section, tidak ikut
+// urutan/drag/hapus): judul di dalam card ala InfoCard (tidak bisa diedit),
+// isi disembunyikan/ditampilkan lewat chevron kanan.
+function TtdKartu({
+  ttdAwal,
+  ttdPeranUserAwal,
+}: {
+  ttdAwal: TtdItem[];
+  ttdPeranUserAwal: string;
+}) {
+  const [terbuka, setTerbuka] = useState(true);
+  return (
+    <div className="ref-card p-4" data-kartu-section>
+      <div className="flex items-center gap-2">
+        <h2 className="min-w-0 flex-1 px-1 text-[17px] font-semibold tracking-tight">
+          Tanda tangan
+        </h2>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => setTerbuka((v) => !v)}
+          aria-expanded={terbuka}
+          aria-label={terbuka ? "Tutup isian tanda tangan" : "Buka isian tanda tangan"}
+          className="shrink-0 rounded-full"
+        >
+          <motion.span
+            animate={{ rotate: terbuka ? 180 : 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            className="flex items-center justify-center"
+          >
+            <ChevronDown aria-hidden="true" />
+          </motion.span>
+        </Button>
+      </div>
+      <AnimatePresence initial={false}>
+        {terbuka && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="pt-2">
+              <TandaTanganEditor daftarAwal={ttdAwal} peranUserAwal={ttdPeranUserAwal} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 // Builder susun laporan ala Google Forms: tumpukan kartu yang bisa
 // digeser (drag gagang atau panah keyboard), tiap kartu langsung bisa
@@ -562,12 +616,8 @@ export function SectionBuilder({
               terpilih={terpilih}
               setTerpilih={setTerpilih}
             />
-            {/* Kartu tanda tangan statis paling bawah (bukan section,
-                tidak ikut urutan/drag/hapus). */}
             <div className="mt-4">
-              <RefListCard ariaLabel="Tanda tangan" title="Tanda tangan">
-                <TandaTanganEditor daftarAwal={ttdAwal} peranUserAwal={ttdPeranUserAwal} />
-              </RefListCard>
+              <TtdKartu ttdAwal={ttdAwal} ttdPeranUserAwal={ttdPeranUserAwal} />
             </div>
           </div>
         </div>

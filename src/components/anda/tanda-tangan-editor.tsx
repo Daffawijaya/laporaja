@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ImagePlus, Loader2, Minus, Plus, RotateCcw, Trash2, X } from "lucide-react";
 
@@ -9,6 +9,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
+import { setSimpanStatus } from "@/lib/simpan-status";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import {
@@ -55,6 +56,20 @@ function snapOf(daftar: TtdItem[]): string {
   return JSON.stringify(
     daftar.map((item) => [item.peran.trim(), item.nama.trim(), item.jabatan.trim(), item.pangkat.trim(), item.nip.trim(), item.gambar])
   );
+}
+
+// Daftar path gambar dari sebuah snap (untuk bersih-bersih yatim).
+function gambarDariSnap(snap: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(snap.split("|").slice(0, -1).join("|") || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((row): row is unknown[] => Array.isArray(row))
+      .map((row) => (typeof row[5] === "string" ? row[5] : ""))
+      .filter((g) => g.length > 0);
+  } catch {
+    return [];
+  }
 }
 
 // Saran isian Peran (naskah dinas): dipakai kartu manual + kartu otomatis.
@@ -551,12 +566,6 @@ export function TandaTanganEditor({
   const [daftar, setDaftar] = useState<TtdDraft[]>(() =>
     daftarAwal.length > 0 ? daftarAwal.map((item) => ttdBaru(item)) : [ttdBaru()]
   );
-  const [prevAwal, setPrevAwal] = useState(() => snapOf(daftarAwal));
-  const sigAwal = snapOf(daftarAwal);
-  if (prevAwal !== sigAwal) {
-    setPrevAwal(sigAwal);
-    setDaftar(daftarAwal.length > 0 ? daftarAwal.map((item) => ttdBaru(item)) : [ttdBaru()]);
-  }
   // Peran kartu otomatis (user pelapor): tersimpan terpisah di pengaturan.
   const [peranUser, setPeranUser] = useState(peranUserAwal);
   const [prevPeranUser, setPrevPeranUser] = useState(peranUserAwal);
@@ -564,8 +573,47 @@ export function TandaTanganEditor({
     setPrevPeranUser(peranUserAwal);
     setPeranUser(peranUserAwal);
   }
+  const [prevAwal, setPrevAwal] = useState(() => snapOf(daftarAwal));
+  const sigAwal = snapOf(daftarAwal);
+  // Potret draft untuk banding kotor vs tersimpan ala SectionCard.
+  const snap = `${snapOf(daftar)}|${peranUser.trim()}`;
+  const [savedSnap, setSavedSnap] = useState(
+    () => `${snapOf(daftarAwal.map((item) => normalisasi(item)))}|${peranUserAwal.trim()}`
+  );
+  if (prevAwal !== sigAwal) {
+    setPrevAwal(sigAwal);
+    setDaftar(daftarAwal.length > 0 ? daftarAwal.map((item) => ttdBaru(item)) : [ttdBaru()]);
+    setSavedSnap(`${sigAwal}|${peranUserAwal.trim()}`);
+  }
   const [saving, setSaving] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
+
+  // Validasi ringan saat mengetik (ditampilkan, bukan toast) ala
+  // SectionCard: memblokir autosave selama belum valid. Entri yang
+  // sepenuhnya kosong diabaikan (dihapus saat menyimpan).
+  const bersihSemua = daftar.map((item) => {
+    const t = normalisasi(item);
+    return {
+      peran: t.peran.trim(),
+      nama: t.nama.trim(),
+      jabatan: t.jabatan.trim(),
+      pangkat: t.pangkat.trim(),
+      nip: t.nip.trim(),
+      gambar: t.gambar,
+    };
+  });
+  const adaIsi = bersihSemua.some(
+    (item) => item.peran || item.nama || item.jabatan || item.pangkat || item.nip || item.gambar
+  );
+  let masalah: string | null = null;
+  if (adaIsi) {
+    const kurang = bersihSemua.findIndex(
+      (item) => !(item.nama && item.jabatan && item.pangkat && item.nip && item.gambar)
+    );
+    if (kurang >= 0) {
+      masalah = `Tanda tangan ${kurang + 1}: nama, jabatan, pangkat, NIP, dan gambar wajib diisi.`;
+    }
+  }
 
   function patch(key: number, patch: Partial<TtdDraft>) {
     setDaftar((prev) => prev.map((item) => (item.key === key ? { ...item, ...patch } : item)));
@@ -583,60 +631,73 @@ export function TandaTanganEditor({
     setGalat(null);
   }
 
-  async function simpan() {
-    if (saving) return;
-    const bersih = daftar.map((item) => {
-      const t = normalisasi(item);
-      return {
-        peran: t.peran.trim(),
-        nama: t.nama.trim(),
-        jabatan: t.jabatan.trim(),
-        pangkat: t.pangkat.trim(),
-        nip: t.nip.trim(),
-        gambar: t.gambar,
-      };
-    });
-    for (let i = 0; i < bersih.length; i += 1) {
-      const item = bersih[i];
-      if (!item.nama || !item.jabatan || !item.pangkat || !item.nip || !item.gambar) {
-        setGalat(`Tanda tangan ${i + 1}: nama, jabatan, pangkat, NIP, dan gambar wajib diisi.`);
-        return;
-      }
-    }
-    setSaving(true);
-    setGalat(null);
-    try {
-      const supabase = createClient();
-      const [hasilDaftar, hasilPeran] = await Promise.all([
-        supabase
-          .from("pengaturan")
-          .upsert({ kunci: "ttd_daftar", nilai: JSON.stringify(bersih) }, { onConflict: "kunci" }),
-        supabase
-          .from("pengaturan")
-          .upsert({ kunci: "ttd_user_peran", nilai: peranUser.trim() }, { onConflict: "kunci" }),
-      ]);
-      const error = hasilDaftar.error ?? hasilPeran.error;
-      if (error) {
-        if (error instanceof SessionExpiredError || isSessionError(error)) {
-          toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
-          router.replace("/login?expired=1");
+  // Simpan otomatis 800 mdetik sesudah berhenti mengetik ala SectionCard:
+  // status jalan di navbar (SimpanTeks). Entri kosong total ikut terbuang.
+  const simpan = useCallback(
+    async (snapAwal: string) => {
+      const semua = daftar.map((item) => {
+        const t = normalisasi(item);
+        return {
+          peran: t.peran.trim(),
+          nama: t.nama.trim(),
+          jabatan: t.jabatan.trim(),
+          pangkat: t.pangkat.trim(),
+          nip: t.nip.trim(),
+          gambar: t.gambar,
+        };
+      });
+      const lengkap = semua.filter(
+        (item) => item.nama && item.jabatan && item.pangkat && item.nip && item.gambar
+      );
+      const peranBersih = peranUser.trim();
+      setSaving(true);
+      setGalat(null);
+      setSimpanStatus("saving");
+      let berhasil = false;
+      try {
+        const supabase = createClient();
+        const [hasilDaftar, hasilPeran] = await Promise.all([
+          supabase
+            .from("pengaturan")
+            .upsert({ kunci: "ttd_daftar", nilai: JSON.stringify(lengkap) }, { onConflict: "kunci" }),
+          supabase
+            .from("pengaturan")
+            .upsert({ kunci: "ttd_user_peran", nilai: peranBersih }, { onConflict: "kunci" }),
+        ]);
+        const error = hasilDaftar.error ?? hasilPeran.error;
+        if (error) {
+          if (error instanceof SessionExpiredError || isSessionError(error)) {
+            toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
+            router.replace("/login?expired=1");
+            return;
+          }
+          setGalat("Gagal menyimpan tanda tangan. Coba lagi.");
           return;
         }
-        setGalat("Gagal menyimpan tanda tangan. Coba lagi.");
-        return;
+        // Best effort: gambar tersimpan yang sudah tidak dipakai dibuang.
+        const dipakai = new Set(lengkap.map((item) => item.gambar));
+        const yatim = gambarDariSnap(savedSnap).filter((g) => !dipakai.has(g));
+        if (yatim.length > 0) {
+          void removeGambarRefs(yatim).catch(() => undefined);
+        }
+        setSavedSnap(snapAwal);
+        berhasil = true;
+        router.refresh();
+      } finally {
+        setSaving(false);
+        setSimpanStatus(berhasil ? "saved" : "error");
       }
-      // Best effort: gambar tersimpan yang sudah tidak dipakai dibuang.
-      const dipakai = new Set(bersih.map((item) => item.gambar));
-      const yatim = daftarAwal.map((item) => item.gambar).filter((g) => g && !dipakai.has(g));
-      if (yatim.length > 0) {
-        void removeGambarRefs(yatim).catch(() => undefined);
-      }
-      toast.success("Tanda tangan disimpan.");
-      router.refresh();
-    } finally {
-      setSaving(false);
-    }
-  }
+    },
+    [daftar, peranUser, savedSnap, router, toast]
+  );
+
+  useEffect(() => {
+    if (snap === savedSnap || masalah || saving) return;
+    const timer = window.setTimeout(() => {
+      void simpan(snap);
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [snap, savedSnap, masalah, saving, simpan]);
 
   // Kartu otomatis selalu di ujung kanan: total = manual + 1.
   const totalKartu = daftar.length + 1;
@@ -656,8 +717,7 @@ export function TandaTanganEditor({
           key={item.key}
           className="flex flex-col gap-3 rounded-2xl bg-black/[0.03] p-3 dark:bg-white/[0.04]"
         >
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium">Tanda tangan {index + 1}</p>
+          <div className="flex items-center justify-end gap-2">
             <Button
               type="button"
               variant="ghost"
@@ -733,12 +793,6 @@ export function TandaTanganEditor({
               disabled={saving}
             />
           </div>
-          <TtdGambarBox
-            label={`tanda tangan ${index + 1}`}
-            value={item.gambar}
-            onChange={(gambar) => patch(item.key, { gambar })}
-            disabled={saving}
-          />
         </div>
       ))}
         {/* Kartu otomatis paling kanan: penanda tangan terakhir = user
@@ -746,8 +800,7 @@ export function TandaTanganEditor({
             otomatis dari akun masing-masing user. Hanya Peran yang bisa
             diubah di sini. */}
         <div className="flex flex-col gap-3 rounded-2xl bg-black/[0.03] p-3 dark:bg-white/[0.04]">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium">Tanda tangan {totalKartu}</p>
+          <div className="flex items-center justify-end gap-2">
             <span className="rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent">
               Otomatis
             </span>
@@ -827,16 +880,11 @@ export function TandaTanganEditor({
           Tambah tanda tangan
         </button>
       ) : null}
-      {galat && (
+      {(galat ?? masalah) && (
         <p role="alert" className="text-sm text-danger">
-          {galat}
+          {galat ?? masalah}
         </p>
       )}
-      <div className="flex justify-end">
-        <Button onClick={() => void simpan()} disabled={saving} className="rounded-full">
-          {saving ? "Menyimpan…" : "Simpan tanda tangan"}
-        </Button>
-      </div>
       {daftar.some((item) => item.peran.trim() || item.nama.trim() || item.gambar) ? (
         <div className="border-t border-neutral-200/70 pt-3 dark:border-white/10">
           <p className="px-1 text-xs font-medium text-neutral-500">Pratinjau</p>
