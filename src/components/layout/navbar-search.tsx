@@ -110,24 +110,30 @@ const MAKS_PER_SEKSI = 6;
 export function NavbarSearch({
   role,
   placeholder,
+  syncUrl = true,
 }: {
   role: Role;
   placeholder: string;
+  /** false = mode lokal saja: jangan baca/tulis ?q= (mis. halaman tanpa daftar). */
+  syncUrl?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   // Nilai ?q= (debounce), tetap ditulis agar daftar di halaman ikut tersaring.
-  const urlQ = searchParams.get("q") ?? "";
-  const [q, setQ] = React.useState(urlQ);
+  // Mode lokal (syncUrl=false): input murni lokal, URL tidak dibaca/ditulis
+  // supaya tidak keisi sisa query seperti /anda?q=superadmin.
+  const urlQ = syncUrl ? (searchParams.get("q") ?? "") : "";
+  const [q, setQ] = React.useState(syncUrl ? urlQ : "");
   const [prevUrlQ, setPrevUrlQ] = React.useState(urlQ);
   // Selaraskan ketikan dengan URL saat navigasi (back/forward, clear).
-  if (urlQ !== prevUrlQ) {
+  if (syncUrl && urlQ !== prevUrlQ) {
     setPrevUrlQ(urlQ);
     setQ(urlQ);
   }
   React.useEffect(() => {
+    if (!syncUrl) return;
     if (q === urlQ) return;
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
@@ -137,7 +143,18 @@ export function NavbarSearch({
       router.replace(qs ? `${pathname}?${qs}` : pathname);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [q, urlQ, pathname, router, searchParams]);
+  }, [q, urlQ, pathname, router, searchParams, syncUrl]);
+
+  // Mode lokal: bersihkan sisa ?q= di URL (mis. /anda?q=superadmin → /anda),
+  // tanpa mengisi input. Pertahankan param lain (tahun/bulan/user).
+  React.useEffect(() => {
+    if (syncUrl) return;
+    if (!searchParams.has("q")) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("q");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }, [syncUrl, pathname, router, searchParams]);
 
   const wrapRef = React.useRef<HTMLDivElement>(null);
   const panelRef = React.useRef<HTMLDivElement>(null);
@@ -339,13 +356,16 @@ export function NavbarSearch({
     router.push(href);
   }
 
-  // Tutup panel saat pindah halaman (render-phase sync ala codebase).
+  // Tutup panel + kosongkan ketikan saat pindah halaman (render-phase sync
+  // ala codebase). Mode syncUrl tetap mengandalkan sinkron urlQ di atas;
+  // mode lokal dibersihkan manual karena tidak membaca URL.
   const [prevPath, setPrevPath] = React.useState(pathname);
   if (prevPath !== pathname) {
     setPrevPath(pathname);
     setOpen(false);
     setShown(false);
     setMounted(false);
+    if (!syncUrl) setQ("");
   }
 
   // Klik di luar input + panel → tutup.

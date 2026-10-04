@@ -227,6 +227,7 @@ export function DesktopWindow({
               searchCfg?.placeholder ??
               (isAdmin ? "Cari pengguna atau bulan…" : "Cari bulan…")
             }
+            syncUrl={searchCfg !== null}
           />
 
           <div className="ref-icon-btn-liquid">

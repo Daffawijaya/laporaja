@@ -140,10 +140,12 @@ export async function GET(request: Request) {
 
   const filename = `laporan-${owner.username}.pdf`;
   const body = new Uint8Array(buffer);
+  // ?preview=1 = tampilkan di tab baru untuk dicek (inline), default unduh.
+  const pratinjau = params.get("preview") === "1";
   return new Response(body, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `${pratinjau ? "inline" : "attachment"}; filename="${filename}"`,
       "Content-Length": String(body.byteLength),
     },
   });

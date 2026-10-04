@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, Download } from "lucide-react";
+import { ChevronLeft, Download, Eye } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { RefListCard } from "@/components/ui/ref-list-card";
@@ -214,12 +214,24 @@ export default async function AdminLaporanPage({
           <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight">
             {selected.nama} · {labelPeriode({ tahun, bulan })}
           </h2>
-          <Button asChild variant="secondary">
-            <a href={`/admin/laporan/export?user=${selected.id}&tahun=${tahun}&bulan=${bulan}`}>
-              <Download aria-hidden="true" />
-              Export PDF
-            </a>
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button asChild variant="secondary" className="rounded-full">
+              <a
+                href={`/admin/laporan/export?user=${selected.id}&tahun=${tahun}&bulan=${bulan}&preview=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Eye aria-hidden="true" />
+                <span className="hidden sm:inline">Pratinjau</span>
+              </a>
+            </Button>
+            <Button asChild className="rounded-full">
+              <a href={`/admin/laporan/export?user=${selected.id}&tahun=${tahun}&bulan=${bulan}`}>
+                <Download aria-hidden="true" />
+                <span className="hidden sm:inline">Export PDF</span>
+              </a>
+            </Button>
+          </div>
         </div>
         <AdminIsianView tugas={tugas} />
       </div>
