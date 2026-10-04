@@ -43,6 +43,7 @@ export function SectionBuilder({
   unitKerjaAwal,
   infoJudulAwal,
   ttdAwal,
+  ttdPeranUserAwal = "",
 }: {
   initialItems: BuilderItem[];
   bidangList: { id: string; nama: string }[];
@@ -51,6 +52,7 @@ export function SectionBuilder({
   unitKerjaAwal: string;
   infoJudulAwal: string;
   ttdAwal: TtdItem[];
+  ttdPeranUserAwal?: string;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -564,7 +566,7 @@ export function SectionBuilder({
                 tidak ikut urutan/drag/hapus). */}
             <div className="mt-4">
               <RefListCard ariaLabel="Tanda tangan" title="Tanda tangan">
-                <TandaTanganEditor daftarAwal={ttdAwal} />
+                <TandaTanganEditor daftarAwal={ttdAwal} peranUserAwal={ttdPeranUserAwal} />
               </RefListCard>
             </div>
           </div>

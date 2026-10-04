@@ -13,17 +13,18 @@ import type { TtdItem } from "@/components/anda/tanda-tangan-editor";
 export default async function SectionPage() {
   const supabase = await createClient();
 
-  const [semua, matrix, unitKerja, jabatanAwalan, infoJudul, ttdMentah] = await Promise.all([
+  const [semua, matrix, unitKerja, jabatanAwalan, infoJudul, ttdMentah, ttdPeranUser] = await Promise.all([
     getSectionBuilderData(supabase),
     getBidangTargetMatrix(supabase),
     getPengaturan(supabase, "unit_kerja"),
     getPengaturan(supabase, "jabatan_awalan"),
     getPengaturan(supabase, "info_judul"),
     getPengaturan(supabase, "ttd_daftar"),
+    getPengaturan(supabase, "ttd_user_peran"),
   ]);
 
   // Daftar tanda tangan (JSON di pengaturan "ttd_daftar"): rusak/kosong = [].
-  // Entri lama belum punya pangkat/NIP.
+  // Entri lama belum punya peran/pangkat/NIP.
   let ttdDaftar: TtdItem[] = [];
   try {
     const parsed: unknown = ttdMentah ? JSON.parse(ttdMentah) : [];
@@ -38,6 +39,7 @@ export default async function SectionPage() {
             typeof (item as TtdItem).gambar === "string"
         )
         .map((item) => ({
+          peran: typeof item.peran === "string" ? item.peran : "",
           nama: item.nama,
           jabatan: item.jabatan,
           pangkat: typeof item.pangkat === "string" ? item.pangkat : "",
@@ -69,6 +71,7 @@ export default async function SectionPage() {
           unitKerjaAwal={unitKerja}
           infoJudulAwal={infoJudul || "Info Laporan"}
           ttdAwal={ttdDaftar}
+          ttdPeranUserAwal={ttdPeranUser}
         />
       </div>
     </div>
