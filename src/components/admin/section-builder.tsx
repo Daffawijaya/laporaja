@@ -6,12 +6,17 @@ import { AlignLeft, Flag, Table, Type } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { RefListCard } from "@/components/ui/ref-list-card";
 import { useToast } from "@/components/ui/toast";
 import { setSimpanStatus } from "@/lib/simpan-status";
 import { hapusPending, isPending, tambahPending } from "@/lib/section-pending";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import type { BuilderItem } from "@/lib/laporan-tambahan/queries";
+import {
+  TandaTanganEditor,
+  type TtdItem,
+} from "@/components/anda/tanda-tangan-editor";
 import {
   InfoCard,
   SectionEditor,
@@ -37,6 +42,7 @@ export function SectionBuilder({
   jabatanAwal,
   unitKerjaAwal,
   infoJudulAwal,
+  ttdAwal,
 }: {
   initialItems: BuilderItem[];
   bidangList: { id: string; nama: string }[];
@@ -44,6 +50,7 @@ export function SectionBuilder({
   jabatanAwal: string;
   unitKerjaAwal: string;
   infoJudulAwal: string;
+  ttdAwal: TtdItem[];
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -553,6 +560,13 @@ export function SectionBuilder({
               terpilih={terpilih}
               setTerpilih={setTerpilih}
             />
+            {/* Kartu tanda tangan statis paling bawah (bukan section,
+                tidak ikut urutan/drag/hapus). */}
+            <div className="mt-4">
+              <RefListCard ariaLabel="Tanda tangan" title="Tanda tangan">
+                <TandaTanganEditor daftarAwal={ttdAwal} />
+              </RefListCard>
+            </div>
           </div>
         </div>
 

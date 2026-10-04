@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { Camera, ImagePlus, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog } from "@/components/ui/dialog";
+import { GlassMenu } from "@/components/ui/glass-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
@@ -140,54 +141,66 @@ export function FotoEditor({
   const inisial = (nama.charAt(0) || "?").toUpperCase();
 
   return (
-    <div>
-      <div className="flex items-center gap-4 px-1 pb-3">
-        {url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={url}
-            alt={`Foto profil ${nama}`}
-            className="size-16 shrink-0 rounded-full object-cover"
-          />
-        ) : (
-          <span
-            aria-hidden="true"
-            className="flex size-16 shrink-0 items-center justify-center rounded-full bg-accent text-2xl font-semibold text-white"
+    <div className="flex flex-col items-center">
+      {/* Trigger dropdown = avatar utuh ala kawaku: hover → overlay gelap +
+          ikon kamera outline di tengah. Dropdown tetap komponen GlassMenu. */}
+      <GlassMenu
+        label="Opsi foto profil"
+        items={[
+          {
+            key: "ganti",
+            label: foto ? "Ganti foto" : "Tambah foto",
+            icon: <ImagePlus aria-hidden="true" />,
+            onSelect: () => fileRef.current?.click(),
+          },
+          ...(foto
+            ? [
+                {
+                  key: "hapus",
+                  label: "Hapus foto",
+                  icon: <Trash2 aria-hidden="true" />,
+                  danger: true,
+                  onSelect: () => setKonfirmasiHapus(true),
+                },
+              ]
+            : []),
+        ]}
+        trigger={({ ref, onClick, onKeyDown, open }) => (
+          <button
+            ref={ref}
+            type="button"
+            disabled={sibuk}
+            onClick={onClick}
+            onKeyDown={onKeyDown}
+            aria-label={foto ? "Foto profil: buka opsi" : "Belum ada foto profil: buka opsi"}
+            aria-expanded={open}
+            title="Foto profil"
+            className="group relative block size-20 shrink-0 cursor-pointer overflow-hidden rounded-full transition-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/15 disabled:cursor-wait disabled:opacity-70"
           >
-            {sibuk ? <Loader2 aria-hidden="true" className="size-6 animate-spin" /> : inisial}
-          </span>
-        )}
-        <span className="flex min-w-0 flex-col gap-2">
-          <span className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={sibuk}
-              onClick={() => fileRef.current?.click()}
-              className="min-h-10 px-4 text-xs"
-            >
-              {sibuk ? "Mengunggah…" : foto ? "Ganti foto" : "Tambah foto"}
-            </Button>
-            {foto ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                disabled={sibuk}
-                onClick={() => setKonfirmasiHapus(true)}
-                aria-label="Hapus foto profil"
-                className="min-h-10 w-10"
+            {url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={url}
+                alt={`Foto profil ${nama}`}
+                className="size-full object-cover"
+              />
+            ) : (
+              <span
+                aria-hidden="true"
+                className="flex size-full items-center justify-center bg-accent text-3xl font-semibold text-white"
               >
-                <Trash2 aria-hidden="true" />
-              </Button>
-            ) : null}
-          </span>
-          <span className="text-[11px] text-neutral-500">
-            <ImagePlus aria-hidden="true" className="mr-1 inline size-3.5" />
-            PNG/JPG/WEBP · maks {MAX_IMAGE_BYTES / 1024 / 1024} MB
-          </span>
-        </span>
-      </div>
+                {sibuk ? <Loader2 aria-hidden="true" className="size-7 animate-spin" /> : inisial}
+              </span>
+            )}
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition group-hover:bg-black/50 group-hover:opacity-100 group-focus-visible:bg-black/50 group-focus-visible:opacity-100"
+            >
+              <Camera aria-hidden="true" className="size-6" />
+            </span>
+          </button>
+        )}
+      />
       <Input
         ref={fileRef}
         type="file"
@@ -201,7 +214,7 @@ export function FotoEditor({
         aria-label="Berkas foto profil"
       />
       {galat && (
-        <p role="alert" className="px-1 text-sm text-danger">
+        <p role="alert" className="mt-2 text-center text-sm text-danger">
           {galat}
         </p>
       )}

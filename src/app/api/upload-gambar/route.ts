@@ -13,8 +13,9 @@ import {
 
 // Preprocessing tanda tangan: kertas/latar terang dijadikan transparan,
 // tinta digelapkan supaya kontras dan kelihatan natural seperti pulpen.
-// Siap tempel ke PDF (WebP ber-alpha). Piksel di antara ambang diramp
-// halus (smoothstep) agar tepi goresan tidak bergerigi.
+// Siap tempel ke PDF (WebP ber-alpha). Ambang adaptif dari median luminans
+// tepi (warna kertas foto HP) supaya bayangan abu ikut hilang. Piksel di
+// antara ambang diramp halus (smoothstep) agar tepi goresan tidak bergerigi.
 async function bersihkanTandaTangan(input: Buffer): Promise<Buffer> {
   const { data, info } = await sharp(input)
     .rotate() // mengikuti orientasi kamera HP
@@ -22,17 +23,31 @@ async function bersihkanTandaTangan(input: Buffer): Promise<Buffer> {
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
-  const keluar = Buffer.alloc(data.length);
+  const W = info.width;
+  const H = info.height;
+  const lum = (i: number) => 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+  // Sampel tepi (loncati tiap 4px) → median = perkiraan warna kertas.
+  const tepi: number[] = [];
+  for (let x = 0; x < W; x += 4) {
+    tepi.push(lum((2 * W + x) * 4));
+    tepi.push(lum(((H - 3) * W + x) * 4));
+  }
+  for (let y = 0; y < H; y += 4) {
+    tepi.push(lum((y * W + 2) * 4));
+    tepi.push(lum((y * W + W - 3) * 4));
+  }
+  tepi.sort((a, b) => a - b);
+  const kertas = tepi.length > 0 ? tepi[Math.floor(tepi.length / 2)] : 255;
   // Di bawah T0 = tinta penuh, di atas T1 = transparan penuh.
-  const T0 = 170;
-  const T1 = 215;
+  const T1 = Math.min(245, Math.max(120, kertas - 8));
+  const T0 = Math.max(30, T1 - 55);
+  const keluar = Buffer.alloc(data.length);
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i];
     const g = data[i + 1];
     const b = data[i + 2];
     const a = data[i + 3] / 255;
-    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-    let tinta = (T1 - lum) / (T1 - T0);
+    let tinta = (T1 - lum(i)) / (T1 - T0);
     if (tinta < 0) tinta = 0;
     else if (tinta > 1) tinta = 1;
     const halus = tinta * tinta * (3 - 2 * tinta);
@@ -43,7 +58,7 @@ async function bersihkanTandaTangan(input: Buffer): Promise<Buffer> {
     keluar[i + 3] = Math.round(a * halus * 255);
   }
   return sharp(keluar, {
-    raw: { width: info.width, height: info.height, channels: 4 },
+    raw: { width: W, height: H, channels: 4 },
   })
     .webp({ quality: 90, effort: 6 })
     .toBuffer();
