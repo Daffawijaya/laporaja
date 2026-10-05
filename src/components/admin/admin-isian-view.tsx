@@ -95,7 +95,7 @@ export function AdminIsianView({
                   {item.baris.map((row) => (
                     <tr key={row.id} className="align-top">
                     {item.kolom.map((col) => (
-                      <td key={col.id} className="px-2 py-1.5 whitespace-pre-wrap">
+                      <td key={col.id} className="px-2 py-4 whitespace-pre-wrap">
                         {col.tipe === "image" ? (
                           (() => {
                             const parsed = parseGambarNilai(row.nilai[col.id] ?? "");
