@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthListener } from "@/components/auth/auth-listener";
 import { PendaftarSw } from "@/components/pwa/pendaftar-sw";
 import { ToastProvider } from "@/components/ui/toast";
+import { TopLoader } from "@/components/top-loader";
 import { FxFilterLoader } from "@/components/ui/fx-filter-loader";
 import "./globals.css";
 
@@ -48,6 +49,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <FxFilterLoader />
           <PendaftarSw />
+          <TopLoader />
           <ToastProvider>
             <AuthListener />
             {children}

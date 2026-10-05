@@ -419,6 +419,48 @@ export async function getLaporanListAdmin(
   });
 }
 
+// Semua rujukan gambar (drive:/path Storage lawas) pada nilai satu laporan.
+// Dipakai membersihkan berkas Drive saat section dihapus (baris/nilai ikut
+// cascade di DB, berkas tidak).
+export async function getGambarPathsLaporan(
+  supabase: ServerClient,
+  laporanId: string
+): Promise<string[]> {
+  const { data: baris } = await supabase
+    .from("laporan_tambahan_baris")
+    .select("id")
+    .eq("laporan_id", laporanId);
+  const ids = (baris ?? []).map((row) => row.id);
+  if (ids.length === 0) return [];
+  const { data: nilai } = await supabase
+    .from("laporan_tambahan_nilai")
+    .select("nilai")
+    .in("baris_id", ids);
+  return kumpulkanGambarPaths((nilai ?? []).map((row) => row.nilai));
+}
+
+// Semua rujukan gambar pada nilai sekumpulan kolom (untuk hapus kolom).
+export async function getGambarPathsKolom(
+  supabase: ServerClient,
+  kolomIds: string[]
+): Promise<string[]> {
+  if (kolomIds.length === 0) return [];
+  const { data: nilai } = await supabase
+    .from("laporan_tambahan_nilai")
+    .select("nilai")
+    .in("kolom_id", kolomIds);
+  return kumpulkanGambarPaths((nilai ?? []).map((row) => row.nilai));
+}
+
+function kumpulkanGambarPaths(raws: string[]): string[] {
+  const out = new Set<string>();
+  for (const raw of raws) {
+    const gambar = parseGambarNilai(raw)?.gambar.trim();
+    if (gambar) out.add(gambar);
+  }
+  return [...out];
+}
+
 // Nilai pengaturan umum (mis. unit_kerja). Kosong bila baris belum ada.
 export async function getPengaturan(
   supabase: ServerClient,

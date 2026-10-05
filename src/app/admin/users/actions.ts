@@ -7,7 +7,8 @@ import {
   usernameToEmail,
 } from "@/lib/auth/username";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { removeUserFolder } from "@/lib/supabase/storage";
+import { removeStoragePaths, removeUserFolder } from "@/lib/supabase/storage";
+import { trashDriveFile } from "@/lib/drive/client";
 
 export interface UserActionResult {
   ok: boolean;
@@ -243,15 +244,69 @@ export async function deleteUserAction(id: string): Promise<UserActionResult> {
     const admin = createAdminClient();
     const { data: profil } = await admin
       .from("profiles")
-      .select("username")
+      .select("username, foto, ttd")
       .eq("id", id)
       .maybeSingle();
     if (!profil) throw new Error("User tidak ditemukan.");
 
     // Bersihkan gambar milik user agar tidak meninggalkan berkas yatim.
     // Kegagalan di sini tidak menggagalkan penghapusan akun.
+    // - Bucket Storage lawas via removeUserFolder.
+    // - Drive (era baru): kumpulkan drive: refs dari profil + seluruh nilai
+    //   isian user lalu trash langsung (refs berasal dari DB milik user
+    //   yang dihapus, aksi khusus superadmin).
     try {
       await removeUserFolder(admin, id);
+    } catch {
+      // Diabaikan: akun tetap dihapus walau berkas gagal dibersihkan.
+    }
+    try {
+      const driveIds = new Set<string>();
+      const legacy: string[] = [];
+      const pisah = (ref: unknown) => {
+        if (typeof ref !== "string") return;
+        const bersih = ref.trim();
+        if (!bersih) return;
+        if (bersih.startsWith("drive:")) {
+          const fileId = bersih.slice("drive:".length).trim();
+          if (fileId) driveIds.add(fileId);
+        } else {
+          legacy.push(bersih);
+        }
+      };
+      pisah(profil.foto);
+      pisah(profil.ttd);
+      const { data: barisUser } = await admin
+        .from("laporan_tambahan_baris")
+        .select("id")
+        .eq("user_id", id);
+      const barisIds = (barisUser ?? []).map((row) => row.id);
+      if (barisIds.length > 0) {
+        const { data: nilaiUser } = await admin
+          .from("laporan_tambahan_nilai")
+          .select("nilai")
+          .in("baris_id", barisIds);
+        for (const row of nilaiUser ?? []) {
+          try {
+            const parsed: unknown = JSON.parse(row.nilai ?? "");
+            if (typeof parsed === "object" && parsed !== null) {
+              pisah((parsed as Record<string, unknown>).gambar);
+            }
+          } catch {
+            // Bukan JSON gambar: diabaikan.
+          }
+        }
+      }
+      for (const fileId of driveIds) {
+        try {
+          await trashDriveFile(fileId);
+        } catch {
+          // Best effort per berkas.
+        }
+      }
+      if (legacy.length > 0) {
+        await removeStoragePaths(admin, [...new Set(legacy)]);
+      }
     } catch {
       // Diabaikan: akun tetap dihapus walau berkas gagal dibersihkan.
     }

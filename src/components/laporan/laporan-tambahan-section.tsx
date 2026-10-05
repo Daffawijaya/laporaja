@@ -54,6 +54,7 @@ function SelInput({
   onTiket,
   onLepasTiket,
   formGen,
+  tundaHapus,
 }: {
   kolom: KolomDef;
   value: string;
@@ -69,6 +70,8 @@ function SelInput({
   onTiket?: (tiket: string, janji: Promise<string | null>) => void;
   onLepasTiket?: (tiket: string) => void;
   formGen?: { current: number };
+  /** Diteruskan ke SelGambar: tunda hapus berkas sampai simpan sukses. */
+  tundaHapus?: (path: string) => void;
 }) {
   if (kolom.tipe === "image") {
     return (
@@ -84,6 +87,7 @@ function SelInput({
         onTiket={onTiket ?? (() => undefined)}
         onLepasTiket={onLepasTiket ?? (() => undefined)}
         formGen={formGen}
+        tundaHapus={tundaHapus}
       />
     );
   }
@@ -165,6 +169,7 @@ function SelGambar({
   tiket,
   onTiket,
   onLepasTiket,
+  tundaHapus,
   formGen,
 }: {
   periode: Periode;
@@ -181,6 +186,8 @@ function SelGambar({
   onTiket: (tiket: string, janji: Promise<string | null>) => void;
   /** Hapus tiket sesudah janji selesai. */
   onLepasTiket: (tiket: string) => void;
+  /** Tunda penghapusan berkas sampai simpan sukses (mode ubah; Batal = utuh). */
+  tundaHapus?: (path: string) => void;
   /** Generasi form tambah: tulis hasil dibatalkan bila form sudah di-reset
       (hasil dialihkan ke baris baru via tiket, bukan ke form segar). */
   formGen?: { current: number };
@@ -279,9 +286,11 @@ function SelGambar({
       // Server mengonversi ke WebP lalu menyimpan ke Drive (folder bulan+user).
       const pathBaru = await uploadKegiatanImage({ jenis: "laporan", periode }, file);
       // Best effort: berkas lama dibuang saat diganti, kecuali dipakai
-      // baris lain (hasil tambah banyak kegiatan sekaligus).
+      // baris lain (hasil tambah banyak kegiatan sekaligus). Mode ubah:
+      // ditunda sampai simpan sukses (Batal = file utuh).
       if (path && path !== pathBaru && !lindungiPaths.includes(path)) {
-        await removeGambarRefs([path]);
+        if (tundaHapus) tundaHapus(path);
+        else await removeGambarRefs([path]);
       }
       // Form sudah di-reset (Tambah ditekan duluan)? Jangan tulis ke form
       // segar — path dialihkan ke baris baru lewat tiket di bawah.
@@ -313,6 +322,13 @@ function SelGambar({
 
   async function hapusGambar() {
     if (!path || mengunggah || disabled) return;
+    // Mode ubah: hanya tandai, berkas dibuang sesudah simpan sukses.
+    // Batal ubah = file utuh, baris tetap menunjuknya.
+    if (tundaHapus) {
+      tundaHapus(path);
+      tulis("", deskripsi);
+      return;
+    }
     setMengunggah(true);
     try {
       // Berkas yang dipakai baris lain tidak ikut dibuang.
@@ -803,6 +819,12 @@ function TabelIsianCard({
     if (janji) tiketRef.current.delete(tiket);
     return janji ?? null;
   }
+  // Berkas yang dibuang di editor (ganti/hapus gambar): ditunda sampai
+  // simpan sukses. Batal ubah = file utuh.
+  const buangRef = useRef<string[]>([]);
+  function tundaHapusBuang(path: string) {
+    if (path) buangRef.current.push(path);
+  }
   // Cermin baris terkini untuk tindak lanjut tiket (deskripsi terbaru).
   const barisRef = useRef<BarisIsi[]>([]);
   barisRef.current = barisOpt;
@@ -848,6 +870,16 @@ function TabelIsianCard({
         );
         return;
       }
+      // Gambar lama yang diganti dibuang bila tak dipakai baris lain.
+      const gambarLama = lama?.gambar ?? "";
+      if (gambarLama && gambarLama !== path) {
+        const rowsBaru = barisRef.current.map((r) =>
+          r.id === barisId ? { ...r, nilai: { ...r.nilai, [colId]: baru } } : r
+        );
+        if (!pathsGambar(rowsBaru).includes(gambarLama)) {
+          void removeGambarRefs([gambarLama]).catch(() => undefined);
+        }
+      }
       berhasil = true;
     } finally {
       hapusPending(kunci);
@@ -880,6 +912,9 @@ function TabelIsianCard({
     setEditVals({ ...row.nilai });
     setEditError(null);
     setTambahError(null);
+    // Penampungan hapus tertunda milik edit sebelumnya tak berlaku lagi
+    // (berkasnya utuh karena tak jadi disimpan).
+    buangRef.current = [];
   }
 
   async function simpanTambah() {
@@ -1069,6 +1104,25 @@ function TabelIsianCard({
         const janji = ambilTiket(`edit:${rowId}:${col.id}`);
         if (janji) void tindakTiket(rowId, col.id, janji);
       }
+      // Buang berkas yang diganti/dihapus di editor: yang tak lagi dipakai
+      // baris mana pun sesudah simpan.
+      const rowLama = prevRows.find((r) => r.id === rowId);
+      const rowsBaru = prevRows.map((r) =>
+        r.id === rowId ? { ...r, nilai: cleaned } : r
+      );
+      const pakai = new Set(pathsGambar(rowsBaru));
+      const buang = new Set<string>();
+      for (const col of item.kolom) {
+        if (col.tipe !== "image") continue;
+        const lama = parseGambarNilai(rowLama?.nilai[col.id] ?? "")?.gambar ?? "";
+        const baru = parseGambarNilai(cleaned[col.id] ?? "")?.gambar ?? "";
+        if (lama && lama !== baru) buang.add(lama);
+      }
+      for (const p of buangRef.current) buang.add(p);
+      buangRef.current = [];
+      for (const p of buang) {
+        if (p && !pakai.has(p)) void removeGambarRefs([p]).catch(() => undefined);
+      }
       router.refresh();
     } finally {
       if (!berhasil) setBarisOpt(prevRows);
@@ -1136,6 +1190,184 @@ function TabelIsianCard({
 
   const galat = editError ?? tambahError;
 
+  // Indikator: baris-baris tersusun vertikal ke bawah seperti kartu section
+  // admin (nama + satuan di kiri, angka di kanan), bukan kolom ke samping.
+  if (item.format === "indikator") {
+    return (
+      <RefListCard
+        ariaLabel={`Section ${item.judul}`}
+        title={item.judul}
+        className="mt-4"
+      >
+        {item.deskripsi && (
+          <p className="px-1 pb-3 text-xs whitespace-pre-wrap text-neutral-500">
+            {item.deskripsi}
+          </p>
+        )}
+        <div className="flex flex-col px-1">
+          <AnimatePresence initial={false}>
+            {barisOpt.map((row) => {
+              const note = revisi[row.id];
+              const sedangUbah = !terkunci && editId === row.id;
+              return (
+                <motion.div
+                  key={row.id}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: durasi, ease: [0.32, 0.72, 0, 1] }}
+                  className={`border-b border-neutral-200/70 py-1 dark:border-white/10${note && !sedangUbah ? " bg-amber-50/70 dark:bg-amber-950/20" : ""}${sedangUbah ? " bg-accent/5" : ""}`}
+                >
+                  {item.kolom.map((col) => (
+                    <div key={col.id} className="flex items-center justify-between gap-3 py-1.5">
+                      <span className="min-w-0 text-sm">
+                        {col.label}
+                        {col.satuan ? (
+                          <span className="text-neutral-500"> ({col.satuan})</span>
+                        ) : null}
+                      </span>
+                      {sedangUbah ? (
+                        <span className="w-40 shrink-0">
+                          <SelInput
+                            kolom={col}
+                            value={editVals[col.id] ?? ""}
+                            onChange={(value) => ubahEdit(col.id, value)}
+                            disabled={editSaving}
+                            uniq={`edit-${row.id}`}
+                            lindungiPaths={pathsGambar(barisOpt.filter((r) => r.id !== editId))}
+                            periode={periode}
+                            tiket={`edit:${row.id}:${col.id}`}
+                            onTiket={daftarTiket}
+                            onLepasTiket={lepasTiket}
+                            tundaHapus={tundaHapusBuang}
+                          />
+                        </span>
+                      ) : (
+                        <span className="shrink-0 text-sm font-medium">
+                          {formatNilai(col, row.nilai[col.id] ?? "")}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {note && !sedangUbah ? (
+                    <p className="py-1 text-[11px] font-medium whitespace-pre-wrap text-amber-700 dark:text-amber-300">
+                      Perlu revisi: {note}
+                    </p>
+                  ) : null}
+                  {terkunci ? null : (
+                    <div className="flex justify-end py-1">
+                      {sedangUbah ? (
+                        <span className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => void simpanUbah(row.id)}
+                            disabled={editSaving}
+                            aria-label="Simpan perubahan"
+                          >
+                            <Check aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              buangRef.current = [];
+                              setEditId(null);
+                            }}
+                            disabled={editSaving}
+                            aria-label="Batal ubah"
+                          >
+                            <X aria-hidden="true" />
+                          </Button>
+                        </span>
+                      ) : (
+                        <span className="flex justify-end">
+                          <GlassMenu
+                            label="Aksi isian"
+                            items={[
+                              {
+                                key: "edit",
+                                label: "Ubah",
+                                icon: <Pencil aria-hidden="true" />,
+                                onSelect: () => mulaiUbah(row),
+                              },
+                              {
+                                key: "delete",
+                                label: "Hapus",
+                                icon: <Trash2 aria-hidden="true" />,
+                                danger: true,
+                                onSelect: () => setHapus(row),
+                              },
+                            ]}
+                          />
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+          {barisOpt.length === 0 && terkunci ? (
+            <p className="px-1 py-2 text-sm text-neutral-500">Belum diisi.</p>
+          ) : null}
+          {terkunci ? null : (
+            <div className="pt-2">
+              {item.kolom.map((col) => (
+                <div key={col.id} className="flex items-center justify-between gap-3 py-1.5">
+                  <span className="min-w-0 text-sm">
+                    {col.label}
+                    {col.satuan ? (
+                      <span className="text-neutral-500"> ({col.satuan})</span>
+                    ) : null}
+                  </span>
+                  <span className="w-40 shrink-0">
+                    <SelInput
+                      kolom={col}
+                      value={tambah[col.id] ?? ""}
+                      onChange={(value) => ubahTambah(col.id, value)}
+                      disabled={tambahSaving}
+                      uniq="tambah"
+                      lindungiPaths={pathsGambar(barisOpt)}
+                      periode={periode}
+                      onTiket={daftarTiket}
+                      onLepasTiket={lepasTiket}
+                      formGen={formGenRef}
+                    />
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-end pt-1">
+                <Button
+                  onClick={() => void simpanTambah()}
+                  disabled={tambahSaving || editSaving}
+                  className="rounded-full"
+                  aria-label="Tambah isian"
+                >
+                  Tambah
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {galat && (
+          <p role="alert" className="mt-2 px-1 text-sm text-danger">
+            {galat}
+          </p>
+        )}
+        <ConfirmDialog
+          open={hapus !== null}
+          title="Hapus isian?"
+          message="Jika isian ini dihapus, datanya hilang dan tidak ikut export."
+          busy={hapusBusy}
+          onCancel={() => setHapus(null)}
+          onConfirm={() => void jalankanHapus()}
+        />
+      </RefListCard>
+    );
+  }
+
   return (
     <RefListCard
       ariaLabel={`Section ${item.judul}`}
@@ -1199,6 +1431,7 @@ function TabelIsianCard({
                         tiket={`edit:${row.id}:${col.id}`}
                         onTiket={daftarTiket}
                         onLepasTiket={lepasTiket}
+                        tundaHapus={tundaHapusBuang}
                       />
                     </td>
                   ))}
@@ -1216,7 +1449,10 @@ function TabelIsianCard({
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setEditId(null)}
+                        onClick={() => {
+                          buangRef.current = [];
+                          setEditId(null);
+                        }}
                         disabled={editSaving}
                         aria-label="Batal ubah"
                       >

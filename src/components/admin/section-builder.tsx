@@ -13,6 +13,8 @@ import { hapusPending, isPending, tambahPending } from "@/lib/section-pending";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import type { BuilderItem } from "@/lib/laporan-tambahan/queries";
+import { getGambarPathsLaporan } from "@/lib/laporan-tambahan/queries";
+import { removeGambarRefs } from "@/lib/supabase/storage";
 import {
   TandaTanganEditor,
   type TtdItem,
@@ -525,11 +527,19 @@ export function SectionBuilder({
     setSimpanStatus("saving");
     try {
       const supabase = createClient();
+      // Kumpulkan berkas gambar section ini dulu (nilai ikut cascade di DB,
+      // berkas Drive tidak) untuk dibuang sesudah delete sukses.
+      const gambarHapus = await getGambarPathsLaporan(supabase, target.id).catch(
+        () => [] as string[]
+      );
       const { error } = await supabase.from("laporan_tambahan").delete().eq("id", target.id);
       if (error) {
         if (handleSession(error)) return;
         gagalSimpan("Gagal menghapus section. Coba lagi.");
         return;
+      }
+      if (gambarHapus.length > 0) {
+        void removeGambarRefs(gambarHapus).catch(() => undefined);
       }
       const targetId = target.id;
       // Pilih section sebelumnya (atau penggantinya) supaya rel bergeser ke sana.

@@ -427,6 +427,11 @@ export function NavbarSearch({
         <input
           ref={inputRef}
           type="search"
+          name="pencarian-navbar"
+          autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
           role="combobox"
           aria-label={placeholder}
           aria-expanded={tampil}

@@ -15,8 +15,10 @@ import { setSimpanStatus } from "@/lib/simpan-status";
 import { useSectionPending } from "@/lib/section-pending";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
+import { removeGambarRefs } from "@/lib/supabase/storage";
 import type { KolomTipe } from "@/lib/laporan-tambahan/queries";
 import type { BuilderItem } from "@/lib/laporan-tambahan/queries";
+import { getGambarPathsKolom } from "@/lib/laporan-tambahan/queries";
 
 export const TIPE_OPTIONS: { value: KolomTipe; label: string }[] = [
   { value: "text", label: "Isian" },
@@ -799,6 +801,11 @@ export function SectionCard({
         );
         const hapusIds = awalKolom.map((col) => col.id).filter((id) => !keptIds.has(id));
         if (hapusIds.length > 0) {
+          // Berkas kolom yang dihapus dibuang sesudah delete sukses (nilai
+          // ikut cascade di DB, berkas Drive tidak).
+          const gambarKolom = await getGambarPathsKolom(supabase, hapusIds).catch(
+            () => [] as string[]
+          );
           const { error } = await supabase
             .from("laporan_tambahan_kolom")
             .delete()
@@ -807,6 +814,9 @@ export function SectionCard({
             if (sesiBerakhir(toast, router, error)) return;
             setError("Gagal menyimpan. Coba lagi.");
             return;
+          }
+          if (gambarKolom.length > 0) {
+            void removeGambarRefs(gambarKolom).catch(() => undefined);
           }
         }
         const kept = cleanedKolom.filter((col) => col.id !== null);
