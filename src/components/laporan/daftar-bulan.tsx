@@ -24,9 +24,12 @@ const NAMA_BULAN_PENDEK = [
 export function DaftarBulan({
   userId,
   initial,
+  revisi = {},
 }: {
   userId: string;
   initial: BulanItem[];
+  /** Petunjuk "tahun-bulan" → jumlah baris perlu revisi. */
+  revisi?: Record<string, number>;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -103,16 +106,29 @@ export function DaftarBulan({
             ? `Tidak ada bulan yang cocok dengan "${query}".`
             : "Belum ada bulan. Tambahkan bulan pertama untuk mulai mengisi."
         }
-        items={visibleBulan.map((row) => ({
-          key: `${row.tahun}-${row.bulan}`,
-          title: labelPeriode(row),
-          subtitle:
-            row.total === 0
-              ? "Tanpa tugas"
-              : `${row.terisi}/${row.total} section terisi`,
-          desc: labelStatusReview(row.status),
-          href: hrefBulan(row.tahun, row.bulan),
-        }))}
+        items={visibleBulan.map((row) => {
+          const jumlahRevisi = revisi[`${row.tahun}-${row.bulan}`] ?? 0;
+          // Status "Revisi" sisa dari bulan lalu tanpa baris aktif = kosongkan.
+          const labelStatus =
+            jumlahRevisi === 0 && row.status === "revision"
+              ? ""
+              : labelStatusReview(row.status);
+          return {
+            key: `${row.tahun}-${row.bulan}`,
+            title: labelPeriode(row),
+            subtitle:
+              row.total === 0
+                ? "Tanpa tugas"
+                : `${row.terisi}/${row.total} section terisi`,
+            desc:
+              jumlahRevisi > 0
+                ? labelStatus
+                  ? `${labelStatus} · ${jumlahRevisi} revisi`
+                  : `${jumlahRevisi} revisi`
+                : labelStatus,
+            href: hrefBulan(row.tahun, row.bulan),
+          };
+        })}
       />
       <div className="mt-3 flex justify-end">
         <Button onClick={() => setDialog(true)} className="rounded-full">

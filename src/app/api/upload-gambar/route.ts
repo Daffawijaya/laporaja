@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import convert from "heic-convert";
 import sharp from "sharp";
 
 import { createClient } from "@/lib/supabase/server";
@@ -101,13 +102,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: "Periode tidak valid." }, { status: 400 });
   }
 
-  const allowedMimeTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-  if (!allowedMimeTypes.includes(file.type)) {
-    return NextResponse.json(
-      { message: "Format file harus JPG, JPEG, PNG, atau WEBP." },
-      { status: 400 }
-    );
-  }
   if (file.size > MAX_IMAGE_BYTES) {
     return NextResponse.json(
       { message: `Ukuran gambar maksimal ${MAX_IMAGE_BYTES / 1024 / 1024} MB.` },
@@ -117,14 +111,73 @@ export async function POST(req: Request) {
 
   const inputBuffer = Buffer.from(await file.arrayBuffer());
 
+  // Verifikasi dari ISI berkas (magic bytes), bukan sekadar file.type yang
+  // dikirim browser. HEIC (foto iPhone) didekode dulu ke JPEG sebelum
+  // pipeline sharp yang sama; ujungnya tetap WebP ringan.
+  function tebakFormat(buf: Buffer): "jpeg" | "png" | "webp" | "avif" | "heic" | null {
+    if (buf.length > 12 && buf.toString("ascii", 4, 8) === "ftyp") {
+      const brand = buf.toString("ascii", 8, 12);
+      if (
+        ["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs", "mif1", "msf1"].includes(
+          brand
+        )
+      )
+        return "heic";
+      if (brand === "avif" || brand === "avis") return "avif";
+      return null;
+    }
+    if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)
+      return "jpeg";
+    if (
+      buf.length > 8 &&
+      buf[0] === 0x89 &&
+      buf[1] === 0x50 &&
+      buf[2] === 0x4e &&
+      buf[3] === 0x47
+    )
+      return "png";
+    if (
+      buf.length > 12 &&
+      buf.toString("ascii", 0, 4) === "RIFF" &&
+      buf.toString("ascii", 8, 12) === "WEBP"
+    )
+      return "webp";
+    return null;
+  }
+
+  const formatAsli = tebakFormat(inputBuffer);
+  if (!formatAsli) {
+    return NextResponse.json(
+      {
+        message:
+          "File tidak terbaca sebagai gambar (mungkin rusak atau hasil rename dari format lain). Simpan ulang sebagai JPG/PNG/WEBP/HEIC yang valid.",
+      },
+      { status: 400 }
+    );
+  }
+
+  // HEIC → JPEG dulu (sharp di sini hanya membaca AVIF untuk keluarga HEIF).
+  let gambarSiap = inputBuffer;
+  if (formatAsli === "heic") {
+    try {
+      const jpeg = await convert({ buffer: inputBuffer, format: "JPEG", quality: 0.92 });
+      gambarSiap = Buffer.from(jpeg);
+    } catch {
+      return NextResponse.json(
+        { message: "Foto HEIC tidak bisa dibaca. Coba konversi manual ke JPG." },
+        { status: 400 }
+      );
+    }
+  }
+
   let webpBuffer: Buffer;
   try {
     if (jenis === "ttd") {
       // Tanda tangan: kertas jadi transparan, tinta jadi pekat kontras.
-      webpBuffer = await bersihkanTandaTangan(inputBuffer);
+      webpBuffer = await bersihkanTandaTangan(gambarSiap);
     } else {
       // Convert ke WebP + resize jika terlalu besar
-      webpBuffer = await sharp(inputBuffer)
+      webpBuffer = await sharp(gambarSiap)
         .rotate() // mengikuti orientasi kamera HP
         .resize({
           width: 1920,
@@ -138,7 +191,7 @@ export async function POST(req: Request) {
     }
   } catch {
     return NextResponse.json(
-      { message: "Format file harus JPG, JPEG, PNG, atau WEBP." },
+      { message: "Gambar gagal diproses (mungkin rusak). Coba file lain." },
       { status: 400 }
     );
   }

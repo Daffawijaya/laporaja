@@ -15,7 +15,10 @@ import { createClient } from "@/lib/supabase/client";
 import { usernameToEmail } from "@/lib/auth/username";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import {
+  ACCEPT_GAMBAR,
+  GALAT_FORMAT_GAMBAR,
   MAX_IMAGE_BYTES,
+  isGambarDidukung,
   removeGambarRefs,
   resolveGambarUrl,
   uploadKegiatanImage,
@@ -75,8 +78,8 @@ export function FotoEditor({
 
   async function gantiFoto(file: File | undefined) {
     if (!file || sibuk) return;
-    if (!["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(file.type)) {
-      setGalat("Format file harus JPG, JPEG, PNG, atau WEBP.");
+    if (!isGambarDidukung(file)) {
+      setGalat(GALAT_FORMAT_GAMBAR);
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
@@ -204,7 +207,7 @@ export function FotoEditor({
       <Input
         ref={fileRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept={ACCEPT_GAMBAR}
         disabled={sibuk}
         onChange={(event) => {
           void gantiFoto(event.target.files?.[0]);

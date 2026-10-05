@@ -9,6 +9,36 @@ export type StorageClient = SupabaseClient<Database>;
 const BUCKET = "kegiatan-images";
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+// Format gambar yang didukung upload (maks 5 MB): server memverifikasi ISI
+// berkas + mengonversi ke WebP (HEIC foto iPhone didekode dulu). Klien hanya
+// menyaring awal — keputusan akhir di server berdasarkan magic bytes.
+const TIPE_GAMBAR = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+];
+const EKSTENSI_GAMBAR = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
+
+/** Teks format untuk label dropzone. */
+export const TEKS_FORMAT_GAMBAR = "JPG/PNG/WEBP/HEIC";
+/** Atribut accept input file. */
+export const ACCEPT_GAMBAR = "image/jpeg,image/png,image/webp,image/heic,image/heif";
+/** Pesan galat format baku. */
+export const GALAT_FORMAT_GAMBAR = "Format file harus JPG, JPEG, PNG, WEBP, atau HEIC.";
+
+/** Saringan awal klien: MIME didukung, atau ekstensi bila browser tak memberi MIME. */
+export function isGambarDidukung(file: File): boolean {
+  if (TIPE_GAMBAR.includes(file.type)) return true;
+  if (!file.type) {
+    const nama = file.name.toLowerCase();
+    return EKSTENSI_GAMBAR.some((ext) => nama.endsWith(ext));
+  }
+  return false;
+}
+
 // Rujukan gambar bisa berupa path Storage lawas atau ID file Drive baru
 // ("drive:<fileId>"). Perbandingan string buram tetap berlaku untuk keduanya.
 export const DRIVE_REF = "drive:";

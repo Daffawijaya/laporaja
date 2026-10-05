@@ -18,8 +18,12 @@ import { setSimpanStatus } from "@/lib/simpan-status";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import {
+  ACCEPT_GAMBAR,
+  GALAT_FORMAT_GAMBAR,
   MAX_IMAGE_BYTES,
+  TEKS_FORMAT_GAMBAR,
   getSignedImageUrl,
+  isGambarDidukung,
   removeGambarRefs,
   uploadKegiatanImage,
 } from "@/lib/supabase/storage";
@@ -189,8 +193,8 @@ function SelGambar({
 
   async function pilihBerkas(file: File | undefined) {
     if (!file || mengunggah || disabled) return;
-    if (!["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(file.type)) {
-      setGalat("Format file harus JPG, JPEG, PNG, atau WEBP.");
+    if (!isGambarDidukung(file)) {
+      setGalat(GALAT_FORMAT_GAMBAR);
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
@@ -323,14 +327,14 @@ function SelGambar({
           <span className="text-xs font-medium">
             {mengunggah ? "Mengunggah…" : "Klik atau seret gambar ke sini"}
           </span>
-          <span className="text-[11px] text-neutral-500">JPG/PNG/WEBP · maks {maksMb} MB</span>
+          <span className="text-[11px] text-neutral-500">{TEKS_FORMAT_GAMBAR} · maks {maksMb} MB</span>
         </div>
       )}
       <Input
         ref={fileRef}
         id={`${fileId}-${uniq}-${kolom.id}`}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept={ACCEPT_GAMBAR}
         disabled={sibuk}
         onChange={(event) => {
           void pilihBerkas(event.target.files?.[0]);

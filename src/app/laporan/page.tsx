@@ -90,11 +90,32 @@ export default async function LaporanPage({
 
   const bulanList = await getBulanUser(supabase, user.id, profile.bidang_id);
 
+  // Hitungan baris perlu revisi per bulan (tampil "N revisi" di kanan status).
+  const { data: semuaBaris } = await supabase
+    .from("laporan_tambahan_baris")
+    .select("id, tahun, bulan")
+    .eq("user_id", user.id);
+  const bulanDariBaris = new Map(
+    (semuaBaris ?? []).map((b) => [b.id, `${b.tahun}-${b.bulan}`])
+  );
+  const revisiPerBulan: Record<string, number> = {};
+  const semuaId = [...bulanDariBaris.keys()];
+  if (semuaId.length > 0) {
+    const { data: revisiRows } = await supabase
+      .from("revisi_baris")
+      .select("baris_id")
+      .in("baris_id", semuaId);
+    for (const r of revisiRows ?? []) {
+      const kunci = bulanDariBaris.get(r.baris_id);
+      if (kunci) revisiPerBulan[kunci] = (revisiPerBulan[kunci] ?? 0) + 1;
+    }
+  }
+
   return (
     <div className="w-full">
       <p className="text-sm text-neutral-500 md:hidden">Selamat datang, {profile.nama}</p>
       <div className="mt-5 md:mt-1">
-        <DaftarBulan userId={user.id} initial={bulanList} />
+        <DaftarBulan userId={user.id} initial={bulanList} revisi={revisiPerBulan} />
       </div>
     </div>
   );

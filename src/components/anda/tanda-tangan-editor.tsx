@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import {
   MAX_IMAGE_BYTES,
+  TEKS_FORMAT_GAMBAR,
   removeGambarRefs,
   resolveGambarUrl,
   uploadKegiatanImage,
@@ -513,7 +514,7 @@ function TtdGambarBox({
           <span className="text-xs font-medium">
             {mengunggah ? "Mengunggah…" : "Klik atau seret gambar ke sini"}
           </span>
-          <span className="text-[11px] text-neutral-500">JPG/PNG/WEBP · maks {maksMb} MB</span>
+          <span className="text-[11px] text-neutral-500">{TEKS_FORMAT_GAMBAR} · maks {maksMb} MB</span>
         </div>
       )}
       <Input
