@@ -600,7 +600,7 @@ export function InfoCard({
             setError(null);
           }}
           placeholder="Judul info"
-          className="h-auto min-w-0 flex-1 rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 pt-0 pb-1 text-[17px] leading-none font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 focus-visible:border-accent focus-visible:ring-0 dark:border-white/15"
+          className="h-auto min-w-0 flex-1 rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 pt-0 pb-1 text-[17px] leading-none font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 hover:bg-transparent focus-visible:border-accent focus-visible:ring-0 dark:border-white/15 dark:hover:bg-transparent"
         />
         <Button
           type="button"
@@ -922,7 +922,7 @@ export function SectionCard({
               setError(null);
             }}
             placeholder="Judul section"
-            className="h-auto rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 pt-0 pb-1 text-[17px] leading-none font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 focus-visible:border-accent focus-visible:ring-0 dark:border-white/15"
+            className="h-auto rounded-none border-0 border-b border-neutral-300 bg-transparent px-1 pt-0 pb-1 text-[17px] leading-none font-semibold tracking-tight placeholder:text-neutral-400 hover:border-neutral-400 hover:bg-transparent focus-visible:border-accent focus-visible:ring-0 dark:border-white/15 dark:hover:bg-transparent"
           />
         </div>
         {esai && (
@@ -957,7 +957,7 @@ export function SectionCard({
             setError(null);
           }}
           placeholder="Deskripsi (opsional)"
-          className="h-auto rounded-none border-0 bg-transparent px-0 pt-0 pb-1 text-sm font-normal text-neutral-500 placeholder:text-neutral-400 hover:text-foreground focus-visible:border-accent focus-visible:ring-0 dark:text-neutral-400"
+          className="h-auto rounded-none border-0 bg-transparent px-0 pt-0 pb-1 text-sm font-normal text-neutral-500 placeholder:text-neutral-400 hover:bg-transparent hover:text-foreground focus-visible:border-accent focus-visible:ring-0 dark:text-neutral-400 dark:hover:bg-transparent"
         />
       </div>
 
