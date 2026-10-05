@@ -10,6 +10,8 @@ export interface KolomDef {
   label: string;
   tipe: KolomTipe;
   wajib: boolean;
+  /** Satuan isian (format indikator), "" bila tanpa satuan. */
+  satuan: string;
 }
 
 export interface BarisIsi {
@@ -159,7 +161,7 @@ export async function getTugasUser(
     supabase.from("laporan_tambahan").select("id, judul, deskripsi, format, urutan").in("id", ids).order("urutan").order("judul"),
     supabase
       .from("laporan_tambahan_kolom")
-      .select("id, laporan_id, label, tipe, wajib")
+      .select("id, laporan_id, label, tipe, wajib, satuan")
       .in("laporan_id", ids)
       .order("laporan_id")
       .order("urutan"),
@@ -207,7 +209,13 @@ export async function getTugasUser(
   const kolomByLaporan = new Map<string, KolomDef[]>();
   for (const col of kolomResult.data ?? []) {
     const arr = kolomByLaporan.get(col.laporan_id) ?? [];
-    arr.push({ id: col.id, label: col.label, tipe: col.tipe, wajib: col.wajib });
+    arr.push({
+      id: col.id,
+      label: col.label,
+      tipe: col.tipe,
+      wajib: col.wajib,
+      satuan: typeof col.satuan === "string" ? col.satuan : "",
+    });
     kolomByLaporan.set(col.laporan_id, arr);
   }
   const barisByLaporan = new Map<string, BarisIsi[]>();
@@ -509,6 +517,8 @@ export interface BuilderKolom {
   id: string;
   label: string;
   tipe: KolomTipe;
+  /** Satuan isian (format indikator), "" bila tanpa satuan. */
+  satuan: string;
 }
 
 export interface BuilderItem extends LaporanAdminItem {
@@ -527,14 +537,19 @@ export async function getSectionBuilderData(
   if (ids.length > 0) {
     const { data, error } = await supabase
       .from("laporan_tambahan_kolom")
-      .select("id, laporan_id, label, tipe")
+      .select("id, laporan_id, label, tipe, satuan")
       .in("laporan_id", ids)
       .order("laporan_id")
       .order("urutan");
     if (error) throw new Error("Gagal memuat section. Coba lagi.");
     for (const col of data ?? []) {
       const arr = kolomByLaporan.get(col.laporan_id) ?? [];
-      arr.push({ id: col.id, label: col.label, tipe: col.tipe });
+      arr.push({
+        id: col.id,
+        label: col.label,
+        tipe: col.tipe,
+        satuan: typeof col.satuan === "string" ? col.satuan : "",
+      });
       kolomByLaporan.set(col.laporan_id, arr);
     }
   }

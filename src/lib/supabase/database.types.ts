@@ -118,6 +118,8 @@ export type LaporanTambahanKolomRow = {
   tipe: KolomTipe;
   wajib: boolean;
   urutan: number;
+  /** Satuan isian (dipakai format indikator), "" bila tanpa satuan. */
+  satuan: string;
   created_at: string;
   updated_at: string;
 };
@@ -257,8 +259,8 @@ export type Database = {
       laporan_tambahan_kolom: {
         Row: LaporanTambahanKolomRow;
         Insert: Pick<LaporanTambahanKolomRow, "laporan_id" | "label" | "tipe"> &
-          Partial<Pick<LaporanTambahanKolomRow, "id" | "wajib" | "urutan" | "created_at" | "updated_at">>;
-        Update: Partial<Pick<LaporanTambahanKolomRow, "label" | "tipe" | "wajib" | "urutan">>;
+          Partial<Pick<LaporanTambahanKolomRow, "id" | "wajib" | "urutan" | "satuan" | "created_at" | "updated_at">>;
+        Update: Partial<Pick<LaporanTambahanKolomRow, "label" | "tipe" | "wajib" | "urutan" | "satuan">>;
         Relationships: [];
       };
       laporan_tambahan_baris: {

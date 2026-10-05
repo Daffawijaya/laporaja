@@ -7,9 +7,11 @@ import type { TugasLaporan } from "@/lib/laporan-tambahan/queries";
 import { RevisiBarisButton } from "@/components/admin/revisi-baris-button";
 
 // Nilai tanggal (YYYY-MM-DD) ditampilkan sebagai "hari, tanggal bulan tahun".
-function formatSel(tipe: string, raw: string): string {
+// Angka indikator ditempeli satuannya ("12 postingan").
+function formatSel(tipe: string, raw: string, satuan = ""): string {
   if (!raw) return "-";
   if (tipe === "image") return parseGambarNilai(raw)?.deskripsi || "Gambar";
+  if (tipe === "number" && satuan) return `${raw} ${satuan}`;
   if (tipe !== "date") return raw;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   try {
@@ -84,6 +86,9 @@ export function AdminIsianView({
                     {item.kolom.map((col) => (
                       <th key={col.id} scope="col" className="px-2 py-1.5 font-medium">
                         {col.label}
+                        {col.satuan ? (
+                          <span className="font-normal"> ({col.satuan})</span>
+                        ) : null}
                       </th>
                     ))}
                     <th scope="col" className="w-24 px-2 py-1.5">
@@ -110,7 +115,7 @@ export function AdminIsianView({
                             );
                           })()
                         ) : (
-                          formatSel(col.tipe, row.nilai[col.id] ?? "")
+                          formatSel(col.tipe, row.nilai[col.id] ?? "", col.satuan)
                         )}
                       </td>
                     ))}

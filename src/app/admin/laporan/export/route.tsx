@@ -184,7 +184,11 @@ export async function GET(request: Request) {
         judul: item.judul,
         deskripsi: item.deskripsi,
         format: item.format,
-        kolom: item.kolom.map((col) => col.label),
+        kolom: item.kolom.map((col) =>
+          item.format === "indikator" && col.satuan
+            ? `${col.label} (${col.satuan})`
+            : col.label
+        ),
         kolomTipe: item.kolom.map((col) => col.tipe),
         baris,
         gambarUrl,

@@ -40,17 +40,19 @@ interface KolomDraft {
   id: string | null;
   label: string;
   tipe: KolomTipe;
+  /** Satuan isian (format indikator), "" bila tanpa satuan. */
+  satuan: string;
 }
 
 let kolomSeq = 0;
-function kolomBaru(label = "", id: string | null = null, tipe: KolomTipe = "text"): KolomDraft {
+function kolomBaru(label = "", id: string | null = null, tipe: KolomTipe = "text", satuan = ""): KolomDraft {
   kolomSeq += 1;
-  return { key: kolomSeq, id, label, tipe };
+  return { key: kolomSeq, id, label, tipe, satuan };
 }
 
-function keDraft(kolom: { id: string; label: string; tipe: KolomTipe }[]): KolomDraft[] {
+function keDraft(kolom: { id: string; label: string; tipe: KolomTipe; satuan: string }[]): KolomDraft[] {
   return kolom.length > 0
-    ? kolom.map((col) => kolomBaru(col.label, col.id, col.tipe))
+    ? kolom.map((col) => kolomBaru(col.label, col.id, col.tipe, col.satuan))
     : [kolomBaru()];
 }
 
@@ -59,7 +61,7 @@ function snapOf(judul: string, deskripsi: string, kolom: KolomDraft[]): string {
   return JSON.stringify({
     j: judul.trim(),
     d: deskripsi.trim(),
-    k: kolom.map((col) => [col.id, col.label.trim(), col.tipe]),
+    k: kolom.map((col) => [col.id, col.label.trim(), col.tipe, col.satuan.trim()]),
   });
 }
 
@@ -89,6 +91,7 @@ function KolomRows({
   tambahLabel = "Tambah Kolom",
   kunciTipe = null,
   tipeTerkunci = null,
+  denganSatuan = false,
 }: {
   kolom: KolomDraft[];
   onPatch: (key: number, patch: Partial<KolomDraft>) => void;
@@ -101,6 +104,8 @@ function KolomRows({
   kunciTipe?: KolomTipe | null;
   /** Tipe terkunci tapi tata letak tetap tabel (indikator = selalu Angka). */
   tipeTerkunci?: KolomTipe | null;
+  /** Entri tersusun vertikal per baris (nama + satuan) khusus indikator. */
+  denganSatuan?: boolean;
 }) {
   if (kunciTipe) {
     // Esai: subjudul ditumpuk ke bawah, tombol hapus tepat di kanan input.
@@ -136,6 +141,97 @@ function KolomRows({
                       onClick={() => onRemove(col.key)}
                       disabled={disabled || kolom.length <= 1}
                       aria-label={`Hapus ${satuan.toLowerCase()} ${index + 1}`}
+                      className="shrink-0 rounded-full"
+                    >
+                      <X aria-hidden="true" />
+                    </Button>
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+        </div>
+        <AnimatePresence initial={false}>
+          {terpilih && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="mt-2 flex justify-end px-1">
+                <Button
+                  type="button"
+                  onClick={onAdd}
+                  disabled={disabled}
+                  className="rounded-full"
+                >
+                  <Plus aria-hidden="true" />
+                  {tambahLabel}
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  if (denganSatuan) {
+    // Indikator: tiap entri satu baris ke bawah (nama + satuan), tipe
+    // terkunci Angka. Nanti user tinggal mengisi angka per entri.
+    return (
+      <div>
+        <div className="flex flex-col gap-2 px-1">
+          {kolom.map((col, index) => (
+            <div key={col.key} className="flex items-center gap-1.5">
+              <div className="min-w-0 flex-1">
+                <Label htmlFor={`ekolom-${col.key}`} className="sr-only">
+                  {`Nama indikator ${index + 1}`}
+                </Label>
+                <Input
+                  id={`ekolom-${col.key}`}
+                  value={col.label}
+                  onChange={(event) => onPatch(col.key, { label: event.target.value })}
+                  placeholder={`Indikator ${index + 1}`}
+                  disabled={disabled}
+                  className="h-11 w-full border-transparent bg-black/[0.075] text-sm hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
+                />
+              </div>
+              <div className="w-32 shrink-0">
+                <Label htmlFor={`esatuan-${col.key}`} className="sr-only">
+                  {`Satuan indikator ${index + 1}`}
+                </Label>
+                <Input
+                  id={`esatuan-${col.key}`}
+                  value={col.satuan}
+                  onChange={(event) => onPatch(col.key, { satuan: event.target.value })}
+                  placeholder="Satuan"
+                  disabled={disabled}
+                  maxLength={40}
+                  className="h-11 w-full border-transparent bg-black/[0.075] text-sm hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
+                />
+              </div>
+              <span className="shrink-0 rounded-full bg-black/[0.075] px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-white/10">
+                Angka
+              </span>
+              <AnimatePresence initial={false}>
+                {terpilih && (
+                  <motion.span
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: "auto" }}
+                    exit={{ opacity: 0, width: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="inline-flex shrink-0 overflow-hidden"
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onRemove(col.key)}
+                      disabled={disabled || kolom.length <= 1}
+                      aria-label={`Hapus indikator ${index + 1}`}
                       className="shrink-0 rounded-full"
                     >
                       <X aria-hidden="true" />
@@ -655,6 +751,7 @@ export function SectionCard({
             // Subjudul esai selalu tersimpan sebagai teks panjang;
             // kolom indikator selalu tersimpan sebagai angka.
             tipe: (esai ? "textarea" : item.format === "indikator" ? "number" : col.tipe) as KolomTipe,
+            satuan: col.satuan.trim().slice(0, 40),
             urutan: index,
           };
         })
@@ -722,6 +819,7 @@ export function SectionCard({
               tipe: col.tipe,
               wajib: true,
               urutan: col.urutan,
+              satuan: col.satuan,
             })),
             { onConflict: "id" }
           );
@@ -740,6 +838,7 @@ export function SectionCard({
               tipe: col.tipe,
               wajib: true,
               urutan: col.urutan,
+              satuan: col.satuan,
             }))
           );
           if (error) {
@@ -846,6 +945,21 @@ export function SectionCard({
           </span>
         )}
       </div>
+      <div className="mt-1 px-1">
+        <Label htmlFor={`edesc-${item.id}`} className="sr-only">
+          Deskripsi section (opsional)
+        </Label>
+        <Input
+          id={`edesc-${item.id}`}
+          value={deskripsi}
+          onChange={(event) => {
+            setDeskripsi(event.target.value);
+            setError(null);
+          }}
+          placeholder="Deskripsi (opsional)"
+          className="h-auto rounded-none border-0 bg-transparent px-0 pt-0 pb-1 text-sm font-normal text-neutral-500 placeholder:text-neutral-400 hover:text-foreground focus-visible:border-accent focus-visible:ring-0 dark:text-neutral-400"
+        />
+      </div>
 
       <div className="mt-2">
         {kelolaKolom ? (
@@ -869,6 +983,7 @@ export function SectionCard({
             tambahLabel={esai ? "Tambah Subjudul" : item.format === "indikator" ? "Tambah Indikator" : "Tambah Kolom"}
             kunciTipe={esai ? "textarea" : null}
             tipeTerkunci={item.format === "indikator" ? "number" : null}
+            denganSatuan={item.format === "indikator"}
           />
         ) : null}
       </div>

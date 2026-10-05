@@ -281,6 +281,7 @@ export function SectionBuilder({
                 id: kolomIdBaru,
                 label: format === "esai" ? "Isian" : "Kolom 1",
                 tipe: format === "esai" ? "textarea" : format === "indikator" ? "number" : "text",
+                satuan: "",
               },
             ],
     };
@@ -318,6 +319,7 @@ export function SectionBuilder({
             tipe: itemBaru.kolom[0]?.tipe ?? "text",
             wajib: true,
             urutan: 0,
+            satuan: "",
           });
         if (kolomError) {
           await supabase.from("laporan_tambahan").delete().eq("id", idBaru);
@@ -361,7 +363,7 @@ export function SectionBuilder({
         ordered.length > 0 ? Math.max(...ordered.map((row) => row.urutan)) + 10 : 0;
       const { data: kolomSrc, error: kolomErr } = await supabase
         .from("laporan_tambahan_kolom")
-        .select("label, tipe, wajib, urutan")
+        .select("label, tipe, wajib, urutan, satuan")
         .eq("laporan_id", item.id)
         .order("urutan");
       if (kolomErr) {
@@ -391,6 +393,7 @@ export function SectionBuilder({
         tipe: col.tipe,
         wajib: col.wajib,
         urutan: col.urutan,
+        satuan: typeof col.satuan === "string" ? col.satuan : "",
       }));
       if (kolomRows.length > 0) {
         const { error: kolomError } = await supabase

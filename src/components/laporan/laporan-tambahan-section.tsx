@@ -123,7 +123,11 @@ function SelInput({
       type={kolom.tipe === "number" ? "number" : "text"}
       inputMode={kolom.tipe === "number" ? "decimal" : undefined}
       disabled={disabled}
-      placeholder={kolom.label}
+      placeholder={
+        kolom.tipe === "number" && kolom.satuan
+          ? `${kolom.label} (${kolom.satuan})`
+          : kolom.label
+      }
       className="h-11 min-w-[128px] border-transparent bg-black/[0.075] text-sm hover:border-transparent hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
     />
   );
@@ -457,6 +461,7 @@ function SelGambar({
 function formatNilai(col: KolomDef, raw: string): string {
   if (!raw) return "-";
   if (col.tipe === "image") return parseGambarNilai(raw)?.deskripsi || "Gambar";
+  if (col.tipe === "number" && col.satuan) return `${raw} ${col.satuan}`;
   if (col.tipe !== "date") return raw;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   try {
@@ -1155,6 +1160,7 @@ function TabelIsianCard({
                 >
                   <span className="block text-xs font-normal text-neutral-500 dark:text-neutral-400">
                     {col.label}
+                    {col.satuan ? ` (${col.satuan})` : ""}
                   </span>
                 </th>
               ))}
