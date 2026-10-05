@@ -213,9 +213,6 @@ function KolomRows({
                   className="h-11 w-full border-transparent bg-black/[0.075] text-sm hover:bg-black/[0.12] dark:bg-white/[0.075] dark:hover:bg-white/[0.12]"
                 />
               </div>
-              <span className="shrink-0 rounded-full bg-black/[0.075] px-2 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-white/10">
-                Angka
-              </span>
               <AnimatePresence initial={false}>
                 {terpilih && (
                   <motion.span
@@ -747,7 +744,10 @@ export function SectionCard({
           return {
             ...col,
             // Label kosong diisi default supaya tetap valid di DB.
-            label: label.length > 0 ? label : `${esai ? "Subjudul" : "Kolom"} ${index + 1}`,
+            label:
+              label.length > 0
+                ? label
+                : `${esai ? "Subjudul" : item.format === "indikator" ? "Indikator" : "Kolom"} ${index + 1}`,
             // Subjudul esai selalu tersimpan sebagai teks panjang;
             // kolom indikator selalu tersimpan sebagai angka.
             tipe: (esai ? "textarea" : item.format === "indikator" ? "number" : col.tipe) as KolomTipe,

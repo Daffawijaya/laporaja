@@ -279,7 +279,7 @@ export function SectionBuilder({
           : [
               {
                 id: kolomIdBaru,
-                label: format === "esai" ? "Isian" : "Kolom 1",
+                label: format === "esai" ? "Isian" : format === "indikator" ? "" : "Kolom 1",
                 tipe: format === "esai" ? "textarea" : format === "indikator" ? "number" : "text",
                 satuan: "",
               },
@@ -315,7 +315,7 @@ export function SectionBuilder({
           .insert({
             id: kolomIdBaru,
             laporan_id: idBaru,
-            label: itemBaru.kolom[0]?.label ?? "Kolom 1",
+            label: itemBaru.kolom[0]?.label || (format === "indikator" ? "Indikator 1" : "Kolom 1"),
             tipe: itemBaru.kolom[0]?.tipe ?? "text",
             wajib: true,
             urutan: 0,
