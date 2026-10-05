@@ -75,15 +75,15 @@ const styles = StyleSheet.create({
   },
   tabelHead: { flexDirection: "row" },
   tabelRow: { flexDirection: "row" },
-  selHead: {
-    fontSize: 9,
-    fontWeight: "bold",
+  selHeadBox: {
+    justifyContent: "center",
     padding: 4,
     borderRightWidth: 1,
     borderRightColor: "#000",
     borderBottomWidth: 1,
     borderBottomColor: "#000",
   },
+  selHead: { fontSize: 9, fontWeight: "bold", textAlign: "center" },
   sel: {
     fontSize: 9,
     padding: 4,
@@ -95,12 +95,12 @@ const styles = StyleSheet.create({
   gambar: { width: 140, marginBottom: 4 },
   empty: { fontSize: 11, color: "#000", marginTop: 8 },
   ttdWrap: { marginTop: 20 },
-  ttdTempat: { fontSize: 10, textAlign: "right", marginBottom: 4 },
+  ttdTempat: { fontSize: 10, textAlign: "right", marginBottom: 24 },
   ttdBaris: { flexDirection: "row", marginBottom: 8 },
   ttdKolom: { flex: 1, textAlign: "center", paddingHorizontal: 6 },
-  // Kepala (peran + jabatan + 2 baris unit) selalu setinggi 4 baris
+  // Kepala (peran + identitas sebaris) selalu setinggi 2 baris
   // supaya semua nama sejajar tingginya.
-  ttdKepala: { minHeight: 60 },
+  ttdKepala: { minHeight: 30 },
   ttdPeran: { fontSize: 10 },
   ttdJabatan: { fontSize: 10, fontWeight: "bold" },
   ttdUnit: { fontSize: 10 },
@@ -146,6 +146,15 @@ function kapitalAwalKata(teks: string): string {
     .split(/(\s+)/)
     .map((bagian) => (bagian.charAt(0).toUpperCase() + bagian.slice(1)))
     .join("");
+}
+
+// Jabatan + bidang + sub bidang digabung sebaris single-space untuk baris
+// header TTD (tanpa enter).
+function gabungJabatan(ttd: PdfTtd): string {
+  const jab = ttd.jabatan.trim().replace(/\s+/g, " ");
+  const bid = (ttd.unit[0] ?? "").trim().replace(/\s+/g, " ");
+  const sub = (ttd.unit[1] ?? "").trim().replace(/\s+/g, " ");
+  return [jab, bid, sub].filter((b) => b.length > 0).join(" ");
 }
 
 function potongTtd(ttd: PdfTtd[], ukuran = 3): PdfTtd[][] {
@@ -238,18 +247,23 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
               <View style={styles.tabelWrap}>
                 <View style={styles.tabelHead}>
                   {laporan.kolom.map((label, colIndex) => (
-                    <Text
+                    <View
                       key={colIndex}
                       style={[
-                        styles.selHead,
+                        styles.selHeadBox,
                         { flex: 1 },
                         colIndex === laporan.kolom.length - 1
                           ? { borderRightWidth: 0 }
                           : undefined,
                       ]}
                     >
-                      {label}
-                    </Text>
+                      <Text
+                        style={styles.selHead}
+                        hyphenationCallback={(kata) => [kata]}
+                      >
+                        {label}
+                      </Text>
+                    </View>
                   ))}
                 </View>
                 {laporan.baris.map((cells, index) => (
@@ -316,9 +330,7 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
                   <View key={colIdx} style={styles.ttdKolom}>
                     <View style={styles.ttdKepala}>
                       <Text style={styles.ttdPeran}>{ttd.peran.trim() || "\u00A0"}</Text>
-                      <Text style={styles.ttdJabatan}>{ttd.jabatan.trim() || "\u00A0"}</Text>
-                      <Text style={styles.ttdUnit}>{ttd.unit[0] || "\u00A0"}</Text>
-                      <Text style={styles.ttdUnit}>{ttd.unit[1] || "\u00A0"}</Text>
+                      <Text style={styles.ttdJabatan}>{gabungJabatan(ttd) || "\u00A0"}</Text>
                     </View>
                     {ttd.gambarUrl ? (
                       // eslint-disable-next-line jsx-a11y/alt-text -- Image react-pdf tidak punya prop alt
