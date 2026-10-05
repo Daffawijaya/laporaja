@@ -46,6 +46,16 @@ export default async function LaporanPage({
       getTugasUser(supabase, user.id, profile.bidang_id, periode),
       getStatusReview(supabase, user.id, periode),
     ]);
+    // Tanda revisi per baris dari admin (tabel belum dimigrasi = kosong).
+    const barisIds = tugas.flatMap((item) => item.baris.map((row) => row.id));
+    const revisiAwal: Record<string, string> = {};
+    if (barisIds.length > 0) {
+      const { data: revisiRows } = await supabase
+        .from("revisi_baris")
+        .select("baris_id, catatan")
+        .in("baris_id", barisIds);
+      for (const row of revisiRows ?? []) revisiAwal[row.baris_id] = row.catatan;
+    }
     return (
       <div className="w-full">
         <div className="mb-3 flex items-center gap-3">
@@ -72,7 +82,7 @@ export default async function LaporanPage({
             description="Belum ada section untuk bidangmu. Hubungi admin bila seharusnya ada."
           />
         ) : (
-          <LaporanTambahanSection userId={user.id} tugas={tugas} periode={periode} statusAwal={statusAwal} />
+          <LaporanTambahanSection userId={user.id} tugas={tugas} periode={periode} statusAwal={statusAwal} revisiAwal={revisiAwal} />
         )}
       </div>
     );

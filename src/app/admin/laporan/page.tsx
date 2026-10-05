@@ -183,6 +183,16 @@ export default async function AdminLaporanPage({
   }
 
   const tugas = await getTugasUser(supabase, selected.id, selected.bidang_id, { tahun, bulan });
+  // Tanda revisi per baris yang sedang aktif (tabel belum dimigrasi = kosong).
+  const barisIds = tugas.flatMap((item) => item.baris.map((row) => row.id));
+  const revisiAwal: Record<string, string> = {};
+  if (barisIds.length > 0) {
+    const { data: revisiRows } = await supabase
+      .from("revisi_baris")
+      .select("baris_id, catatan")
+      .in("baris_id", barisIds);
+    for (const row of revisiRows ?? []) revisiAwal[row.baris_id] = row.catatan;
+  }
 
   // Kembali kontekstual: dari /admin/users (?user → bulan → isian) kembali
   // ke daftar bulan user itu; selain itu kembali ke daftar pengguna bulan itu.
@@ -233,7 +243,7 @@ export default async function AdminLaporanPage({
             </Button>
           </div>
         </div>
-        <AdminIsianView tugas={tugas} />
+        <AdminIsianView tugas={tugas} revisiAwal={revisiAwal} />
       </div>
     </div>
   );

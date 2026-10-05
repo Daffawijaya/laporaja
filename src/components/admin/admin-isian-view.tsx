@@ -4,6 +4,7 @@ import { formatTanggalPanjang } from "@/components/laporan/types";
 import { GambarNilaiTampil } from "@/components/laporan/gambar-nilai";
 import { parseGambarNilai } from "@/lib/laporan-tambahan/queries";
 import type { TugasLaporan } from "@/lib/laporan-tambahan/queries";
+import { RevisiBarisButton } from "@/components/admin/revisi-baris-button";
 
 // Nilai tanggal (YYYY-MM-DD) ditampilkan sebagai "hari, tanggal bulan tahun".
 function formatSel(tipe: string, raw: string): string {
@@ -18,8 +19,16 @@ function formatSel(tipe: string, raw: string): string {
   }
 }
 
-// Isian satu user untuk admin: baca-saja (tabel, esai, judul).
-export function AdminIsianView({ tugas }: { tugas: TugasLaporan[] }) {
+// Isian satu user untuk admin: baca-saja (tabel, esai, judul) + tombol
+// Revisi per baris tabel (tanda + catatan revisi per baris).
+export function AdminIsianView({
+  tugas,
+  revisiAwal,
+}: {
+  tugas: TugasLaporan[];
+  /** Petunjuk baris → catatan revisi yang sedang aktif. */
+  revisiAwal: Record<string, string>;
+}) {
   if (tugas.length === 0) {
     return (
       <EmptyState
@@ -72,20 +81,19 @@ export function AdminIsianView({ tugas }: { tugas: TugasLaporan[] }) {
               <table className="w-full min-w-[480px] border-collapse text-xs">
                 <thead>
                   <tr className="text-left text-neutral-500">
-                    <th scope="col" className="w-8 px-2 py-1.5 font-medium">
-                      No
-                    </th>
                     {item.kolom.map((col) => (
                       <th key={col.id} scope="col" className="px-2 py-1.5 font-medium">
                         {col.label}
                       </th>
                     ))}
+                    <th scope="col" className="w-24 px-2 py-1.5">
+                      <span className="sr-only">Aksi</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200/70 dark:divide-white/10">
-                  {item.baris.map((row, index) => (
+                  {item.baris.map((row) => (
                     <tr key={row.id} className="align-top">
-                      <td className="px-2 py-1.5 text-neutral-500">{index + 1}</td>
                     {item.kolom.map((col) => (
                       <td key={col.id} className="px-2 py-1.5 whitespace-pre-wrap">
                         {col.tipe === "image" ? (
@@ -106,6 +114,12 @@ export function AdminIsianView({ tugas }: { tugas: TugasLaporan[] }) {
                         )}
                       </td>
                     ))}
+                      <td className="px-2 py-1.5 text-right">
+                        <RevisiBarisButton
+                          barisId={row.id}
+                          catatanAwal={revisiAwal[row.id] ?? null}
+                        />
+                      </td>
                     </tr>
                   ))}
                 </tbody>

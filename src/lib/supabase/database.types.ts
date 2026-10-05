@@ -139,6 +139,14 @@ export type LaporanTambahanNilaiRow = {
   nilai: string;
 };
 
+/** Baris yang ditandai perlu revisi (ada baris = perlu revisi). */
+export type RevisiBarisRow = {
+  baris_id: string;
+  catatan: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SectionKode = "kegiatan" | "rekomendasi" | "info" | "indikator";
 
 export type LaporanSectionRow = {
@@ -265,6 +273,13 @@ export type Database = {
         Insert: Pick<LaporanTambahanNilaiRow, "baris_id" | "kolom_id"> &
           Partial<Pick<LaporanTambahanNilaiRow, "nilai">>;
         Update: Partial<Pick<LaporanTambahanNilaiRow, "nilai">>;
+        Relationships: [];
+      };
+      revisi_baris: {
+        Row: RevisiBarisRow;
+        Insert: Pick<RevisiBarisRow, "baris_id"> &
+          Partial<Pick<RevisiBarisRow, "catatan" | "created_at" | "updated_at">>;
+        Update: Partial<Pick<RevisiBarisRow, "catatan">>;
         Relationships: [];
       };
       laporan_section: {

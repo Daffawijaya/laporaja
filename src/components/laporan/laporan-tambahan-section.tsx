@@ -594,11 +594,13 @@ function TabelIsianCard({
   item,
   periode,
   terkunci,
+  revisi = {},
 }: {
   userId: string;
   item: TugasLaporan;
   periode: Periode;
   terkunci: boolean;
+  revisi?: Record<string, string>;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -967,8 +969,9 @@ function TabelIsianCard({
           </thead>
           <tbody>
             <AnimatePresence initial={false}>
-            {barisOpt.map((row) =>
-              !terkunci && editId === row.id ? (
+            {barisOpt.map((row) => {
+              const note = revisi[row.id];
+              return !terkunci && editId === row.id ? (
                 <motion.tr
                   key={row.id}
                   initial={{ opacity: 0, y: -10 }}
@@ -1019,8 +1022,8 @@ function TabelIsianCard({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: durasi, ease: [0.32, 0.72, 0, 1] }}
-                  className="border-b border-neutral-200/70 align-middle dark:border-white/10">
-                  {item.kolom.map((col) => (
+                  className={`border-b border-neutral-200/70 align-middle dark:border-white/10${note ? " bg-amber-50/70 dark:bg-amber-950/20" : ""}`}>
+                  {item.kolom.map((col, ci) => (
                     <td key={col.id} className="px-1 py-3 align-middle whitespace-pre-wrap">
                       {col.tipe === "image" ? (
                         (() => {
@@ -1037,6 +1040,11 @@ function TabelIsianCard({
                       ) : (
                         formatNilai(col, row.nilai[col.id] ?? "")
                       )}
+                      {ci === 0 && note ? (
+                        <p className="mt-1 text-[11px] font-medium whitespace-pre-wrap text-amber-700 dark:text-amber-300">
+                          Perlu revisi: {note}
+                        </p>
+                      ) : null}
                     </td>
                   ))}
                   <td className="px-1 py-3 align-middle">
@@ -1064,8 +1072,8 @@ function TabelIsianCard({
                     )}
                   </td>
                 </motion.tr>
-              )
-            )}
+              );
+            })}
             </AnimatePresence>
             <tr aria-hidden="true" className="border-0">
               <td colSpan={item.kolom.length + 1} className="border-0 p-0 pt-2" />
@@ -1396,12 +1404,15 @@ export function LaporanTambahanSection({
   tugas,
   periode,
   statusAwal,
+  revisiAwal = {},
   className,
 }: {
   userId: string;
   tugas: TugasLaporan[];
   periode: Periode;
   statusAwal: MonthlyReviewStatus;
+  /** Petunjuk baris → catatan revisi admin yang sedang aktif. */
+  revisiAwal?: Record<string, string>;
   className?: string;
 }) {
   const [status, setStatus] = useState<MonthlyReviewStatus>(statusAwal);
@@ -1432,7 +1443,7 @@ export function LaporanTambahanSection({
         if (item.format === "esai") {
           return <EsaiIsian key={item.id} userId={userId} item={item} periode={periode} terkunci={terkunci} />;
         }
-        return <TabelIsianCard key={item.id} userId={userId} item={item} periode={periode} terkunci={terkunci} />;
+        return <TabelIsianCard key={item.id} userId={userId} item={item} periode={periode} terkunci={terkunci} revisi={revisiAwal} />;
       })}
       <TombolStatusLaporan
         userId={userId}
