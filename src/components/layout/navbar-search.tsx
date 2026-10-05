@@ -337,6 +337,9 @@ export function NavbarSearch({
   function close() {
     setOpen(false);
     setShown(false);
+    // Mode lokal (mis. /anda): tidak ada daftar yang difilter, jadi ketikan
+    // ikut dibuang saat panel ditutup supaya search kembali kosong.
+    if (!syncUrl) setQ("");
     window.clearTimeout(closeTimer.current);
     closeTimer.current = window.setTimeout(() => setMounted(false), EXIT_MS);
   }
@@ -360,12 +363,17 @@ export function NavbarSearch({
   // ala codebase). Mode syncUrl tetap mengandalkan sinkron urlQ di atas;
   // mode lokal dibersihkan manual karena tidak membaca URL.
   const [prevPath, setPrevPath] = React.useState(pathname);
-  if (prevPath !== pathname) {
+  const [prevSync, setPrevSync] = React.useState(syncUrl);
+  if (prevPath !== pathname || prevSync !== syncUrl) {
     setPrevPath(pathname);
+    setPrevSync(syncUrl);
     setOpen(false);
     setShown(false);
     setMounted(false);
-    if (!syncUrl) setQ("");
+    // Selalu kosongkan: pindah ke halaman tanpa daftar (syncUrl mati,
+    // mis. daftar → detail di pathname yang sama) tidak boleh membawa
+    // sisa ketikan seperti "superadmin".
+    setQ("");
   }
 
   // Klik di luar input + panel → tutup.

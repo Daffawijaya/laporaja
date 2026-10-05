@@ -116,7 +116,9 @@ function gambarDariSnap(snap: string): string[] {
   }
 }
 
-// Saran isian Peran (naskah dinas): dipakai kartu manual + kartu otomatis.
+// Dasar input kartu TTD: abu solid #ececec opacity penuh (bukan surface).
+const TTD_INPUT_BG =
+  "bg-[#ececec] disabled:bg-[#ececec] disabled:opacity-100 dark:bg-white/[0.075] dark:disabled:bg-white/[0.075]";
 const SARAN_PERAN = [
   "Mengetahui,",
   "Menyetujui,",
@@ -495,7 +497,7 @@ function TtdGambarBox({
             setSeret(false);
             if (!sibuk) void pilihBerkas(event.dataTransfer.files?.[0]);
           }}
-          className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed px-4 py-5 text-center transition-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/15 ${
+          className={`flex min-h-32 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed px-4 py-5 text-center transition-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/15 ${
             seret
               ? "border-accent bg-accent/10"
               : "border-neutral-300 bg-black/[0.03] hover:border-neutral-400 hover:bg-black/[0.06] dark:border-white/15 dark:bg-white/[0.04] dark:hover:bg-white/[0.08]"
@@ -571,7 +573,7 @@ function BingkaiKartuTtd({
       dragControls={controls}
       className="min-w-0"
     >
-      <div className="relative flex h-full flex-col gap-3 rounded-2xl bg-black/[0.03] p-3 dark:bg-white/[0.04]">
+      <div className="relative flex h-full flex-col gap-3 rounded-2xl bg-[#fafbfb] p-3 dark:bg-white/[0.04]">
         <div className="relative flex items-center justify-center">
           <button
             type="button"
@@ -593,7 +595,7 @@ function BingkaiKartuTtd({
             <GripHorizontal aria-hidden="true" className="size-5" />
           </button>
           {aksiKanan ? (
-            <span className="absolute top-1/2 right-0 -translate-y-1/2">{aksiKanan}</span>
+            <span className="absolute top-1/2 -right-2 -translate-y-1/2">{aksiKanan}</span>
           ) : null}
         </div>
         {children}
@@ -843,6 +845,7 @@ export function TandaTanganEditor({
             disabled={saving}
             list={`ttd-peran-saran-${item.key}`}
             autoComplete="off"
+            className={TTD_INPUT_BG}
           />
           <datalist id={`ttd-peran-saran-${item.key}`}>
             {SARAN_PERAN.map((saran) => (
@@ -858,6 +861,7 @@ export function TandaTanganEditor({
             onChange={(event) => patch(item.key, { jabatan: event.target.value })}
             placeholder="Jabatan"
             disabled={saving}
+            className={TTD_INPUT_BG}
           />
         </div>
         <TtdGambarBox
@@ -874,6 +878,7 @@ export function TandaTanganEditor({
             onChange={(event) => patch(item.key, { nama: event.target.value })}
             placeholder="Nama"
             disabled={saving}
+            className={TTD_INPUT_BG}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -884,6 +889,7 @@ export function TandaTanganEditor({
             onChange={(event) => patch(item.key, { pangkat: event.target.value })}
             placeholder="Pangkat"
             disabled={saving}
+            className={TTD_INPUT_BG}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -894,6 +900,7 @@ export function TandaTanganEditor({
             onChange={(event) => patch(item.key, { nip: event.target.value })}
             placeholder="NIP"
             disabled={saving}
+            className={TTD_INPUT_BG}
           />
         </div>
       </>
@@ -917,6 +924,7 @@ export function TandaTanganEditor({
           disabled={saving}
           list="ttd-peran-otomatis-saran"
           autoComplete="off"
+          className={TTD_INPUT_BG}
         />
         <datalist id="ttd-peran-otomatis-saran">
           {SARAN_PERAN.map((saran) => (
@@ -931,9 +939,10 @@ export function TandaTanganEditor({
           value=""
           placeholder="Jabatan (otomatis)"
           disabled
+          className={TTD_INPUT_BG}
         />
       </div>
-      <div className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-neutral-300 bg-black/[0.03] px-4 py-5 text-center dark:border-white/15 dark:bg-white/[0.04]">
+      <div className="flex min-h-32 flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-neutral-300 bg-black/[0.03] px-4 py-5 text-center dark:border-white/15 dark:bg-white/[0.04]">
         <span className="text-xs font-medium">Gambar terkunci</span>
         <span className="text-[11px] text-neutral-500">
           Terisi otomatis dari tanda tangan di akun masing-masing user.
@@ -946,6 +955,7 @@ export function TandaTanganEditor({
           value=""
           placeholder="Nama (otomatis)"
           disabled
+          className={TTD_INPUT_BG}
         />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -955,6 +965,7 @@ export function TandaTanganEditor({
           value=""
           placeholder="Pangkat (otomatis)"
           disabled
+          className={TTD_INPUT_BG}
         />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -964,6 +975,7 @@ export function TandaTanganEditor({
           value=""
           placeholder="NIP (otomatis)"
           disabled
+          className={TTD_INPUT_BG}
         />
       </div>
     </>
