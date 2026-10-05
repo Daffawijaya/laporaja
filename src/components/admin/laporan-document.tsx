@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   metaRow: { flexDirection: "row", marginBottom: 3 },
-  metaLabel: { width: 80, fontSize: 10, color: "#6e6e73" },
+  metaLabel: { width: 80, fontSize: 10, color: "#000" },
   metaValue: { fontSize: 11, flex: 1 },
   subItem: { fontSize: 11, marginLeft: 80, marginBottom: 1 },
   divider: { borderBottomWidth: 1, borderBottomColor: "#e5e5ea", marginVertical: 12 },
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#000",
   },
   gambar: { width: 140, marginBottom: 4 },
-  empty: { fontSize: 11, color: "#6e6e73", marginTop: 8 },
+  empty: { fontSize: 11, color: "#000", marginTop: 8 },
   ttdWrap: { marginTop: 20 },
   ttdBaris: { flexDirection: "row", marginBottom: 8 },
   ttdKolom: { flex: 1, textAlign: "center", paddingHorizontal: 6 },
@@ -101,14 +101,14 @@ const styles = StyleSheet.create({
   ttdGambar: { width: 90, height: 70, alignSelf: "center", marginVertical: 6, objectFit: "contain" },
   ttdSpasiGambar: { height: 70, marginVertical: 6 },
   ttdNama: { fontSize: 10, fontWeight: "bold", textDecoration: "underline" },
-  ttdMeta: { fontSize: 9, color: "#6e6e73" },
+  ttdMeta: { fontSize: 9, color: "#000" },
   footer: {
     position: "absolute",
     bottom: 24,
     left: 44,
     right: 44,
     fontSize: 9,
-    color: "#6e6e73",
+    color: "#000",
     textAlign: "center",
   },
 });
@@ -194,17 +194,12 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
         )}
 
         {data.tambahan.map((laporan) => (
-          <View
-            key={laporan.judul}
-            break={
-              laporan.format === "tabel" || laporan.format === "indikator"
-                ? laporan.baris.length > 6
-                : false
-            }
-          >
+          // Tanpa break: tabel panjang mengalir mengisi halaman lalu lanjut
+          // di halaman berikut; tiap baris dijaga utuh via wrap={false}.
+          <View key={laporan.judul}>
             <Text style={styles.tambahanJudul}>{kapitalAwalKata(laporan.judul)}</Text>
             {laporan.deskripsi ? (
-              <Text style={[styles.paragraph, { color: "#6e6e73" }]}>{laporan.deskripsi}</Text>
+              <Text style={[styles.paragraph, { color: "#000" }]}>{laporan.deskripsi}</Text>
             ) : null}
             {laporan.format === "judul" ? null : laporan.format === "esai" ? (
               laporan.kolom.length <= 1 ? (
@@ -244,7 +239,7 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
                   ))}
                 </View>
                 {laporan.baris.map((cells, index) => (
-                  <View key={index} style={styles.tabelRow}>
+                  <View key={index} style={styles.tabelRow} wrap={false}>
                     {cells.map((cell, colIndex) =>
                       laporan.kolomTipe[colIndex] === "image" ? (
                         <View
@@ -291,7 +286,8 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
         ))}
 
         {data.ttd.length > 0 ? (
-          <View style={styles.ttdWrap}>
+          // Blok tanda tangan selalu utuh satu halaman (tidak terbelah).
+          <View style={styles.ttdWrap} wrap={false}>
             {potongTtd(data.ttd).map((baris, barisIdx) => (
               <View key={barisIdx} style={styles.ttdBaris}>
                 {baris.map((ttd, colIdx) => (

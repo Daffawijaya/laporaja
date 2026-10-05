@@ -23,9 +23,9 @@ import {
   GALAT_FORMAT_GAMBAR,
   MAX_IMAGE_BYTES,
   TEKS_FORMAT_GAMBAR,
-  getSignedImageUrl,
   isGambarDidukung,
   removeGambarRefs,
+  resolveGambarUrl,
   uploadKegiatanImage,
 } from "@/lib/supabase/storage";
 import { formatTanggalPanjang } from "@/components/laporan/types";
@@ -219,10 +219,12 @@ function SelGambar({
     let hidup = true;
     if (!path) return;
     const supabase = createClient();
-    void getSignedImageUrl(supabase, path).then((signed) => {
-      if (!hidup) return;
-      setUrl(signed);
-      // Gambar server tiba = pratinjau lokal tak diperlukan lagi.
+    // resolveGambarUrl: Drive via proxy, path lawas via signed URL.
+    // Pratinjau lokal dipertahankan sampai URL server benar-benar tiba
+    // (null = jangan buang pratinjau, jangan nyangkut di Memuat).
+    void resolveGambarUrl(supabase, path).then((resolved) => {
+      if (!hidup || !resolved) return;
+      setUrl(resolved);
       buangPratinjau();
     });
     return () => {
@@ -341,9 +343,10 @@ function SelGambar({
               ) : null}
             </span>
           ) : (
-            <span className="flex h-16 w-24 shrink-0 items-center justify-center rounded-xl bg-black/[0.075] text-[11px] text-neutral-500 dark:bg-white/10">
-              Memuat…
-            </span>
+            <span
+              aria-hidden="true"
+              className="h-16 w-24 shrink-0 rounded-xl bg-black/[0.075] dark:bg-white/10"
+            />
           )}
           <span className="flex min-w-0 flex-1 flex-col gap-1.5">
             <span className="flex items-center gap-1.5 text-xs font-medium">
