@@ -5,14 +5,44 @@ import { createClient } from "@/lib/supabase/server";
 import { downloadDriveFile } from "@/lib/drive/client";
 import { getSignedImageUrl } from "@/lib/supabase/storage";
 import { getTugasUser, parseGambarNilai } from "@/lib/laporan-tambahan/queries";
-import { LaporanDocument, type PdfTambahan } from "@/components/admin/laporan-document";
+import {
+  LaporanDocument,
+  type PdfTambahan,
+  type PdfTtd,
+} from "@/components/admin/laporan-document";
 import { formatTanggalPanjang } from "@/components/laporan/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// Export PDF hanya untuk superadmin: seluruh isian section satu user
-// (tanpa bulan). Dipanggil dari tombol Export PDF di /admin/laporan.
+interface TtdMentah {
+  peran: string;
+  nama: string;
+  jabatan: string;
+  pangkat: string;
+  nip: string;
+  gambar: string;
+}
+
+function normalisasiTtd(item: unknown): TtdMentah {
+  const row = (typeof item === "object" && item !== null ? item : {}) as Record<
+    string,
+    unknown
+  >;
+  const teks = (nilai: unknown) => (typeof nilai === "string" ? nilai : "");
+  return {
+    peran: teks(row.peran),
+    nama: teks(row.nama),
+    jabatan: teks(row.jabatan),
+    pangkat: teks(row.pangkat),
+    nip: teks(row.nip),
+    gambar: teks(row.gambar),
+  };
+}
+
+// Export PDF hanya untuk superadmin: susunannya menyamai /admin/section —
+// kartu Info di atas, section mengikuti urutan builder, blok tanda tangan
+// di bawah. Dipanggil dari tombol Pratinjau/Export di /admin/laporan.
 export async function GET(request: Request) {
   const { user, profile } = await getCurrentProfile();
   if (!user || !profile || profile.role !== "superadmin") {
@@ -39,26 +69,23 @@ export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: owner } = await supabase
     .from("profiles")
-    .select("username, nama, bidang_id")
+    .select("username, nama, bidang_id, ttd")
     .eq("id", userId)
     .maybeSingle();
   if (!owner) {
     return Response.json({ message: "User tidak ditemukan." }, { status: 404 });
   }
 
-  let bidangNama: string | null = null;
-  if (owner.bidang_id) {
-    const { data: bidang } = await supabase
-      .from("bidang")
-      .select("nama")
-      .eq("id", owner.bidang_id)
-      .maybeSingle();
-    bidangNama = bidang?.nama ?? null;
-  }
-
-  const [subsResult, pengaturanResult, tugas] = await Promise.all([
-    supabase.from("user_sub_bidang").select("nama").eq("user_id", userId).order("nama"),
-    supabase.from("pengaturan").select("nilai").eq("kunci", "unit_kerja").maybeSingle(),
+  const KUNCI_PENGATURAN = [
+    "unit_kerja",
+    "info_judul",
+    "jabatan_awalan",
+    "ttd_daftar",
+    "ttd_user_peran",
+    "ttd_user_posisi",
+  ];
+  const [pengaturanResult, tugas] = await Promise.all([
+    supabase.from("pengaturan").select("kunci, nilai").in("kunci", KUNCI_PENGATURAN),
     getTugasUser(supabase, userId, owner.bidang_id, periode).catch(() => null),
   ]);
   if (!tugas) {
@@ -67,6 +94,39 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
+  const pengaturan = new Map(
+    (pengaturanResult.data ?? []).map((row) => [row.kunci, row.nilai] as const)
+  );
+  const unitKerja = pengaturan.get("unit_kerja") ?? null;
+  const infoJudul = pengaturan.get("info_judul") ?? null;
+  const jabatanAwalan = pengaturan.get("jabatan_awalan") ?? null;
+  const ttdPeranUser = pengaturan.get("ttd_user_peran") ?? "";
+
+  // Daftar tanda tangan (JSON di pengaturan "ttd_daftar"): rusak = [].
+  let ttdManual: TtdMentah[] = [];
+  try {
+    const mentah: unknown = pengaturan.get("ttd_daftar")
+      ? JSON.parse(pengaturan.get("ttd_daftar") as string)
+      : [];
+    if (Array.isArray(mentah)) {
+      ttdManual = mentah.map(normalisasiTtd).filter(
+        (item) =>
+          item.peran.trim() ||
+          item.nama.trim() ||
+          item.jabatan.trim() ||
+          item.pangkat.trim() ||
+          item.nip.trim() ||
+          item.gambar.trim()
+      );
+    }
+  } catch {
+    ttdManual = [];
+  }
+  // Posisi kartu otomatis pelapor (angka cacah, rusak = paling akhir).
+  const posisiMentah = (pengaturan.get("ttd_user_posisi") ?? "").trim();
+  const posisiAuto = /^\d+$/.test(posisiMentah)
+    ? Math.min(Math.max(0, Number(posisiMentah)), ttdManual.length)
+    : ttdManual.length;
 
   const tambahan: PdfTambahan[] = await Promise.all(
     tugas.map(async (item) => {
@@ -126,14 +186,63 @@ export async function GET(request: Request) {
     })
   );
 
+  // Rangkaian TTD tampil: manual + kartu otomatis pelapor disisipkan di
+  // posisi tersimpan. Gambar Drive dijadikan PNG base64 (TTD WebP
+  // transparan — JPEG merusak latar); path lawas via signed URL.
+  async function resolveTtdGambar(ref: string): Promise<string | null> {
+    const bersih = (ref ?? "").trim();
+    if (!bersih) return null;
+    if (bersih.startsWith("drive:")) {
+      const fileId = bersih.slice("drive:".length).trim();
+      if (!fileId) return null;
+      try {
+        const bytes = await downloadDriveFile(fileId);
+        const png = await sharp(bytes)
+          .resize({ width: 400, withoutEnlargement: true })
+          .png()
+          .toBuffer();
+        return `data:image/png;base64,${png.toString("base64")}`;
+      } catch {
+        return null;
+      }
+    }
+    try {
+      return await getSignedImageUrl(supabase, bersih);
+    } catch {
+      return null;
+    }
+  }
+
+  const urutanTtd: TtdMentah[] = [...ttdManual];
+  urutanTtd.splice(posisiAuto, 0, {
+    peran: ttdPeranUser,
+    nama: owner.nama,
+    jabatan: jabatanAwalan ?? "",
+    pangkat: "",
+    nip: "",
+    gambar: owner.ttd ?? "",
+  });
+  const ttd: PdfTtd[] = await Promise.all(
+    urutanTtd.map(async (item) => ({
+      peran: item.peran,
+      nama: item.nama,
+      jabatan: item.jabatan,
+      pangkat: item.pangkat,
+      nip: item.nip,
+      gambarUrl: await resolveTtdGambar(item.gambar),
+    }))
+  );
+
   const buffer = await renderToBuffer(
     <LaporanDocument
       data={{
+        infoJudul,
+        periode,
         ownerNama: owner.nama,
-        bidangNama,
-        subBidang: (subsResult.data ?? []).map((sub) => sub.nama),
-        unitKerja: pengaturanResult.data?.nilai ?? null,
+        jabatan: jabatanAwalan,
+        unitKerja,
         tambahan,
+        ttd,
       }}
     />
   );

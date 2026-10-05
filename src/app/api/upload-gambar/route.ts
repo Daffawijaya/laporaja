@@ -18,6 +18,9 @@ import {
 // tepi (warna kertas foto HP) supaya bayangan abu ikut hilang. Piksel di
 // antara ambang diramp halus (smoothstep) agar tepi goresan tidak bergerigi.
 async function bersihkanTandaTangan(input: Buffer): Promise<Buffer> {
+  // Tanpa toColorspace (crash "colourspace: parameter space not set" di
+  // sharp Windows): kanal dinormalisasi manual di JS. Sharp mendekode
+  // masukan (abu/CMYK/palet) ke 1-4 kanal sendiri; abu diperluas ke RGBA.
   const { data, info } = await sharp(input)
     .rotate() // mengikuti orientasi kamera HP
     .resize({ width: 800, withoutEnlargement: true })
@@ -26,7 +29,39 @@ async function bersihkanTandaTangan(input: Buffer): Promise<Buffer> {
     .toBuffer({ resolveWithObject: true });
   const W = info.width;
   const H = info.height;
-  const lum = (i: number) => 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+  let rgba: Buffer;
+  if (info.channels === 4) {
+    rgba = data;
+  } else if (info.channels === 2) {
+    // Abu + alpha → RGBA (r = g = b = nilai abu).
+    rgba = Buffer.alloc(W * H * 4);
+    for (let p = 0; p < W * H; p++) {
+      const g = data[p * 2];
+      rgba[p * 4] = g;
+      rgba[p * 4 + 1] = g;
+      rgba[p * 4 + 2] = g;
+      rgba[p * 4 + 3] = data[p * 2 + 1];
+    }
+  } else if (info.channels === 3) {
+    rgba = Buffer.alloc(W * H * 4);
+    for (let p = 0; p < W * H; p++) {
+      rgba[p * 4] = data[p * 3];
+      rgba[p * 4 + 1] = data[p * 3 + 1];
+      rgba[p * 4 + 2] = data[p * 3 + 2];
+      rgba[p * 4 + 3] = 255;
+    }
+  } else if (info.channels === 1) {
+    rgba = Buffer.alloc(W * H * 4);
+    for (let p = 0; p < W * H; p++) {
+      rgba[p * 4] = data[p];
+      rgba[p * 4 + 1] = data[p];
+      rgba[p * 4 + 2] = data[p];
+      rgba[p * 4 + 3] = 255;
+    }
+  } else {
+    throw new Error(`Kanal tak terduga: ${info.channels}`);
+  }
+  const lum = (i: number) => 0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2];
   // Sampel tepi (loncati tiap 4px) → median = perkiraan warna kertas.
   const tepi: number[] = [];
   for (let x = 0; x < W; x += 4) {
@@ -42,12 +77,12 @@ async function bersihkanTandaTangan(input: Buffer): Promise<Buffer> {
   // Di bawah T0 = tinta penuh, di atas T1 = transparan penuh.
   const T1 = Math.min(245, Math.max(120, kertas - 8));
   const T0 = Math.max(30, T1 - 55);
-  const keluar = Buffer.alloc(data.length);
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    const a = data[i + 3] / 255;
+  const keluar = Buffer.alloc(rgba.length);
+  for (let i = 0; i < rgba.length; i += 4) {
+    const r = rgba[i];
+    const g = rgba[i + 1];
+    const b = rgba[i + 2];
+    const a = rgba[i + 3] / 255;
     let tinta = (T1 - lum(i)) / (T1 - T0);
     if (tinta < 0) tinta = 0;
     else if (tinta > 1) tinta = 1;
@@ -162,7 +197,8 @@ export async function POST(req: Request) {
     try {
       const jpeg = await convert({ buffer: inputBuffer, format: "JPEG", quality: 0.92 });
       gambarSiap = Buffer.from(jpeg);
-    } catch {
+    } catch (err) {
+      console.error("upload-gambar: HEIC tidak bisa didekode", err);
       return NextResponse.json(
         { message: "Foto HEIC tidak bisa dibaca. Coba konversi manual ke JPG." },
         { status: 400 }
@@ -176,7 +212,9 @@ export async function POST(req: Request) {
       // Tanda tangan: kertas jadi transparan, tinta jadi pekat kontras.
       webpBuffer = await bersihkanTandaTangan(gambarSiap);
     } else {
-      // Convert ke WebP + resize jika terlalu besar
+      // Convert ke WebP + resize jika terlalu besar (tanpa toColorspace:
+      // crash "colourspace: parameter space not set" di sharp Windows;
+      // libvips menangani konversi ruang warna masukan sendiri).
       webpBuffer = await sharp(gambarSiap)
         .rotate() // mengikuti orientasi kamera HP
         .resize({
@@ -189,11 +227,71 @@ export async function POST(req: Request) {
         })
         .toBuffer();
     }
-  } catch {
-    return NextResponse.json(
-      { message: "Gambar gagal diproses (mungkin rusak). Coba file lain." },
-      { status: 400 }
-    );
+  } catch (err) {
+    let meta = "";
+    try {
+      const m = await sharp(gambarSiap).metadata();
+      meta = JSON.stringify({
+        format: m.format,
+        space: m.space,
+        channels: m.channels,
+        width: m.width,
+        height: m.height,
+        icc: !!m.icc,
+      });
+    } catch {
+      meta = "metadata gagal dibaca";
+    }
+    console.error("upload-gambar: sharp gagal memproses", formatAsli, meta, err);
+    try {
+      const libvips =
+        typeof (sharp as unknown as { libvipsVersion?: () => string }).libvipsVersion ===
+        "function"
+          ? (sharp as unknown as { libvipsVersion: () => string }).libvipsVersion()
+          : "?";
+      console.error("upload-gambar: libvips", libvips, "bytes", gambarSiap.length);
+    } catch {
+      // Diabaikan: logging saja.
+    }
+    // Dev saja: simpan bytes persis yang dilihat route untuk post-mortem
+    // (diabaikan di production). Maksimal 5 berkas terakhir.
+    if (process.env.NODE_ENV !== "production") {
+      try {
+        const fs = await import("node:fs");
+        const os = await import("node:os");
+        const dir = `${os.tmpdir()}/laporaja-upload-debug`;
+        fs.mkdirSync(dir, { recursive: true });
+        for (const lama of fs.readdirSync(dir).sort().slice(0, -4)) {
+          fs.rmSync(`${dir}/${lama}`, { force: true });
+        }
+        fs.writeFileSync(`${dir}/${Date.now()}-${formatAsli ?? "takdikenal"}.bin`, gambarSiap);
+        console.error("upload-gambar: bytes disimpan di", dir);
+      } catch {
+        // Diabaikan: logging saja.
+      }
+    }
+    // Berkas bermasalah (chunk aneh): coba sekali lagi dengan peringatan
+    // libvips diabaikan sebelum menyerah.
+    if (jenis !== "ttd") {
+      try {
+        webpBuffer = await sharp(gambarSiap, { failOn: "none" })
+          .rotate()
+          .resize({ width: 1920, withoutEnlargement: true })
+          .webp({ quality: 80, effort: 6 })
+          .toBuffer();
+      } catch (fallbackErr) {
+        console.error("upload-gambar: fallback ikut gagal", formatAsli, meta, fallbackErr);
+        return NextResponse.json(
+          { message: "Gambar gagal diproses (mungkin rusak). Coba file lain." },
+          { status: 400 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        { message: "Gambar gagal diproses (mungkin rusak). Coba file lain." },
+        { status: 400 }
+      );
+    }
   }
 
   const { data: profil } = await supabase

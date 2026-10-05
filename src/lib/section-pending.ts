@@ -32,6 +32,11 @@ function subscribe(listener: () => void): () => void {
   };
 }
 
+/** Ada unggahan/tulis latar yang belum rampung. */
+export function adaPending(): boolean {
+  return pending.size > 0;
+}
+
 export function useSectionPending(id: string): boolean {
   return useSyncExternalStore(
     subscribe,

@@ -15,6 +15,7 @@ import { RefListCard } from "@/components/ui/ref-list-card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { setSimpanStatus } from "@/lib/simpan-status";
+import { adaPending, hapusPending, tambahPending } from "@/lib/section-pending";
 import { createClient } from "@/lib/supabase/client";
 import { SessionExpiredError, isSessionError } from "@/lib/errors";
 import {
@@ -49,6 +50,10 @@ function SelInput({
   uniq,
   lindungiPaths = [],
   periode,
+  tiket,
+  onTiket,
+  onLepasTiket,
+  formGen,
 }: {
   kolom: KolomDef;
   value: string;
@@ -59,6 +64,11 @@ function SelInput({
   lindungiPaths?: string[];
   /** Periode laporan: tujuan upload (folder bulan) + kalender tanggal. */
   periode: Periode;
+  /** Diteruskan ke SelGambar: tiket unggah latar + generasi form. */
+  tiket?: string;
+  onTiket?: (tiket: string, janji: Promise<string | null>) => void;
+  onLepasTiket?: (tiket: string) => void;
+  formGen?: { current: number };
 }) {
   if (kolom.tipe === "image") {
     return (
@@ -70,6 +80,10 @@ function SelInput({
         disabled={disabled}
         uniq={uniq}
         lindungiPaths={lindungiPaths}
+        tiket={tiket ?? `${uniq}:${kolom.id}`}
+        onTiket={onTiket ?? (() => undefined)}
+        onLepasTiket={onLepasTiket ?? (() => undefined)}
+        formGen={formGen}
       />
     );
   }
@@ -144,6 +158,10 @@ function SelGambar({
   disabled,
   uniq,
   lindungiPaths = [],
+  tiket,
+  onTiket,
+  onLepasTiket,
+  formGen,
 }: {
   periode: Periode;
   kolom: KolomDef;
@@ -153,6 +171,15 @@ function SelGambar({
   uniq: string;
   /** Path gambar milik baris lain: jangan hapus dari storage (dipakai bersama). */
   lindungiPaths?: string[];
+  /** Kunci tiket unggah di peta parent (untuk ditempel ke baris baru). */
+  tiket: string;
+  /** Daftarkan janji path hasil unggah (selesai dengan path atau null). */
+  onTiket: (tiket: string, janji: Promise<string | null>) => void;
+  /** Hapus tiket sesudah janji selesai. */
+  onLepasTiket: (tiket: string) => void;
+  /** Generasi form tambah: tulis hasil dibatalkan bila form sudah di-reset
+      (hasil dialihkan ke baris baru via tiket, bukan ke form segar). */
+  formGen?: { current: number };
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -165,18 +192,38 @@ function SelGambar({
     setPrevPath(path);
     setUrl(null);
   }
+  // Pratinjau lokal instan (object URL): tampil segera saat berkas dipilih,
+  // unggah jalan di latar. Dibuang sesudah URL server tiba / gagal / lepas.
+  const pratinjauRef = useRef<string | null>(null);
+  const [pratinjau, setPratinjau] = useState<string | null>(null);
+  function buangPratinjau() {
+    if (pratinjauRef.current) {
+      URL.revokeObjectURL(pratinjauRef.current);
+      pratinjauRef.current = null;
+    }
+    setPratinjau(null);
+  }
+  useEffect(() => {
+    return () => {
+      if (pratinjauRef.current) URL.revokeObjectURL(pratinjauRef.current);
+    };
+  }, []);
   const [mengunggah, setMengunggah] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const fileId = useId();
   const descId = useId();
+  const kunciPending = `unggah:${uniq}:${kolom.id}`;
 
   useEffect(() => {
     let hidup = true;
     if (!path) return;
     const supabase = createClient();
     void getSignedImageUrl(supabase, path).then((signed) => {
-      if (hidup) setUrl(signed);
+      if (!hidup) return;
+      setUrl(signed);
+      // Gambar server tiba = pratinjau lokal tak diperlukan lagi.
+      buangPratinjau();
     });
     return () => {
       hidup = false;
@@ -201,8 +248,27 @@ function SelGambar({
       setGalat(`Ukuran gambar maksimal ${MAX_IMAGE_BYTES / 1024 / 1024} MB.`);
       return;
     }
+    // Optimis ala admin/section: pratinjau langsung tampil, unggah jalan di
+    // latar dengan status di navbar — user bebas lanjut mengisi lain, tombol
+    // Tambah/Simpan tetap bisa diklik (hasil unggah ditempel ke baris baru).
+    buangPratinjau();
+    const lokal = URL.createObjectURL(file);
+    pratinjauRef.current = lokal;
+    setPratinjau(lokal);
     setMengunggah(true);
     setGalat(null);
+    // Janji path untuk parent: bila user menekan Tambah/Simpan selagi
+    // mengunggah, parent mengambil janji ini dan menempelkan hasilnya ke
+    // baris yang baru dibuat (bukan ke form yang sudah di-reset).
+    let selesaiTiket!: (path: string | null) => void;
+    const janjiTiket = new Promise<string | null>((selesai) => {
+      selesaiTiket = selesai;
+    });
+    onTiket(tiket, janjiTiket);
+    const genSaya = formGen?.current;
+    tambahPending(kunciPending);
+    setSimpanStatus("saving");
+    let berhasil = false;
     try {
       // Server mengonversi ke WebP lalu menyimpan ke Drive (folder bulan+user).
       const pathBaru = await uploadKegiatanImage({ jenis: "laporan", periode }, file);
@@ -211,16 +277,31 @@ function SelGambar({
       if (path && path !== pathBaru && !lindungiPaths.includes(path)) {
         await removeGambarRefs([path]);
       }
+      // Form sudah di-reset (Tambah ditekan duluan)? Jangan tulis ke form
+      // segar — path dialihkan ke baris baru lewat tiket di bawah.
+      if (formGen && formGen.current !== genSaya) {
+        selesaiTiket(pathBaru);
+        berhasil = true;
+        return;
+      }
       tulis(pathBaru, deskripsi);
+      selesaiTiket(pathBaru);
+      berhasil = true;
     } catch (err) {
       if (err instanceof SessionExpiredError || isSessionError(err)) {
         toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
         router.replace("/login?expired=1");
+        selesaiTiket(null);
         return;
       }
+      buangPratinjau();
       setGalat(err instanceof Error ? err.message : "Gagal mengunggah gambar. Coba lagi.");
+      selesaiTiket(null);
     } finally {
+      onLepasTiket(tiket);
+      hapusPending(kunciPending);
       setMengunggah(false);
+      setSimpanStatus(adaPending() ? "saving" : berhasil ? "saved" : "error");
     }
   }
 
@@ -243,15 +324,22 @@ function SelGambar({
   const maksMb = MAX_IMAGE_BYTES / 1024 / 1024;
   return (
     <div className="flex min-w-[200px] flex-col gap-2">
-      {path ? (
+      {(path || pratinjau) ? (
         <div className="flex items-center gap-2.5 rounded-2xl bg-black/[0.075] p-2.5 dark:bg-white/[0.075]">
-          {url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={url}
-              alt={deskripsi || kolom.label}
-              className="h-16 w-24 shrink-0 rounded-xl object-cover"
-            />
+          {pratinjau ?? url ? (
+            <span className="relative h-16 w-24 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={pratinjau ?? url ?? ""}
+                alt={deskripsi || kolom.label}
+                className="h-16 w-24 rounded-xl object-cover"
+              />
+              {mengunggah ? (
+                <span className="absolute inset-x-0 bottom-1 mx-auto w-fit rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
+                  Mengunggah…
+                </span>
+              ) : null}
+            </span>
           ) : (
             <span className="flex h-16 w-24 shrink-0 items-center justify-center rounded-xl bg-black/[0.075] text-[11px] text-neutral-500 dark:bg-white/10">
               Memuat…
@@ -691,6 +779,73 @@ function TabelIsianCard({
   const [editSaving, setEditSaving] = useState(false);
   const [hapus, setHapus] = useState<BarisIsi | null>(null);
   const [hapusBusy, setHapusBusy] = useState(false);
+  // Tiket unggah gambar latar per sel: Tambah/Simpan yang ditekan selagi
+  // mengunggah mengambil janji ini dan menempelkan hasilnya ke baris yang
+  // baru dibuat (tombol tetap bisa diklik, desc tetap bisa diketik — yang
+  // menunggu hanya status di navbar).
+  const tiketRef = useRef(new Map<string, Promise<string | null>>());
+  function daftarTiket(tiket: string, janji: Promise<string | null>) {
+    tiketRef.current.set(tiket, janji);
+  }
+  function lepasTiket(tiket: string) {
+    tiketRef.current.delete(tiket);
+  }
+  function ambilTiket(tiket: string): Promise<string | null> | null {
+    const janji = tiketRef.current.get(tiket);
+    if (janji) tiketRef.current.delete(tiket);
+    return janji ?? null;
+  }
+  // Cermin baris terkini untuk tindak lanjut tiket (deskripsi terbaru).
+  const barisRef = useRef<BarisIsi[]>([]);
+  barisRef.current = barisOpt;
+  // Generasi form tambah: naik setiap Tambah ditekan (form di-reset).
+  const formGenRef = useRef(0);
+
+  // Tempelkan hasil unggah ke baris yang sudah tersimpan.
+  async function tindakTiket(barisId: string, colId: string, janji: Promise<string | null>) {
+    const kunci = `lampir:${barisId}:${colId}`;
+    tambahPending(kunci);
+    setSimpanStatus("saving");
+    let berhasil = false;
+    try {
+      const path = await janji;
+      if (!path) {
+        toast.error("Satu gambar gagal diunggah (baris tersimpan tanpa gambar).");
+        return;
+      }
+      const row = barisRef.current.find((r) => r.id === barisId);
+      if (!row) return; // baris keburu dihapus
+      const lama = parseGambarNilai(row.nilai[colId] ?? "");
+      const baru = JSON.stringify({ gambar: path, deskripsi: lama?.deskripsi ?? "" });
+      const sebelum = row.nilai[colId] ?? "";
+      setBarisOpt((prev) =>
+        prev.map((r) => (r.id === barisId ? { ...r, nilai: { ...r.nilai, [colId]: baru } } : r))
+      );
+      const supabase = createClient();
+      const { error } = await supabase.from("laporan_tambahan_nilai").upsert(
+        { baris_id: barisId, kolom_id: colId, nilai: baru },
+        { onConflict: "baris_id,kolom_id" }
+      );
+      if (error) {
+        if (error instanceof SessionExpiredError || isSessionError(error)) {
+          toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
+          router.replace("/login?expired=1");
+          return;
+        }
+        toast.error("Gagal menyimpan gambar ke baris. Coba lagi.");
+        setBarisOpt((prev) =>
+          prev.map((r) =>
+            r.id === barisId ? { ...r, nilai: { ...r.nilai, [colId]: sebelum } } : r
+          )
+        );
+        return;
+      }
+      berhasil = true;
+    } finally {
+      hapusPending(kunci);
+      if (!adaPending()) setSimpanStatus(berhasil ? "saved" : "error");
+    }
+  }
 
   function sesiBerakhir(error: unknown): boolean {
     if (error instanceof SessionExpiredError || isSessionError(error)) {
@@ -724,12 +879,17 @@ function TabelIsianCard({
     // Pasangan sebaris: tiap nama kegiatan + gambarnya jadi satu baris.
     // Pasangan yang keduanya kosong diabaikan.
     let pasangan: { nama: string; gambar: string }[] | null = null;
+    // Indeks pair asal tiap pasangan (untuk menempel tiket unggah).
+    let idxPair: number[] = [];
     if (multiCol) {
       const semua = pairs.map((p) => ({
         nama: p.nama.trim(),
         gambar: imageCol ? p.gambar : "",
       }));
-      pasangan = semua.filter((p) => p.nama.length > 0 || p.gambar.length > 0);
+      idxPair = semua
+        .map((p, i) => (p.nama.length > 0 || p.gambar.length > 0 ? i : -1))
+        .filter((i) => i >= 0);
+      pasangan = idxPair.map((i) => semua[i]);
       if (pasangan.length === 0) {
         setTambahError(`Kolom "${multiCol.label}" wajib diisi.`);
         return;
@@ -766,6 +926,32 @@ function TabelIsianCard({
     // React stabil — tidak ada remount/dobel saat refresh server tiba.
     const tempIds = bersih.map(() => crypto.randomUUID());
     for (const id of tempIds) pendingRef.current.add(id);
+    // Ambil alih tiket unggah yang masih jalan SEKARANG (sinkron): hasilnya
+    // ditempel ke baris baru sesudah insert, bukan ke form yang di-reset.
+    // Generasi form naik supaya tulis susulan tak jadi hantu di form segar.
+    formGenRef.current += 1;
+    const handoff: { barisIdx: number; colId: string; janji: Promise<string | null> }[] = [];
+    if (multiCol && imageCol) {
+      idxPair.forEach((pi, j) => {
+        const janji = ambilTiket(`pair:${pairs[pi].id}`);
+        if (janji) handoff.push({ barisIdx: j, colId: imageCol.id, janji });
+      });
+      for (const col of item.kolom) {
+        if (col.tipe !== "image" || col.id === imageCol.id) continue;
+        const janji = ambilTiket(`tambah:${col.id}`);
+        if (janji) {
+          for (let j = 0; j < tempIds.length; j += 1) {
+            handoff.push({ barisIdx: j, colId: col.id, janji });
+          }
+        }
+      }
+    } else {
+      for (const col of item.kolom) {
+        if (col.tipe !== "image") continue;
+        const janji = ambilTiket(`tambah:${col.id}`);
+        if (janji) handoff.push({ barisIdx: 0, colId: col.id, janji });
+      }
+    }
     const barisOptimis: BarisIsi[] = bersih.map((nilai, i) => ({
       id: tempIds[i],
       bulan: periode.bulan,
@@ -818,6 +1004,8 @@ function TabelIsianCard({
       }
       for (const id of tempIds) pendingRef.current.delete(id);
       berhasil = true;
+      // Tempelkan hasil unggah yang tadi masih jalan ke barisnya masing-masing.
+      for (const h of handoff) void tindakTiket(tempIds[h.barisIdx], h.colId, h.janji);
       router.refresh();
     } finally {
       if (!berhasil) {
@@ -826,7 +1014,7 @@ function TabelIsianCard({
         setBarisOpt((prev) => prev.filter((row) => !tempIds.includes(row.id)));
       }
       setTambahSaving(false);
-      setSimpanStatus(berhasil ? "saved" : "error");
+      setSimpanStatus(adaPending() ? "saving" : berhasil ? "saved" : "error");
     }
   }
 
@@ -867,11 +1055,17 @@ function TabelIsianCard({
         return;
       }
       berhasil = true;
+      // Unggah yang masih jalan di editor ditempel ke baris ini.
+      for (const col of item.kolom) {
+        if (col.tipe !== "image") continue;
+        const janji = ambilTiket(`edit:${rowId}:${col.id}`);
+        if (janji) void tindakTiket(rowId, col.id, janji);
+      }
       router.refresh();
     } finally {
       if (!berhasil) setBarisOpt(prevRows);
       setEditSaving(false);
-      setSimpanStatus(berhasil ? "saved" : "error");
+      setSimpanStatus(adaPending() ? "saving" : berhasil ? "saved" : "error");
     }
   }
 
@@ -993,6 +1187,9 @@ function TabelIsianCard({
                         uniq={`edit-${row.id}`}
                         lindungiPaths={pathsGambar(barisOpt.filter((r) => r.id !== editId))}
                         periode={periode}
+                        tiket={`edit:${row.id}:${col.id}`}
+                        onTiket={daftarTiket}
+                        onLepasTiket={lepasTiket}
                       />
                     </td>
                   ))}
@@ -1128,8 +1325,12 @@ function TabelIsianCard({
                             setTambahError(null);
                           }}
                           disabled={tambahSaving}
-                          uniq={`tambah-gambar-${i}`}
+                          uniq={`tambah-gambar-${pair.id}`}
                           lindungiPaths={pathsGambar(barisOpt)}
+                          tiket={`pair:${pair.id}`}
+                          onTiket={daftarTiket}
+                          onLepasTiket={lepasTiket}
+                          formGen={formGenRef}
                         />
                       ) : i === 0 ? (
                         <SelInput
@@ -1140,6 +1341,9 @@ function TabelIsianCard({
                           uniq="tambah"
                           lindungiPaths={pathsGambar(barisOpt)}
                           periode={periode}
+                          onTiket={daftarTiket}
+                          onLepasTiket={lepasTiket}
+                          formGen={formGenRef}
                         />
                       ) : col.tipe === "date" && tambah[col.id] ? (
                         <span className="block px-3.5 py-2.5 text-sm text-neutral-400">
