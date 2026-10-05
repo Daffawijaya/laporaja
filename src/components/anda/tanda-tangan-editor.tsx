@@ -61,8 +61,8 @@ function snapOf(daftar: TtdItem[]): string {
 }
 
 // Potret draft untuk banding kotor vs tersimpan ala SectionCard: satu JSON
-// { d: isian, p: peran otomatis, u: urutan tampil }.
-function snapTtd(daftar: TtdItem[], peran: string, urutan: string[]): string {
+// { d: isian, p: peran otomatis, u: urutan tampil, t: tempat }.
+function snapTtd(daftar: TtdItem[], peran: string, urutan: string[], tempat: string): string {
   return JSON.stringify({
     d: daftar.map((item) => [
       item.peran.trim(),
@@ -74,6 +74,7 @@ function snapTtd(daftar: TtdItem[], peran: string, urutan: string[]): string {
     ]),
     p: peran.trim(),
     u: urutan,
+    t: tempat.trim(),
   });
 }
 
@@ -94,9 +95,9 @@ function rangkaiUrutan(daftarBaru: TtdDraft[], posisi: number | null): string[] 
   next.splice(pos, 0, ID_OTOMATIS);
   return next;
 }
-// Cap data server untuk selaras ulang (posisi ikut, urutan lokal tidak).
-function sigLuar(awal: TtdItem[], peran: string, posisi: number | null): string {
-  return `${snapOf(awal)}|${peran.trim()}|${posisi ?? ""}`;
+// Cap data server untuk selaras ulang (posisi + tempat ikut, urutan lokal tidak).
+function sigLuar(awal: TtdItem[], peran: string, posisi: number | null, tempat: string): string {
+  return `${snapOf(awal)}|${peran.trim()}|${posisi ?? ""}|${tempat.trim()}`;
 }
 
 // Daftar path gambar dari sebuah snap (untuk bersih-bersih yatim).
@@ -610,16 +611,20 @@ function BingkaiKartuTtd({
 // ditambah banyak dan digeser urutannya (termasuk kartu otomatis); bebas
 // diisi sebagian — tanpa validasi wajib. Kartu otomatis = user pelapor (identitas +
 // gambar dari akun masing-masing user, hanya Peran yang diatur di sini via
-// kunci "ttd_user_peran", posisinya via "ttd_user_posisi").
+// kunci "ttd_user_peran", posisinya via "ttd_user_posisi", tempat
+// ditandatangani via "ttd_tempat").
 export function TandaTanganEditor({
   daftarAwal,
   peranUserAwal = "",
   posisiUserAwal = null,
+  tempatAwal = "",
 }: {
   daftarAwal: TtdItem[];
   peranUserAwal?: string;
   /** Posisi kartu otomatis di rangkaian (null = paling akhir). */
   posisiUserAwal?: number | null;
+  /** Tempat ditandatangani (mis. "Makassar"). */
+  tempatAwal?: string;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -632,17 +637,20 @@ export function TandaTanganEditor({
   const [urutan, setUrutan] = useState<string[]>(awal.urutan);
   // Peran kartu otomatis (user pelapor): tersimpan terpisah di pengaturan.
   const [peranUser, setPeranUser] = useState(peranUserAwal);
+  // Tempat ditandatangani: tersimpan terpisah di pengaturan.
+  const [tempat, setTempat] = useState(tempatAwal);
   const [prevSig, setPrevSig] = useState(() =>
-    sigLuar(daftarAwal, peranUserAwal, posisiUserAwal)
+    sigLuar(daftarAwal, peranUserAwal, posisiUserAwal, tempatAwal)
   );
-  const sig = sigLuar(daftarAwal, peranUserAwal, posisiUserAwal);
+  const sig = sigLuar(daftarAwal, peranUserAwal, posisiUserAwal, tempatAwal);
   // Potret draft untuk banding kotor vs tersimpan ala SectionCard.
-  const snap = snapTtd(daftar, peranUser, urutan);
+  const snap = snapTtd(daftar, peranUser, urutan, tempat);
   const [savedSnap, setSavedSnap] = useState(() =>
     snapTtd(
       daftarAwal.map((item) => normalisasi(item)),
       peranUserAwal,
-      awal.urutan
+      awal.urutan,
+      tempatAwal
     )
   );
   if (prevSig !== sig) {
@@ -692,7 +700,8 @@ export function TandaTanganEditor({
       setDaftar(baru);
       setUrutan(urutanBaru);
       setPeranUser(peranUserAwal);
-      setSavedSnap(snapTtd(baru, peranUserAwal, urutanBaru));
+      setTempat(tempatAwal);
+      setSavedSnap(snapTtd(baru, peranUserAwal, urutanBaru, tempatAwal));
     }
   }
   const [saving, setSaving] = useState(false);
@@ -772,13 +781,14 @@ export function TandaTanganEditor({
       }
       const peranBersih = peranUser.trim();
       const posisiAuto = urutan.indexOf(ID_OTOMATIS);
+      const tempatBersih = tempat.trim();
       setSaving(true);
       setGalat(null);
       setSimpanStatus("saving");
       let berhasil = false;
       try {
         const supabase = createClient();
-        const [hasilDaftar, hasilPeran, hasilPosisi] = await Promise.all([
+        const [hasilDaftar, hasilPeran, hasilPosisi, hasilTempat] = await Promise.all([
           supabase
             .from("pengaturan")
             .upsert({ kunci: "ttd_daftar", nilai: JSON.stringify(semua) }, { onConflict: "kunci" }),
@@ -791,8 +801,11 @@ export function TandaTanganEditor({
               { kunci: "ttd_user_posisi", nilai: String(posisiAuto < 0 ? semua.length : posisiAuto) },
               { onConflict: "kunci" }
             ),
+          supabase
+            .from("pengaturan")
+            .upsert({ kunci: "ttd_tempat", nilai: tempatBersih }, { onConflict: "kunci" }),
         ]);
-        const error = hasilDaftar.error ?? hasilPeran.error ?? hasilPosisi.error;
+        const error = hasilDaftar.error ?? hasilPeran.error ?? hasilPosisi.error ?? hasilTempat.error;
         if (error) {
           if (error instanceof SessionExpiredError || isSessionError(error)) {
             toast.error("Sesi Anda berakhir. Silakan masuk lagi.");
@@ -816,7 +829,7 @@ export function TandaTanganEditor({
         setSimpanStatus(berhasil ? "saved" : "error");
       }
     },
-    [daftar, urutan, peranUser, savedSnap, router, toast]
+    [daftar, urutan, peranUser, tempat, savedSnap, router, toast]
   );
 
   useEffect(() => {
@@ -984,6 +997,21 @@ export function TandaTanganEditor({
 
   return (
     <div className="flex flex-col gap-4 px-1">
+      <div className="flex flex-col gap-1.5">
+        <Input
+          id="ttd-tempat"
+          aria-label="Tempat ditandatangani"
+          value={tempat}
+          onChange={(event) => {
+            setTempat(event.target.value);
+            setGalat(null);
+          }}
+          placeholder="Tempat ditandatangani"
+          disabled={saving}
+          autoComplete="off"
+          className={TTD_INPUT_BG}
+        />
+      </div>
       <Reorder.Group
         // Tanpa axis: otomatis mengikuti tata letak — grid desktop (kartu
         // bersebelahan) jadi bebas kanan-kiri-atas-bawah, kolom tunggal

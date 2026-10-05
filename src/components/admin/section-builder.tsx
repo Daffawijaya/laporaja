@@ -39,10 +39,12 @@ function TtdKartu({
   ttdAwal,
   ttdPeranUserAwal,
   ttdPosisiUserAwal,
+  ttdTempatAwal,
 }: {
   ttdAwal: TtdItem[];
   ttdPeranUserAwal: string;
   ttdPosisiUserAwal: number | null;
+  ttdTempatAwal: string;
 }) {
   const [terbuka, setTerbuka] = useState(true);
   return (
@@ -83,6 +85,7 @@ function TtdKartu({
                 daftarAwal={ttdAwal}
                 peranUserAwal={ttdPeranUserAwal}
                 posisiUserAwal={ttdPosisiUserAwal}
+                tempatAwal={ttdTempatAwal}
               />
             </div>
           </motion.div>
@@ -105,6 +108,7 @@ export function SectionBuilder({
   ttdAwal,
   ttdPeranUserAwal = "",
   ttdPosisiUserAwal = null,
+  ttdTempatAwal = "",
 }: {
   initialItems: BuilderItem[];
   bidangList: { id: string; nama: string }[];
@@ -115,6 +119,7 @@ export function SectionBuilder({
   ttdAwal: TtdItem[];
   ttdPeranUserAwal?: string;
   ttdPosisiUserAwal?: number | null;
+  ttdTempatAwal?: string;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -629,6 +634,7 @@ export function SectionBuilder({
                 ttdAwal={ttdAwal}
                 ttdPeranUserAwal={ttdPeranUserAwal}
                 ttdPosisiUserAwal={ttdPosisiUserAwal}
+                ttdTempatAwal={ttdTempatAwal}
               />
             </div>
           </div>

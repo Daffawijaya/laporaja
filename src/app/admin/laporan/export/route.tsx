@@ -83,10 +83,15 @@ export async function GET(request: Request) {
     "ttd_daftar",
     "ttd_user_peran",
     "ttd_user_posisi",
+    "ttd_tempat",
   ];
-  const [pengaturanResult, tugas] = await Promise.all([
+  const [pengaturanResult, tugas, bidangResult, subsResult] = await Promise.all([
     supabase.from("pengaturan").select("kunci, nilai").in("kunci", KUNCI_PENGATURAN),
     getTugasUser(supabase, userId, owner.bidang_id, periode).catch(() => null),
+    owner.bidang_id
+      ? supabase.from("bidang").select("nama").eq("id", owner.bidang_id).maybeSingle()
+      : Promise.resolve({ data: null as { nama: string } | null }),
+    supabase.from("user_sub_bidang").select("nama").eq("user_id", userId).order("nama"),
   ]);
   if (!tugas) {
     return Response.json(
@@ -101,6 +106,7 @@ export async function GET(request: Request) {
   const infoJudul = pengaturan.get("info_judul") ?? null;
   const jabatanAwalan = pengaturan.get("jabatan_awalan") ?? null;
   const ttdPeranUser = pengaturan.get("ttd_user_peran") ?? "";
+  const ttdTempat = (pengaturan.get("ttd_tempat") ?? "").trim() || null;
 
   // Daftar tanda tangan (JSON di pengaturan "ttd_daftar"): rusak = [].
   let ttdManual: TtdMentah[] = [];
@@ -213,6 +219,13 @@ export async function GET(request: Request) {
     }
   }
 
+  // Baris unit kartu otomatis: hanya nilai (tanpa kata "Bidang"/"Sub Bidang").
+  const bidangNama = (bidangResult.data?.nama ?? "").trim();
+  const subNama = (subsResult.data ?? []).map((sub) => sub.nama.trim()).filter(Boolean);
+  const unitOtomatis: string[] = [];
+  if (bidangNama) unitOtomatis.push(bidangNama);
+  if (subNama.length > 0) unitOtomatis.push(subNama.join(", "));
+
   const urutanTtd: TtdMentah[] = [...ttdManual];
   urutanTtd.splice(posisiAuto, 0, {
     peran: ttdPeranUser,
@@ -223,13 +236,14 @@ export async function GET(request: Request) {
     gambar: owner.ttd ?? "",
   });
   const ttd: PdfTtd[] = await Promise.all(
-    urutanTtd.map(async (item) => ({
+    urutanTtd.map(async (item, index) => ({
       peran: item.peran,
       nama: item.nama,
       jabatan: item.jabatan,
       pangkat: item.pangkat,
       nip: item.nip,
       gambarUrl: await resolveTtdGambar(item.gambar),
+      unit: index === posisiAuto ? unitOtomatis : [],
     }))
   );
 
@@ -243,6 +257,7 @@ export async function GET(request: Request) {
         unitKerja,
         tambahan,
         ttd,
+        tempat: ttdTempat,
       }}
     />
   );

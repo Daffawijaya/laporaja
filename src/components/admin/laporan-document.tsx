@@ -21,6 +21,8 @@ export interface PdfTtd {
   nip: string;
   /** URL/base64 gambar tanda tangan, null bila belum ada. */
   gambarUrl: string | null;
+  /** Baris unit khusus kartu otomatis (mis. ["Bidang X", "Sub Bidang Y"]). */
+  unit: string[];
 }
 
 export interface LaporanPdfData {
@@ -34,6 +36,8 @@ export interface LaporanPdfData {
   tambahan: PdfTambahan[];
   /** TTD terurut tampil (manual + kartu otomatis pelapor). */
   ttd: PdfTtd[];
+  /** Tempat ditandatangani (pengaturan ttd_tempat), null bila kosong. */
+  tempat: string | null;
 }
 
 const styles = StyleSheet.create({
@@ -44,7 +48,7 @@ const styles = StyleSheet.create({
     fontFamily: "Times-Roman",
     fontSize: 11,
     color: "#1d1d1f",
-    lineHeight: 1.5,
+    lineHeight: 1.15,
   },
   title: {
     fontSize: 16,
@@ -91,17 +95,19 @@ const styles = StyleSheet.create({
   gambar: { width: 140, marginBottom: 4 },
   empty: { fontSize: 11, color: "#000", marginTop: 8 },
   ttdWrap: { marginTop: 20 },
+  ttdTempat: { fontSize: 10, textAlign: "right", marginBottom: 4 },
   ttdBaris: { flexDirection: "row", marginBottom: 8 },
   ttdKolom: { flex: 1, textAlign: "center", paddingHorizontal: 6 },
-  // Kepala (peran + jabatan) selalu setinggi 2 baris + area gambar selalu
-  // 70pt (terisi/spacer) supaya semua nama sejajar tingginya.
-  ttdKepala: { minHeight: 30 },
+  // Kepala (peran + jabatan + 2 baris unit) selalu setinggi 4 baris
+  // supaya semua nama sejajar tingginya.
+  ttdKepala: { minHeight: 60 },
   ttdPeran: { fontSize: 10 },
-  ttdJabatan: { fontSize: 10 },
+  ttdJabatan: { fontSize: 10, fontWeight: "bold" },
+  ttdUnit: { fontSize: 10 },
   ttdGambar: { width: 90, height: 70, alignSelf: "center", marginVertical: 6, objectFit: "contain" },
   ttdSpasiGambar: { height: 70, marginVertical: 6 },
   ttdNama: { fontSize: 10, fontWeight: "bold", textDecoration: "underline" },
-  ttdMeta: { fontSize: 9, color: "#000" },
+  ttdMeta: { fontSize: 9, fontWeight: "bold" },
   footer: {
     position: "absolute",
     bottom: 24,
@@ -148,6 +154,14 @@ function potongTtd(ttd: PdfTtd[], ukuran = 3): PdfTtd[][] {
   return baris;
 }
 
+// Tanggal tanda tangan: hari terakhir bulan periode laporan
+// ("30 September 2026"). Null bila tanpa periode.
+function labelTanggalTtd(periode: { tahun: number; bulan: number } | null): string | null {
+  if (!periode || periode.bulan < 1 || periode.bulan > 12) return null;
+  const akhir = new Date(periode.tahun, periode.bulan, 0).getDate();
+  return `${akhir} ${NAMA_BULAN[periode.bulan - 1]} ${periode.tahun}`;
+}
+
 // Sisipkan zero-width space tiap 12 karakter tanpa spasi (mis. NIK) agar
 // teks panjang bisa melipat di dalam sel dan tidak melebar keluar tabel.
 function pecahKataPanjang(teks: string): string {
@@ -155,7 +169,7 @@ function pecahKataPanjang(teks: string): string {
 }
 
 export function LaporanDocument({ data }: { data: LaporanPdfData }) {
-  const judulDokumen = kapitalAwalKata(data.infoJudul?.trim() || "Laporan");
+  const judulDokumen = (data.infoJudul?.trim() || "Laporan").toUpperCase();
   const namaBulan =
     data.periode && data.periode.bulan >= 1 && data.periode.bulan <= 12
       ? NAMA_BULAN[data.periode.bulan - 1]
@@ -288,6 +302,14 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
         {data.ttd.length > 0 ? (
           // Blok tanda tangan selalu utuh satu halaman (tidak terbelah).
           <View style={styles.ttdWrap} wrap={false}>
+            {data.tempat ? (
+              <Text style={styles.ttdTempat}>
+                {(() => {
+                  const tanggal = labelTanggalTtd(data.periode);
+                  return tanggal ? `${data.tempat}, ${tanggal}` : data.tempat;
+                })()}
+              </Text>
+            ) : null}
             {potongTtd(data.ttd).map((baris, barisIdx) => (
               <View key={barisIdx} style={styles.ttdBaris}>
                 {baris.map((ttd, colIdx) => (
@@ -295,6 +317,8 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
                     <View style={styles.ttdKepala}>
                       <Text style={styles.ttdPeran}>{ttd.peran.trim() || "\u00A0"}</Text>
                       <Text style={styles.ttdJabatan}>{ttd.jabatan.trim() || "\u00A0"}</Text>
+                      <Text style={styles.ttdUnit}>{ttd.unit[0] || "\u00A0"}</Text>
+                      <Text style={styles.ttdUnit}>{ttd.unit[1] || "\u00A0"}</Text>
                     </View>
                     {ttd.gambarUrl ? (
                       // eslint-disable-next-line jsx-a11y/alt-text -- Image react-pdf tidak punya prop alt
