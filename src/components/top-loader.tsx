@@ -5,18 +5,24 @@ import { useEffect } from "react";
 import NProgress from "nprogress";
 import NextTopLoader from "nextjs-toploader";
 
+import { useStandalone } from "@/lib/standalone";
+
 // Bilah progres di atas saat loading/perpindahan halaman (pola etamhub:
 // NProgress manual + NextTopLoader), biru aksen aplikasi (#0071e3).
+// Nonaktif di PWA standalone supaya pindah halaman terasa langsung.
 export function TopLoader() {
   const pathname = usePathname();
+  const standalone = useStandalone();
 
   // selesai saat route berubah
   useEffect(() => {
+    if (standalone) return;
     NProgress.done();
-  }, [pathname]);
+  }, [pathname, standalone]);
 
   // saat refresh / pertama buka halaman
   useEffect(() => {
+    if (standalone) return;
     NProgress.start();
 
     const timer = setTimeout(() => {
@@ -24,10 +30,11 @@ export function TopLoader() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [standalone]);
 
   // klik link
   useEffect(() => {
+    if (standalone) return;
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const link = target.closest("a");
@@ -57,7 +64,9 @@ export function TopLoader() {
       document.removeEventListener("click", handleClick);
       window.removeEventListener("popstate", handleBackForward);
     };
-  }, []);
+  }, [standalone]);
+
+  if (standalone) return null;
 
   return (
     <NextTopLoader

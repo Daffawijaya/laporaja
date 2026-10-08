@@ -39,7 +39,7 @@ Larangan: tidak ada gradient biru ke ungu, tidak ada glow, tidak ada orb warna, 
 
 Alasan: keterbacaan dan karakter sistem modern yang netral.
 
-- Font: Geist Sans sebagai `--font-geist-sans`, jatuh kembali ke `-apple-system, SF Pro Text, Segoe UI`.
+- Font: SF Pro Display sebagai `--font-sf-pro-display` (self-host woff2 di `src/app/fonts/` via `next/font/local`), jatuh kembali ke Geist Sans, `-apple-system, Segoe UI`.
 - Hierarki: judul halaman 20px semibold, judul bagian 14px semibold, isi 14px regular, keterangan 12px muted.
 - Tidak ada heading monospace besar. Tidak ada label uppercase dengan tracking lebar.
 - Tidak ada karakter em dash di teks yang ditulis agen. Gunakan koma, titik, atau tanda kurung.

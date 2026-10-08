@@ -16,7 +16,7 @@
   --color-danger: var(--danger);
   --color-danger-hover: var(--danger-hover);
   --color-danger-foreground: var(--danger-foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sf-pro-display);
   --font-mono: var(--font-geist-mono);
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -63,8 +63,8 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont,
-    "SF Pro Text", "Segoe UI", sans-serif;
+  font-family: var(--font-sf-pro-display), var(--font-geist-sans),
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -1068,5 +1068,14 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* PWA standalone: tahan efek karet berantai supaya pull-to-refresh
+   kustom tidak bentrok dengan scroll bawaan. */
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior-y: contain;
   }
 }
