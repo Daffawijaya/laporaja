@@ -150,9 +150,12 @@ export function MobileBottomnav({ role }: { role: Role }) {
         indicator!,
         () => ({
           ...DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
-          glassThickness: 24,
+          // Config dinamis: ketebalan refraksi + kilau diskala oleh
+          // strength (0 = tak terlihat, 1 = penuh) agar kaca bloom-in
+          // dan dissolve-out mulus mengikuti fase morph.
+          glassThickness: 4 + 68 * strength,
           blur: 0,
-          specularOpacity: 0,
+          specularOpacity: 0.7 * strength,
           specularSat: 0,
           tintColor: "255,255,255",
           tintOpacity: 0,
@@ -308,6 +311,7 @@ export function MobileBottomnav({ role }: { role: Role }) {
           indicator!.classList.add("lgt-snapping");
           snapToIndex(active, true);
           indicatorGlass?.rebuild();
+          animateStrength(1, SLIDE_MS);
           trackRefraction();
           endInteraction();
           return;
@@ -321,7 +325,14 @@ export function MobileBottomnav({ role }: { role: Role }) {
       window.cancelAnimationFrame(raf);
       cacheItemRects();
       const tick = () => {
-        indicatorGlass?.rebuild();
+        // Strength berubah → paksa hitung ulang filter walau ukuran
+        // pill sama (mis. tap slot yang sama tanpa geser).
+        if (strength !== builtStrength) {
+          builtStrength = strength;
+          indicatorGlass?.refresh();
+        } else {
+          indicatorGlass?.rebuild();
+        }
         updateTextRefraction();
         raf = window.requestAnimationFrame(tick);
       };
@@ -334,6 +345,31 @@ export function MobileBottomnav({ role }: { role: Role }) {
 
     let textScale = 0;
     let textRaf = 0;
+
+    // Kekuatan refraksi kaca (0 = tak terlihat, 1 = penuh), dianimasikan
+    // dengan smoothstep seperti warp teks agar bloom/dissolve-nya mulus.
+    // getConfig di atas membaca nilai ini tiap rebuild.
+    let strength = 0;
+    let strengthRaf = 0;
+    let builtStrength = -1;
+
+    function animateStrength(target: number, ms: number) {
+      window.cancelAnimationFrame(strengthRaf);
+      const from = strength;
+      if (Math.abs(target - from) < 0.01 || ms <= 0) {
+        strength = target;
+        return;
+      }
+      const t0 = performance.now();
+      const tickS = (t: number) => {
+        const p = Math.min(1, (t - t0) / ms);
+        const e = p * p * (3 - 2 * p);
+        strength = from + (target - from) * e;
+        if (p < 1) strengthRaf = window.requestAnimationFrame(tickS);
+        else strength = target;
+      };
+      strengthRaf = window.requestAnimationFrame(tickS);
+    }
 
     function setTextScale(v: number) {
       textScale = v;
@@ -375,6 +411,7 @@ export function MobileBottomnav({ role }: { role: Role }) {
       setFadeMs(SETTLE_MS);
       fastShrink = false;
       ensureIndicatorGlass();
+      animateStrength(1, SETTLE_MS);
       void indicator!.offsetWidth;
       indicator!.classList.remove("lgt-landing");
       indicator!.classList.remove("lgt-settling");
@@ -398,6 +435,7 @@ export function MobileBottomnav({ role }: { role: Role }) {
           nav!.classList.remove("lgt-engaged");
         }
         indicator!.classList.add("lgt-settling");
+        animateStrength(0, fadeMs);
         animateTextScale(0, fadeMs);
         updateTextRefraction();
       }
@@ -405,6 +443,10 @@ export function MobileBottomnav({ role }: { role: Role }) {
 
     function finalize() {
       fastShrink = false;
+      // Strength sudah 0 di sini (ramp selesai bareng akhir settling)
+      // sehingga node kaca tak terlihat saat dicabut — tanpa pop.
+      strength = 0;
+      window.cancelAnimationFrame(strengthRaf);
       indicator!.classList.remove("lgt-interacting");
       indicator!.classList.remove("lgt-landing");
       indicator!.classList.remove("lgt-snapping");
@@ -538,6 +580,7 @@ export function MobileBottomnav({ role }: { role: Role }) {
       window.clearTimeout(teardownTimer);
       stopTracking();
       window.cancelAnimationFrame(textRaf);
+      window.cancelAnimationFrame(strengthRaf);
       clearTextRefraction();
       indicatorGlass?.destroy();
       apiRef.current = null;

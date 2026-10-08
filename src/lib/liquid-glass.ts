@@ -355,6 +355,9 @@ function updateFilter(
 export interface LiquidGlassHandle {
   rebuild: () => void;
   destroy: () => void;
+  /** Paksa hitung ulang geometri walau ukuran tidak berubah (mis.
+      untuk menerapkan perubahan config dinamis seperti strength). */
+  refresh: () => void;
 }
 
 // Tempel lapisan refraksi + tint ke elemen (cara kerja persis demo).
@@ -463,6 +466,12 @@ export function applyLiquidGlass(
 
   return {
     rebuild,
+    refresh() {
+      lastW = 0;
+      lastH = 0;
+      lastR = 0;
+      rebuild();
+    },
     destroy() {
       window.clearTimeout(timer);
       window.cancelAnimationFrame(fadeRaf);
