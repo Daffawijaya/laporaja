@@ -1,31 +1,12 @@
-/* Liquid glass tab bar — salinan persis gaya navbar atas /lab-glass2
-   (.ios26-nav dkk. dari demo), prefix lgt- agar tidak bentrok CSS lain.
-   Variabel light = :root demo; dark mengikuti class .dark aplikasi. */
+/* Tab bar pill: cangkang flat + indikator morph kaca seperti bottom nav
+   mobile (bukan sistem 720ms lama). Istirahat: pill abu statis di bawah
+   teks. Pindah: pill membesar + jadi kaca transparan, geser, lalu
+   mengecil + cross-fade kembali ke abu. Total 480ms.
+   Alasan animasi: efek perpindahan khas pill ini. */
 
 .lgt-nav {
-  --bg: #e7ebf0;
-  --bg-grad-a: #edf1f6;
-  --bg-grad-b: #d7dde6;
-  --text: #1a1f29;
   --muted: #3d434e;
-  --panel: #e3e8ee;
-  --panel-soft: #dce2eaab;
-  --shadow-light: rgba(255, 255, 255, 0.78);
-  --shadow-dark: rgba(148, 160, 181, 0.36);
-  --line-soft: rgba(123, 138, 161, 0.28);
   --accent: #3b82f6;
-  /* Durasi dasar efek pill (detik). Ubah nilai ini untuk memperlambat/
-     mempercepat seluruh efek — samakan dengan SLIDE_MS & SETTLE_MS di
-     liquid-glass-tabs.tsx.
-     --lgt-slide : geser, susut/membesar, box-shadow, fade-in kaca.
-     --lgt-settle: fallback fade (kaca keluar, teks).
-     --lgt-fade  : fade transparan → abu saat settling. Di-override JS
-                   (setFadeMs) dengan sisa waktu ke akhir slide, jadi abu
-                   sudah final pas di frame terakhir animasi. */
-  --lgt-slide: 0.72s;
-  --lgt-settle: 0.36s;
-  --lgt-fade: 0.36s;
-
   position: relative;
   /* Menyusut mengikuti teks (bukan stretch full-width) agar jarak
      teks ke samping sama dengan jarak teks ke atas. */
@@ -33,40 +14,20 @@
   max-width: 100%;
   height: 44px;
   border-radius: 999px;
-  /* Cangkang luar persis search/lonceng/toggle navbar: putih 85% +
-     border putih solid 100% + shadow lembut (satu lapis saja). */
+  /* Cangkang luar flat: putih 85% + border putih solid + shadow lembut. */
   background-color: rgb(255 255 255 / 0.85);
   border: 1px solid rgb(255 255 255);
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.05);
   z-index: 1;
-  /* Durasi grow/shrink cangkang diatur JS (--lgt-land-ms) agar pengecilan
-     bisa dipotong supaya selesai bareng akhir geser. Fallback --lgt-slide. */
-  transition: transform var(--lgt-land-ms, var(--lgt-slide)) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dark .lgt-nav {
-  --bg: #12151c;
-  --bg-grad-a: #1a1f29;
-  --bg-grad-b: #0f1218;
-  --text: #e8ecf5;
   --muted: #eaedf1;
-  --panel: #191e28;
-  --panel-soft: #1b191f80;
-  --shadow-light: rgba(255, 255, 255, 0.04);
-  --shadow-dark: rgba(0, 0, 0, 0.52);
-  --line-soft: rgba(165, 177, 205, 0.2);
   --accent: #4f8cff;
-
-  /* Dark: warna kartu konten (#1c1c1e, sama .dark .ref-card) di 85% —
-     bukan transparan. Action surface ikut warna card, light mode juga
-     begitu (putih 85% = warna .ref-card). */
+  /* Dark: warna kartu konten (#1c1c1e) di 85% — bukan transparan. */
   background-color: rgb(28 28 30 / 0.85);
   border: 1px solid rgb(255 255 255 / 0.12);
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.42);
-}
-
-.lgt-nav.lgt-engaged {
-  transform: scale(1.02);
 }
 
 .dark .lgt-nav-inner {
@@ -84,11 +45,12 @@
   gap: 6px;
   padding: 4px;
   border-radius: 999px;
-  /* Transparan: bg putih 50% hanya di cangkang luar (satu lapis persis navbar). */
   background-color: transparent;
   box-shadow: none;
 }
 
+/* Pill istirahat: abu statis di bawah teks.
+   Hitam 7.5% di atas putih = 255 × 0.925 ≈ 236 (#ECECEC). */
 .lgt-indicator {
   position: absolute;
   left: 4px;
@@ -96,110 +58,18 @@
   height: 34px;
   width: 120px;
   border-radius: 999px;
-  /* Di bawah teks (lgt-item z:2) agar teks hitam tetap kelihatan.
-     Hitam 7.5% di atas putih = 255 × 0.925 ≈ 236 (#ECECEC). */
   z-index: 1;
   pointer-events: none;
   transform-origin: center center;
   will-change: left, width, transform;
   background: rgb(0 0 0 / 0.075);
-  /* Shadow tab aktif dibuang (inset highlight + drop). */
   box-shadow: none;
   transition:
-    left var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    width var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    transform var(--lgt-land-ms, var(--lgt-slide)) cubic-bezier(0.22, 1, 0.36, 1),
-    background-color var(--lgt-settle) cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.lgt-indicator.lgt-interacting {
-  z-index: 999;
-  transform: scale(1.5);
-  /* Saat animasi/drag: kembali transparan liquid glass seperti semula. */
-  background: rgba(255, 255, 255, 0.16);
-  /* Fade-in abu → transparan mengikuti durasi slide. */
-  transition:
-    left var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    width var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    transform var(--lgt-land-ms, var(--lgt-slide)) cubic-bezier(0.22, 1, 0.36, 1),
-    background-color var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Fase landing: TIDAK lagi set transform — susut terjadi saat lgt-interacting
-   dilepas (base = scale 1), supaya pada klik cepat kelas lgt-interacting bisa
-   ditahan lebih lama (fase membesar selesai dulu) tanpa dilawan rule ini. */
-.lgt-indicator.lgt-landing {
-  z-index: 999;
-  background: rgba(255, 255, 255, 0.16);
-  transition:
-    left var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    width var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    transform var(--lgt-land-ms, var(--lgt-slide)) cubic-bezier(0.22, 1, 0.36, 1),
-    background-color var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Jalur keyboard/state (tanpa pointer): tahan kaca di depan selama snap. */
-.lgt-indicator.lgt-snapping {
-  z-index: 999;
-  background: rgba(255, 255, 255, 0.16);
-  transition:
-    left var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    width var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    transform var(--lgt-land-ms, var(--lgt-slide)) cubic-bezier(0.22, 1, 0.36, 1),
-    background-color var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Lapisan kaca (refraksi) fade mengikuti kelas — scope indikator saja,
-   jangan sentuh .lg-layer milik nav. Base = fade-out cepat (--lgt-settle)
-   agar kelar bareng akhir slide; per-state = fade-in lambat (--lgt-slide). */
-.lgt-indicator .lg-layer {
-  opacity: 0;
-  transition: opacity var(--lgt-settle) cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.lgt-indicator.lgt-interacting .lg-layer,
-.lgt-indicator.lgt-landing .lg-layer,
-.lgt-indicator.lgt-snapping .lg-layer {
-  opacity: 1;
-  transition: opacity var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Fase settling (ditambah JS di tengah slide, ~SETTLE_MS): cross-fade
-   transparan → abu. Abu MULAI di sini, bareng susut + geser yang masih
-   jalan — bukan setelah animasi selesai. Durasi --lgt-fade diset JS =
-   selisih settle ↔ end, jadi abu tepat jadi di frame terakhir (tidak ada
-   fade susulan setelah finalize). Warna target = sama persis dengan base,
-   jadi saat kelas dilepas di finalize tidak ada lompatan.
-   z-index SENGAJA tidak diubah: pil tetap di depan teks selama kaca
-   memudar supaya tidak ada lompatan urutan gambar. */
-.lgt-indicator.lgt-landing.lgt-settling,
-.lgt-indicator.lgt-snapping.lgt-settling {
-  background: rgb(0 0 0 / 0.075);
-  transition:
-    left var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    width var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1),
-    transform var(--lgt-land-ms, var(--lgt-slide)) cubic-bezier(0.22, 1, 0.36, 1),
-    background-color var(--lgt-fade) cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow var(--lgt-slide) cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.lgt-indicator.lgt-landing.lgt-settling .lg-layer,
-.lgt-indicator.lgt-snapping.lgt-settling .lg-layer {
-  opacity: 0;
-  transition: opacity var(--lgt-fade) cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Dark saat interaksi/geser: TRANSPARAN (hanya refraksi kaca yang terlihat),
-   mirror sidebar (.dark .lgs-indicator.* di liquid-glass-sidebar.css).
-   Tanpa ini pill memakai putih 16% sehingga di dark mode terlihat abu. */
-.dark .lgt-indicator.lgt-interacting,
-.dark .lgt-indicator.lgt-landing,
-.dark .lgt-indicator.lgt-snapping {
-  background: transparent;
+    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.48s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Dark = light dibalik: pil putih 5% (terang tipis di atas bg gelap). */
@@ -207,16 +77,55 @@
   background: rgb(255 255 255 / 0.05);
 }
 
-/* Dark saat settling → pil putih 5% juga (cross-fade sama seperti light). */
-.dark .lgt-indicator.lgt-landing.lgt-settling,
-.dark .lgt-indicator.lgt-snapping.lgt-settling {
+/* Fase morph: pill membesar + transparan, kaca refraksi terlihat. */
+.lgt-indicator.lgt-morph {
+  transform: scale(1.15);
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+
+/* Dark saat morph: TRANSPARAN penuh (bukan abu). Putih 16% di atas bg
+   gelap terlihat abu solid dan menghalangi teks yang dilewati. */
+.dark .lgt-indicator.lgt-morph {
+  background: transparent;
+}
+
+/* Fase settling: mengecil + cross-fade kembali ke pill abu. */
+.lgt-indicator.lgt-morph.lgt-settling {
+  background: rgb(0 0 0 / 0.075);
+  transition:
+    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dark .lgt-indicator.lgt-morph.lgt-settling {
   background: rgb(255 255 255 / 0.05);
 }
 
+/* Lapisan kaca refraksi: hanya terlihat selama morph. */
+.lgt-indicator .lg-layer {
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lgt-indicator.lgt-morph .lg-layer {
+  opacity: 1;
+  transition: opacity 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lgt-indicator.lgt-morph.lgt-settling .lg-layer {
+  opacity: 0;
+  transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Saat drag: pill mengikuti pointer langsung (tanpa transisi geser). */
 .lgt-nav-inner.lgt-dragging .lgt-indicator {
   transition:
     transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color var(--lgt-settle) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.3s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -278,17 +187,6 @@
   text-overflow: ellipsis;
 }
 
-/* Salinan refraksi teks: menumpuk persis di atas teks normal (inset 0),
-   selalu ber-filter (kekuatan via animasi scale global). JS mengatur
-   mask-image per-frame: hanya pita tepi pill yang terlihat. */
-.lgt-label-glass {
-  position: absolute;
-  inset: 0;
-  filter: url(#lgt-text-refract);
-  visibility: hidden;
-  pointer-events: none;
-}
-
 /* Wrapper teks agar badge menempel tepat di kanan atas teks. */
 .lgt-textwrap {
   position: relative;
@@ -328,4 +226,11 @@
 .lgt-nav.lgt-dragging,
 .lgt-nav.lgt-dragging .lgt-item {
   cursor: grabbing !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lgt-indicator,
+  .lgt-indicator .lg-layer {
+    transition: none;
+  }
 }
