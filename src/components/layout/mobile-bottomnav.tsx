@@ -84,6 +84,9 @@ const GLASS_FADE_MS = 400;
 const TEXT_SCALE_MAX = 1.5;
 const EDGE_W = 9;
 const EDGE_FEATHER = 9;
+// Pill dibuat lebih lebar dari slot (8px tiap sisi) agar lonjong,
+// bukan bulat penuh. Tinggi pill tidak berubah.
+const PILL_PAD_X = 12;
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -290,7 +293,7 @@ export function MobileBottomnav({ role }: { role: Role }) {
     function snapToIndex(i: number, animate: boolean) {
       if (i < 0 || i >= items.length) return;
       const m = itemMetrics(i);
-      setIndicator(m.left, m.width, animate);
+      setIndicator(m.left - PILL_PAD_X, m.width + PILL_PAD_X * 2, animate);
     }
 
     apiRef.current = {
@@ -670,7 +673,7 @@ export function MobileBottomnav({ role }: { role: Role }) {
                   }}
                   className="lgt-label mgn-label"
                 >
-                  <Icon aria-hidden="true" className="size-6" />
+                  <Icon aria-hidden="true" className="size-5" />
                   <span>{slot.label}</span>
                 </span>
                 {/* Salinan refraksi: hanya terlihat di pita tepi pill. */}
@@ -681,7 +684,7 @@ export function MobileBottomnav({ role }: { role: Role }) {
                   className="lgt-label lgt-label-glass mgn-label"
                   aria-hidden="true"
                 >
-                  <Icon aria-hidden="true" className="size-6" />
+                  <Icon aria-hidden="true" className="size-5" />
                   <span>{slot.label}</span>
                 </span>
               </span>

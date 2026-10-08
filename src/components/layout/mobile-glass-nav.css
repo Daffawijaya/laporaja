@@ -20,7 +20,7 @@
   width: max-content;
   max-width: calc(100dvw - 24px);
   height: auto;
-  padding: 8px;
+  padding: 6px;
   /* Frost Beta 3: susu 72% + blur 20px agar teks terbaca di atas konten. */
   background-color: rgb(255 255 255 / 0.72);
   backdrop-filter: blur(20px) saturate(180%);
@@ -47,9 +47,10 @@
 }
 
 .mgn-nav .lgt-item {
-  width: 64px;
-  min-height: 52px;
-  padding: 6px 4px;
+  width: 56px;
+  min-height: 46px;
+  padding: 5px 2px;
+  font-size: 10px;
   /* Tanpa drag antar slot (tap = pindah): bar boleh jadi awal scroll. */
   touch-action: pan-y;
 }
