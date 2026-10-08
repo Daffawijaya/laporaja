@@ -1,9 +1,11 @@
-/* Nav bawah mobile: cangkang frost Beta 3 + pill morph buatan baru
-   (bukan salinan sidebar/tab). Istirahat: pill abu statis. Pindah:
-   pill membesar + jadi kaca transparan, geser, lalu mengecil +
-   cross-fade kembali ke abu. Total 480ms (lihat MORPH_MS di tsx).
+/* Nav bawah mobile: pill 100% sama dengan filter tab (kelas lgt-* di
+   liquid-glass-tabs.css — timing, kaca, refraksi teks). Berkas ini hanya
+   berisi yang memang beda: posisi mengambang, tata letak slot
+   ikon-teks, cangkang frost (bukan flat) karena mengambang di atas
+   konten — pelajaran Beta 2 vs Beta 3: bar mengambang yang bening
+   menutupi konten dan sulit dibaca.
    Alasan kaca: memisahkan navigasi dari konten tanpa menutup konten.
-   Alasan animasi: efek perpindahan khas bottom nav ini. */
+   Alasan shadow satu tingkat: elevasi di atas konten saat scroll. */
 
 .mgn-nav.lgt-nav {
   position: fixed;
@@ -25,13 +27,18 @@
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgb(255 255 255 / 0.6);
   box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.18);
-  transition: none;
 }
 
 .dark .mgn-nav.lgt-nav {
   background-color: rgb(28 28 30 / 0.72);
   border: 1px solid rgb(255 255 255 / 0.12);
   box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.6);
+}
+
+/* Samakan efek engaged tab (scale 1.02) tanpa melepas posisi tengah —
+   rule tab menimpa transform sehingga translateX(-50%) hilang. */
+.mgn-nav.lgt-nav.lgt-engaged {
+  transform: translateX(-50%) scale(1.02);
 }
 
 .mgn-nav .lgt-nav-inner {
@@ -43,69 +50,19 @@
   width: 64px;
   min-height: 52px;
   padding: 6px 4px;
-  /* Bar boleh jadi awal scroll halaman (tanpa drag antar slot). */
+  /* Tanpa drag antar slot (tap = pindah): bar boleh jadi awal scroll. */
   touch-action: pan-y;
 }
 
-/* Pill istirahat Beta 3: abu statis, selalu di bawah teks. */
 .mgn-nav .lgt-indicator {
   top: 0;
   height: 100%;
-  z-index: 1;
-  background: rgb(0 0 0 / 0.075);
-  box-shadow: none;
-  transform-origin: center center;
-  will-change: left, width, transform;
-  transition:
-    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.dark .mgn-nav .lgt-indicator {
-  background: rgb(255 255 255 / 0.12);
-}
-
-/* Fase morph: pill membesar + transparan, kaca refraksi terlihat. */
-.mgn-nav .lgt-indicator.mgn-morph {
-  transform: scale(1.15);
-  background: rgba(255, 255, 255, 0.16);
-  box-shadow: none;
-}
-
-.dark .mgn-nav .lgt-indicator.mgn-morph {
-  background: transparent;
-}
-
-/* Fase settling: mengecil + cross-fade kembali ke pill abu. */
-.mgn-nav .lgt-indicator.mgn-morph.mgn-settling {
-  background: rgb(0 0 0 / 0.075);
-  transition:
-    left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.dark .mgn-nav .lgt-indicator.mgn-morph.mgn-settling {
-  background: rgb(255 255 255 / 0.12);
-}
-
-/* Lapisan kaca refraksi: hanya terlihat selama morph. */
-.mgn-nav .lgt-indicator .lg-layer {
-  opacity: 0;
-  transition: opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.mgn-nav .lgt-indicator.mgn-morph .lg-layer {
-  opacity: 1;
-  transition: opacity 0.48s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.mgn-nav .lgt-indicator.mgn-morph.mgn-settling .lg-layer {
-  opacity: 0;
-  transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+/* Salinan refraksi memakai filter milik bottom nav (id unik agar tidak
+   dobel dengan filter tab) — parameternya identik dengan tab. */
+.mgn-nav .lgt-label-glass {
+  filter: url(#mgn-text-refract);
 }
 
 /* Label slot: ikon di atas, teks di bawah. */
@@ -114,13 +71,6 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mgn-nav .lgt-indicator,
-  .mgn-nav .lgt-indicator .lg-layer {
-    transition: none;
-  }
 }
 
 @media (min-width: 768px) {
