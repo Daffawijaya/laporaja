@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth/session";
+import { AuthShell } from "@/components/layout/auth-shell";
 import { getTugasUser, labelPeriode, type Periode } from "@/lib/laporan-tambahan/queries";
 import { Button } from "@/components/ui/button";
 import { RefListCard } from "@/components/ui/ref-list-card";
@@ -26,22 +27,24 @@ export default async function Home() {
   const href = `/laporan?tahun=${periode.tahun}&bulan=${periode.bulan}`;
 
   return (
-    <div className="w-full">
-      <p className="text-sm text-neutral-500 md:hidden">Selamat datang, {profile.nama}</p>
-      <div className="mt-5 md:mt-1">
-        <RefListCard ariaLabel="Ringkasan laporan" title={`Halo, ${profile.nama}`}>
-          <p className="px-1 pb-3 text-sm text-neutral-500">
-            Laporan {labelPeriode(periode)}: {total === 0 ? "belum ada tugas" : `${terisi}/${total} section terisi`}.
-          </p>
-          <div className="flex justify-end px-1">
-            <Button asChild className="rounded-full">
-              <Link href={total === 0 ? "/laporan" : href}>
-                {terisi === total && total > 0 ? "Lihat laporan" : "Isi laporan"}
-              </Link>
-            </Button>
-          </div>
-        </RefListCard>
+    <AuthShell username={profile.username} role={profile.role}>
+      <div className="w-full">
+        <p className="text-sm text-neutral-500 md:hidden">Selamat datang, {profile.nama}</p>
+        <div className="mt-5 md:mt-1">
+          <RefListCard ariaLabel="Ringkasan laporan" title={`Halo, ${profile.nama}`}>
+            <p className="px-1 pb-3 text-sm text-neutral-500">
+              Laporan {labelPeriode(periode)}: {total === 0 ? "belum ada tugas" : `${terisi}/${total} section terisi`}.
+            </p>
+            <div className="flex justify-end px-1">
+              <Button asChild className="rounded-full">
+                <Link href={total === 0 ? "/laporan" : href}>
+                  {terisi === total && total > 0 ? "Lihat laporan" : "Isi laporan"}
+                </Link>
+              </Button>
+            </div>
+          </RefListCard>
+        </div>
       </div>
-    </div>
+    </AuthShell>
   );
 }
