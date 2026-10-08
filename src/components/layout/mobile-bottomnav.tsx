@@ -80,9 +80,10 @@ const SETTLE_MS = 360;
 const END_MS = SLIDE_MS;
 const LAND_MIN_MS = 240;
 const GLASS_FADE_MS = 400;
-const TEXT_SCALE_MAX = 7;
-const EDGE_W = 14;
-const EDGE_FEATHER = 6;
+// Warp teks dibuat kalem: scale kecil, pita rim sempit, feather lebar.
+const TEXT_SCALE_MAX = 1.5;
+const EDGE_W = 9;
+const EDGE_FEATHER = 9;
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -150,12 +151,11 @@ export function MobileBottomnav({ role }: { role: Role }) {
         indicator!,
         () => ({
           ...DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
-          // Config dinamis: ketebalan refraksi + kilau diskala oleh
-          // strength (0 = tak terlihat, 1 = penuh) agar kaca bloom-in
-          // dan dissolve-out mulus mengikuti fase morph.
-          glassThickness: 4 + 68 * strength,
+          // Config dinamis DIPERKECIL seperti tab filter: refraksi
+          // tipis + kilau samar saja agar tidak merobek tampilan.
+          glassThickness: 4 + 24 * strength,
           blur: 0,
-          specularOpacity: 0.7 * strength,
+          specularOpacity: 0.3 * strength,
           specularSat: 0,
           tintColor: "255,255,255",
           tintOpacity: 0,
@@ -632,7 +632,11 @@ export function MobileBottomnav({ role }: { role: Role }) {
                 scale={0}
                 xChannelSelector="R"
                 yChannelSelector="G"
+                result="warped"
               />
+              {/* Blur mikro: salinan warp melebur seperti bayangan kaca,
+                  bukan garis tegas seperti border. */}
+              <feGaussianBlur in="warped" stdDeviation="0.5" />
             </filter>
           </defs>
         </svg>

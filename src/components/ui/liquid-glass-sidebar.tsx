@@ -44,14 +44,16 @@ const END_MS = SLIDE_MS;
 const LAND_MIN_MS = 240;
 // Jeda cabut node kaca setelah fade-out selesai (jangan pop).
 const GLASS_FADE_MS = 400;
-const TEXT_SCALE_MAX = 7;
+// Warp teks dibuat kalem seperti tab filter: scale kecil, pita rim
+// sempit, feather lebar.
+const TEXT_SCALE_MAX = 1.5;
 // Kekuatan refraksi teks (feDisplacementMap scale) — dianimasikan 0↔MAX
 // karena filter url()↔none tidak bisa di-transition (selalu instant).
 // Lebar zona TEPI pill yang membiaskan teks: hanya pita di sekitar border
 // ATAS-BAWAH pill yang warp (mirror pita kiri-kanan pada tab), tengah pill
 // bersih (persis refraksi kaca asli).
-const EDGE_W = 14;
-const EDGE_FEATHER = 6;
+const EDGE_W = 9;
+const EDGE_FEATHER = 9;
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -127,12 +129,11 @@ export function LiquidGlassSidebar({
         indicator!,
         () => ({
           ...DEFAULT_LIQUID_GLASS_SWITCHER_CONFIG,
-          // Kaca netral saat geser: tanpa tint biru, tanpa kilau putih
-          // (specular 0 agar tidak ada glow di tepi/dalam pill),
-          // tanpa blur (refraksi tetap jalan).
-          glassThickness: 24,
+          // Config dinamis DIPERKECIL seperti tab filter: refraksi
+          // tipis + kilau samar saja agar tidak merobek tampilan.
+          glassThickness: 4 + 24 * strength,
           blur: 0,
-          specularOpacity: 0,
+          specularOpacity: 0.3 * strength,
           specularSat: 0,
           tintColor: "255,255,255",
           tintOpacity: 0,
@@ -323,6 +324,7 @@ export function LiquidGlassSidebar({
           snapToIndex(active, true);
           // Filter dibangun SEKALI (kaca stabil selama slide → fade mulus).
           indicatorGlass?.rebuild();
+          animateStrength(1, SLIDE_MS);
           trackRefraction();
           endInteraction();
           return;
@@ -341,7 +343,13 @@ export function LiquidGlassSidebar({
       window.cancelAnimationFrame(raf);
       cacheItemRects();
       const tick = () => {
-        indicatorGlass?.rebuild();
+        // Strength berubah → paksa hitung ulang filter walau ukuran sama.
+        if (strength !== builtStrength) {
+          builtStrength = strength;
+          indicatorGlass?.refresh();
+        } else {
+          indicatorGlass?.rebuild();
+        }
         updateTextRefraction();
         raf = window.requestAnimationFrame(tick);
       };
@@ -354,6 +362,31 @@ export function LiquidGlassSidebar({
 
     let textScale = 0;
     let textRaf = 0;
+
+    // Kekuatan refraksi kaca (0 = tak terlihat, 1 = penuh), dianimasikan
+    // dengan smoothstep seperti warp teks agar bloom/dissolve-nya mulus.
+    // getConfig di atas membaca nilai ini tiap rebuild.
+    let strength = 0;
+    let strengthRaf = 0;
+    let builtStrength = -1;
+
+    function animateStrength(target: number, ms: number) {
+      window.cancelAnimationFrame(strengthRaf);
+      const from = strength;
+      if (Math.abs(target - from) < 0.01 || ms <= 0) {
+        strength = target;
+        return;
+      }
+      const t0 = performance.now();
+      const tickS = (t: number) => {
+        const p = Math.min(1, (t - t0) / ms);
+        const e = p * p * (3 - 2 * p);
+        strength = from + (target - from) * e;
+        if (p < 1) strengthRaf = window.requestAnimationFrame(tickS);
+        else strength = target;
+      };
+      strengthRaf = window.requestAnimationFrame(tickS);
+    }
 
     function setTextScale(v: number) {
       textScale = v;
@@ -412,6 +445,7 @@ export function LiquidGlassSidebar({
       indicator!.classList.remove("lgs-settling");
       indicator!.classList.add("lgs-interacting");
       nav!.classList.add("lgs-engaged");
+      animateStrength(1, SETTLE_MS);
       cacheItemRects();
       updateTextRefraction();
       trackRefraction();
@@ -437,6 +471,7 @@ export function LiquidGlassSidebar({
           nav!.classList.remove("lgs-engaged");
         }
         indicator!.classList.add("lgs-settling");
+        animateStrength(0, fadeMs);
         // Warp teks ikut durasi fade yang sama → semua efek mendarat
         // di frame yang sama, tidak ada sisa animasi setelahnya.
         animateTextScale(0, fadeMs);
@@ -448,6 +483,10 @@ export function LiquidGlassSidebar({
       // Scale warp sudah 0 (no-op visual) — lepas kelas lalu cabut node
       // kaca setelah fade selesai (jangan pop).
       fastShrink = false;
+      // Strength sudah 0 di sini (ramp selesai bareng akhir settling)
+      // sehingga node kaca tak terlihat saat dicabut — tanpa pop.
+      strength = 0;
+      window.cancelAnimationFrame(strengthRaf);
       indicator!.classList.remove("lgs-interacting");
       indicator!.classList.remove("lgs-landing");
       indicator!.classList.remove("lgs-snapping");
@@ -643,6 +682,7 @@ export function LiquidGlassSidebar({
       window.clearTimeout(teardownTimer);
       stopTracking();
       window.cancelAnimationFrame(textRaf);
+      window.cancelAnimationFrame(strengthRaf);
       clearTextRefraction();
       indicatorGlass?.destroy();
       apiRef.current = null;
@@ -683,7 +723,11 @@ export function LiquidGlassSidebar({
                 scale={0}
                 xChannelSelector="R"
                 yChannelSelector="G"
+                result="warped"
               />
+              {/* Blur mikro: salinan warp melebur seperti bayangan kaca,
+                  bukan robekan tajam. */}
+              <feGaussianBlur in="warped" stdDeviation="0.5" />
             </filter>
           </defs>
         </svg>
