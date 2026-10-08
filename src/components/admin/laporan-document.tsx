@@ -185,7 +185,7 @@ export function LaporanDocument({ data }: { data: LaporanPdfData }) {
       : "-";
   const tahunTeks = data.periode ? String(data.periode.tahun) : "-";
   return (
-    <Document title={`${judulDokumen} ${data.ownerNama}`} author="LaporAja">
+    <Document title={`${judulDokumen} ${data.ownerNama}`} author="Laporaja">
       <Page size="A4" style={styles.page}>
         <Text style={styles.title}>{judulDokumen}</Text>
 

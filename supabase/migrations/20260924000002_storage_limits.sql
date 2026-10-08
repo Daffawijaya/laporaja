@@ -1,4 +1,4 @@
--- LaporAja migration 000002
+-- Laporaja migration 000002
 -- Scope: batasi ukuran dan tipe berkas pada bucket kegiatan-images.
 --
 -- Validasi di klien bisa dilewati dengan permintaan langsung ke Storage API,

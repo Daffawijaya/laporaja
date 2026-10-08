@@ -1,4 +1,4 @@
--- LaporAja laporan tambahan: bentuk ketiga "judul" (judul + deskripsi
+-- Laporaja laporan tambahan: bentuk ketiga "judul" (judul + deskripsi
 -- tanpa isian, mis. pembatas bab). Blok judul tidak wajib diisi dan tidak
 -- mengunci persetujuan.
 -- Cara pakai: tempel isi file ini sekali di Supabase Dashboard lalu SQL Editor.

@@ -27,7 +27,7 @@ export default async function LoginPage({
         <div className="flex flex-col items-center text-center">
           <Image
             src="/logolight.png"
-            alt="LaporAja"
+            alt="Laporaja"
             width={1697}
             height={372}
             priority

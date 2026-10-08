@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { downloadDriveFile, driveRootFolderId, isDriveConfigured, isUnderRoot } from "@/lib/drive/client";
 
 // Proxy bytes gambar Drive untuk <img> (butuh login + berkas harus di bawah
-// folder root LaporAja). Berkas Drive tidak berubah, jadi boleh di-cache lama.
+// folder root Laporaja). Berkas Drive tidak berubah, jadi boleh di-cache lama.
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!isDriveConfigured()) {
     return NextResponse.json({ message: "Google Drive belum dikonfigurasi." }, { status: 500 });

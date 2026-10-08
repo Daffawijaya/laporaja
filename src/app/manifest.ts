@@ -4,8 +4,8 @@ import type { MetadataRoute } from "next";
 // aplikasi di Android (prompt) maupun iOS (tambah manual).
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "LaporAja",
-    short_name: "LaporAja",
+    name: "Laporaja",
+    short_name: "Laporaja",
     description: "Aplikasi pelaporan yang bersih dan mudah dipakai.",
     start_url: "/",
     display: "standalone",

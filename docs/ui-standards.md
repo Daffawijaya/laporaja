@@ -1,7 +1,7 @@
-# Standar Implementasi UI LaporAja
+# Standar Implementasi UI Laporaja
 
 Referensi: https://github.com/miqdadbadjuber/anti-slop (filter, bukan style guide).
-Arah visual LaporAja ada di `DESIGN.md`. Dokumen ini menerjemahkan prinsip anti-slop menjadi aturan kerja harian.
+Arah visual Laporaja ada di `DESIGN.md`. Dokumen ini menerjemahkan prinsip anti-slop menjadi aturan kerja harian.
 
 ## Prinsip dasar
 
@@ -13,7 +13,7 @@ Arah visual LaporAja ada di `DESIGN.md`. Dokumen ini menerjemahkan prinsip anti-
 6. Kontras teks memenuhi WCAG AA (4.5:1 untuk teks normal, 3:1 untuk teks besar).
 7. Semua elemen interaktif bisa dipakai keyboard (Tab, Enter, Escape) dan punya indikator fokus yang terlihat. Tidak boleh menghapus outline tanpa pengganti.
 
-## Batasan dosis LaporAja
+## Batasan dosis Laporaja
 
 - Glass maksimal 2 permukaan dalam satu layar.
 - Tidak ada glow yang menyebar ke banyak elemen.

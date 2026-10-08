@@ -1,4 +1,4 @@
-// Service worker minimal LaporAja: membuat aplikasi memenuhi syarat pasang
+// Service worker minimal Laporaja: membuat aplikasi memenuhi syarat pasang
 // (butuh fetch handler) + cache ringan berkas statis agar navigasi tetap
 // jalan saat koneksi putus. Hanya metode GET seasal; API/postingan login
 // tidak pernah di-cache.

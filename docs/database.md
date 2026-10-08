@@ -1,4 +1,4 @@
-# Database LaporAja
+# Database Laporaja
 
 Tahap ini hanya database dan model data. Tidak ada fitur UI baru.
 

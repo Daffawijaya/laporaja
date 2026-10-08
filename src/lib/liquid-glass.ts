@@ -134,8 +134,11 @@ function generateDisplacementMap(
       const dX = (-cos * disp) / maxDisp;
       const dY = (-sin * disp) / maxDisp;
       const idx = (y1 * w + x1) * 4;
-      d[idx] = (128 + dX * 127 * op + 0.5) | 0;
-      d[idx + 1] = (128 + dY * 127 * op + 0.5) | 0;
+      // Dither ±1 LSB: memecah banding 8-bit agar lengkungan mulus.
+      const j1 = Math.random() * 2 - 1;
+      const j2 = Math.random() * 2 - 1;
+      d[idx] = (128 + dX * 127 * op + j1 + 0.5) | 0;
+      d[idx + 1] = (128 + dY * 127 * op + j2 + 0.5) | 0;
     }
   }
   ctx.putImageData(img, 0, 0);
@@ -183,7 +186,7 @@ function generateSpecularMap(
       const edge = Math.sqrt(Math.max(0, 1 - (1 - fromSide) ** 2));
       const coeff = dot * edge;
       const col = (255 * coeff) | 0;
-      const alpha = (col * coeff * op) | 0;
+      const alpha = (col * coeff * op + (Math.random() * 2 - 1)) | 0;
       const idx = (y1 * w + x1) * 4;
       d[idx] = col;
       d[idx + 1] = col;
@@ -319,15 +322,21 @@ function updateFilter(
     cfg.glassThickness,
     bezel,
     cfg.ior,
-    128
+    256
   );
   const maxDisp = Math.max(...Array.from(profile).map(Math.abs)) || 1;
-  const dispUrl = generateDisplacementMap(w, h, radius, bezel, profile, maxDisp);
+  // Kualitas tinggi: peta displacement + specular di-render 2x lalu
+  // di-downscale feImage ke ukuran userSpace, sehingga gradasi refraksi
+  // rapat dan tidak pecah/berundak. Ukuran pill kecil jadi biayanya ringan.
+  const S = 2;
+  const mw = Math.max(8, Math.round(w * S));
+  const mh = Math.max(8, Math.round(h * S));
+  const dispUrl = generateDisplacementMap(mw, mh, radius * S, bezel * S, profile, maxDisp);
   const specUrl = generateSpecularMap(
-    w,
-    h,
-    radius,
-    bezel * 2.5,
+    mw,
+    mh,
+    radius * S,
+    bezel * S * 2.5,
     !!cfg.balancedSpecular
   );
   const scale = maxDisp * cfg.scaleRatio;

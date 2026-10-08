@@ -166,13 +166,13 @@ export function DesktopWindow({
     <div className="ref-shell hidden md:flex">
       {/* Sidebar kiri ala referensi */}
       <aside className="flex w-[260px] shrink-0 flex-col gap-1 overflow-y-auto px-4 py-2">
-        <Link href={isAdmin ? "/admin" : "/"} aria-label="LaporAja beranda" className="flex min-h-[60px] items-center">
+        <Link href={isAdmin ? "/admin" : "/"} aria-label="Laporaja beranda" className="flex min-h-[60px] items-center">
           {/* Wordmark punya dua berkas: terang untuk mode terang, gelap untuk
               mode gelap. Ditukar lewat kelas dark, bukan state JS, supaya tidak
               ada kedipan sesudah hidrasi. */}
           <Image
             src="/logolight.png"
-            alt="LaporAja"
+            alt="Laporaja"
             width={1697}
             height={372}
             priority

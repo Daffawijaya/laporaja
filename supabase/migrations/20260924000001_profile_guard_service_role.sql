@@ -1,4 +1,4 @@
--- LaporAja migration 000001
+-- Laporaja migration 000001
 -- Scope: izinkan service role (kode server tepercaya seperti script seed)
 -- mengubah role/bidang_id. Guard tetap berlaku penuh untuk JWT user biasa.
 --

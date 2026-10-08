@@ -1,4 +1,4 @@
--- LaporAja penyederhanaan indikator kinerja
+-- Laporaja penyederhanaan indikator kinerja
 -- Scope: indikator menjadi sederhana dan personal.
 -- - Tanpa periode (tahun dan rentang bulan dibuang).
 -- - Tanpa cakupan bidang (hanya milik satu user).

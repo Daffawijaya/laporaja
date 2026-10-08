@@ -1,4 +1,4 @@
--- LaporAja laporan tambahan: deskripsi formulir (ala Google Forms)
+-- Laporaja laporan tambahan: deskripsi formulir (ala Google Forms)
 -- Teks petunjuk di bawah judul, opsional, maksimal 1000 karakter.
 
 alter table public.laporan_tambahan

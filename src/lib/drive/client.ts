@@ -140,7 +140,7 @@ export async function trashDriveFile(fileId: string) {
   assertOk(res, "trash");
 }
 
-// Pastikan file berada di bawah folder root LaporAja (tahan terhadap ID
+// Pastikan file berada di bawah folder root Laporaja (tahan terhadap ID
 // acak milik folder lain). Menelusuri parents maksimal 4 tingkat.
 export async function isUnderRoot(fileId: string, rootId: string): Promise<boolean> {
   let current = fileId;

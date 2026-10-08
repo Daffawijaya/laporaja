@@ -1,4 +1,4 @@
--- LaporAja: ganti istilah "laporan bawaan" menjadi "section"
+-- Laporaja: ganti istilah "laporan bawaan" menjadi "section"
 -- Rename tabel (data ikut pindah) + index + nama policy.
 
 alter table if exists public.laporan_bawaan rename to laporan_section;

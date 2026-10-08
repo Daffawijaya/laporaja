@@ -1,4 +1,4 @@
--- LaporAja pengaturan umum (kunci-nilai): mis. unit kerja yang tampil di
+-- Laporaja pengaturan umum (kunci-nilai): mis. unit kerja yang tampil di
 -- rekap admin dan bisa diubah dari kartu Info di builder section.
 -- Cara pakai: tempel isi file ini sekali di Supabase Dashboard lalu SQL Editor.
 

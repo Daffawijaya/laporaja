@@ -1,4 +1,4 @@
--- LaporAja laporan tambahan: kolom isian dinamis per laporan
+-- Laporaja laporan tambahan: kolom isian dinamis per laporan
 -- Perubahan dari skema baris 6-kolom tetap: admin menentukan sendiri
 -- kolom apa saja yang diisi (label + tipe: text/textarea/date/number)
 -- sehingga satu laporan bisa dipakai untuk format pendataan apa pun.

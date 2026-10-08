@@ -13,7 +13,7 @@ interface PerintahPasang extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-// Tombol unduh aplikasi: sekali klik memasang LaporAja ke HP. Android
+// Tombol unduh aplikasi: sekali klik memasang Laporaja ke HP. Android
 // memakai prompt bawaan; iPhone/iPad memakai panduan manual karena Apple
 // tidak menyediakan prompt (Bagikan > Tambah ke Layar Utama). Sembunyi
 // sendiri bila sudah berjalan sebagai aplikasi.
@@ -67,10 +67,10 @@ export function UnduhAplikasi() {
     <div>
       <div className="flex flex-col gap-2 px-1 pb-1">
         <p className="text-sm text-neutral-500">
-          Pasang LaporAja ke HP agar dibuka seperti aplikasi.
+          Pasang Laporaja ke HP agar dibuka seperti aplikasi.
         </p>
         <span className="flex justify-end">
-          <Button onClick={() => void unduh()} className="rounded-full" aria-label="Unduh aplikasi LaporAja">
+          <Button onClick={() => void unduh()} className="rounded-full" aria-label="Unduh aplikasi Laporaja">
             <Download aria-hidden="true" />
             Unduh Aplikasi
           </Button>
@@ -86,7 +86,7 @@ export function UnduhAplikasi() {
           <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm">
             <li>Ketuk tombol <strong>Bagikan</strong> di Safari (kotak + panah).</li>
             <li>Pilih <strong>Tambah ke Layar Utama</strong>.</li>
-            <li>Ketuk <strong>Tambah</strong> — ikon LaporAja muncul di HP.</li>
+            <li>Ketuk <strong>Tambah</strong> — ikon Laporaja muncul di HP.</li>
           </ol>
         ) : (
           <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm">

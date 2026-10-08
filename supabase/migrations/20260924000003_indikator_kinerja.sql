@@ -1,4 +1,4 @@
--- LaporAja indikator kinerja migration
+-- Laporaja indikator kinerja migration
 -- Scope: indikator kinerja + relasi kegiatan. Tidak ada perubahan tabel lama.
 --
 -- Model:

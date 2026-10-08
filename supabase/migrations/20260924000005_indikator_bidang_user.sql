@@ -1,4 +1,4 @@
--- LaporAja indikator per bidang atau per user
+-- Laporaja indikator per bidang atau per user
 -- Scope: kembalikan cakupan bidang. Satu indikator tepat milik satu bidang
 -- atau satu user. Kelola dari menu Bidang (per bidang) dan menu User (per user).
 -- Target tetap jumlah per bulan (target_bulanan), tanpa periode.

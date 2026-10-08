@@ -1,4 +1,4 @@
--- LaporAja laporan tambahan: bentuk isian per laporan (tabel vs esai)
+-- Laporaja laporan tambahan: bentuk isian per laporan (tabel vs esai)
 -- Tabel = baris-baris data berisi kolom-kolom (mis. progres verifikasi).
 -- Esai = satu isian teks panjang per user (mis. rekomendasi).
 -- Laporan yang sudah ada otomatis menjadi tabel.

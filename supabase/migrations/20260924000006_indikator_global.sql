@@ -1,4 +1,4 @@
--- LaporAja indikator global
+-- Laporaja indikator global
 -- Scope: indikator boleh tanpa pemilik (global, berlaku untuk semua user).
 -- Form tambah di menu Indikator hanya nama dan jumlah per bulan.
 -- Indikator khusus bidang atau user tetap dikelola dari menu Bidang dan User.

@@ -1,4 +1,4 @@
-# LaporAja
+# Laporaja
 
 Aplikasi pelaporan internal. Login memakai username dan kata sandi
 (tanpa email di UX). Peran: `superadmin` masuk ke `/admin`,

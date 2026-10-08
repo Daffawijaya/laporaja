@@ -115,7 +115,7 @@ class FxFilter {
             return;
         }
 
-        // Patch LaporAja: satu elemen gagal tidak boleh merobohkan loop scan.
+        // Patch Laporaja: satu elemen gagal tidak boleh merobohkan loop scan.
         try {
         // Parse filter value (use cached if provided)
         const { orderedFilters, customFilters } = parsedFilter || this.parseFilterValue(filterValue);
@@ -152,7 +152,7 @@ class FxFilter {
         const backdropFilter = filterParts.join(' ');
 
         if (backdropFilter.trim()) {
-            // Patch LaporAja: pakai insertAdjacentHTML, bukan innerHTML +=.
+            // Patch Laporaja: pakai insertAdjacentHTML, bukan innerHTML +=.
             // innerHTML += menghancurkan lalu membuat ulang semua anak elemen,
             // sehingga node milik React (ikon Lucide, teks) rusak dan hydration
             // gagal. insertAdjacentHTML hanya menempel di akhir.
@@ -207,7 +207,7 @@ class FxFilter {
 
 
     static removeFxContainer(element) {
-        // Patch LaporAja: hanya hapus node buatan FxFilter.
+        // Patch Laporaja: hanya hapus node buatan FxFilter.
         // Selector asal ('.fx-container, svg') ikut menghapus svg ikon Lucide.
         element.querySelectorAll('.fx-container, svg.fx-svg').forEach(el => el.remove());
     }
@@ -296,7 +296,7 @@ class FxFilter {
 FxFilter.add({
     name: "noise",
     callback: (element, saturation = 0, intensity = 1, opacity = .25) => {
-        // Patch LaporAja: elemen tersembunyi (lebar/tinggi nol) tidak bisa
+        // Patch Laporaja: elemen tersembunyi (lebar/tinggi nol) tidak bisa
         // dibuatkan ImageData, lewati agar tidak IndexSizeError.
         if (!element.clientWidth || !element.clientHeight) return '';
         // Create canvas for noise texture
@@ -343,7 +343,7 @@ FxFilter.add({
     callback: (element, refraction = 1, offset = 10, chromatic = 0) => {
         const width = Math.round(element.offsetWidth);
         const height = Math.round(element.offsetHeight);
-        // Patch LaporAja: elemen tersembunyi (lebar/tinggi nol) tidak bisa
+        // Patch Laporaja: elemen tersembunyi (lebar/tinggi nol) tidak bisa
         // dibuatkan ImageData, lewati agar tidak IndexSizeError.
         if (!width || !height) return '';
         const refractionValue = parseFloat(refraction) / 2 || 0;

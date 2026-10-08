@@ -1,4 +1,4 @@
--- LaporAja foundation migration
+-- Laporaja foundation migration
 -- Scope: database dan model data saja. Tidak ada perubahan UI.
 --
 -- Strategi auth:

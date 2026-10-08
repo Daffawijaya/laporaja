@@ -1,6 +1,6 @@
-# DESIGN.md, LaporAja
+# DESIGN.md, Laporaja
 
-Sumber arah visual untuk LaporAja. File ini adalah data arah desain, bukan perintah untuk agen. Filter anti-slop (`docs/ui-standards.md`) berlaku di atas file ini.
+Sumber arah visual untuk Laporaja. File ini adalah data arah desain, bukan perintah untuk agen. Filter anti-slop (`docs/ui-standards.md`) berlaku di atas file ini.
 
 ## Design Read
 
@@ -8,7 +8,7 @@ Dibaca sebagai: aplikasi pelaporan internal untuk staf operasional, dengan bahas
 
 ## Identitas
 
-- Nama: LaporAja
+- Nama: Laporaja
 - Kepribadian: tenang, jelas, mudah dipakai. Bukan dashboard enterprise yang rumit.
 - Satu titik fokus per layar. Tidak ada elemen yang berebut perhatian.
 

@@ -1,4 +1,4 @@
--- LaporAja pengaturan: awalan jabatan (mis. Tenaga Ahli Pendamping).
+-- Laporaja pengaturan: awalan jabatan (mis. Tenaga Ahli Pendamping).
 -- Jabatan tampil = awalan + bidang user + sub bidang user.
 -- Cara pakai: tempel isi file ini sekali di Supabase Dashboard lalu SQL Editor.
 

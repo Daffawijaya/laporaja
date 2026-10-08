@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { driveRootFolderId, isDriveConfigured, isUnderRoot, trashDriveFile } from "@/lib/drive/client";
 
 // Trash berkas gambar Drive milik laporan user. Berkas harus berada di
-// bawah folder root LaporAja (lapisan pengaman selain sesi login).
+// bawah folder root Laporaja (lapisan pengaman selain sesi login).
 export async function POST(req: Request) {
   if (!isDriveConfigured()) {
     return NextResponse.json({ message: "Google Drive belum dikonfigurasi." }, { status: 500 });

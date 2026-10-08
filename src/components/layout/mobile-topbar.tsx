@@ -14,12 +14,12 @@ export function MobileTopbar({ initial }: { initial: string }) {
         className="mnavbar-blur pointer-events-none absolute inset-0"
       />
       <div className="relative flex items-center justify-between gap-3 px-4 pt-4 pb-4">
-        <Link href="/" aria-label="LaporAja beranda" className="flex min-h-[44px] items-center">
+        <Link href="/" aria-label="Laporaja beranda" className="flex min-h-[44px] items-center">
           {/* Versi terang/gelap ditukar lewat kelas dark supaya konsisten dengan
               sidebar desktop dan bebas kedipan hidrasi. */}
           <Image
             src="/logolight.png"
-            alt="LaporAja"
+            alt="Laporaja"
             width={1697}
             height={372}
             priority

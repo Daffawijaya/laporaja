@@ -1,4 +1,4 @@
--- LaporAja section builder: urutan bebas antar section di halaman admin.
+-- Laporaja section builder: urutan bebas antar section di halaman admin.
 -- Section tetap (kegiatan, rekomendasi) dan laporan dinamis bisa disusun
 -- dalam satu urutan. Urutan dinamis juga dipakai di halaman laporan user.
 -- Cara pakai: tempel isi file ini sekali di Supabase Dashboard lalu SQL Editor.

@@ -1,4 +1,4 @@
--- LaporAja laporan tambahan (tugas isian UMKM per bidang per bulan)
+-- Laporaja laporan tambahan (tugas isian UMKM per bidang per bulan)
 -- Alur: superadmin membuat laporan (judul + bulan/tahun) lalu menautkan ke
 -- satu/lebih bidang. User yang bidangnya tertaut WAJIB mengisi (tambah baris
 -- isian UMKM). Approve bulanan dikunci selama ada tugas belum terisi.

@@ -1,4 +1,4 @@
--- LaporAja laporan bawaan: master + penugasan bidang untuk tiga laporan
+-- Laporaja laporan bawaan: master + penugasan bidang untuk tiga laporan
 -- default (kegiatan, rekomendasi, indikator) agar bisa diatur dari daftar
 -- /admin/laporan-tambahan seperti laporan tambahan.
 -- Semantik: bidang yang tertaut = WAJIB (mengunci Setujui bila belum
